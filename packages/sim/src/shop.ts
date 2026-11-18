@@ -1,3 +1,5 @@
+import { TIER_PRICE_PREMIUM, TIER_UNLOCK } from './balance';
+
 export type ShopTierId = 'cart' | 'stall' | 'small-shop';
 
 export interface ShopTier {
@@ -16,6 +18,8 @@ export interface ShopTier {
   readonly unlockReputation: number;
   /** Daily customer demand multiplier relative to the lowest tier. */
   readonly demandMultiplier: number;
+  /** Bowl price multiplier: a bigger venue charges more for the same dish. */
+  readonly pricePremium: number;
 }
 
 export const SHOP_TIERS: readonly ShopTier[] = [
@@ -26,9 +30,10 @@ export const SHOP_TIERS: readonly ShopTier[] = [
     gridHeight: 4,
     seats: 2,
     stoves: 1,
-    unlockCost: 0,
-    unlockReputation: 0,
+    unlockCost: TIER_UNLOCK.cart.cost,
+    unlockReputation: TIER_UNLOCK.cart.reputation,
     demandMultiplier: 1,
+    pricePremium: TIER_PRICE_PREMIUM.cart,
   },
   {
     id: 'stall',
@@ -37,9 +42,10 @@ export const SHOP_TIERS: readonly ShopTier[] = [
     gridHeight: 5,
     seats: 4,
     stoves: 2,
-    unlockCost: 400,
-    unlockReputation: 2,
+    unlockCost: TIER_UNLOCK.stall.cost,
+    unlockReputation: TIER_UNLOCK.stall.reputation,
     demandMultiplier: 1.5,
+    pricePremium: TIER_PRICE_PREMIUM.stall,
   },
   {
     id: 'small-shop',
@@ -48,9 +54,10 @@ export const SHOP_TIERS: readonly ShopTier[] = [
     gridHeight: 7,
     seats: 8,
     stoves: 3,
-    unlockCost: 1200,
-    unlockReputation: 4,
+    unlockCost: TIER_UNLOCK['small-shop'].cost,
+    unlockReputation: TIER_UNLOCK['small-shop'].reputation,
     demandMultiplier: 2.2,
+    pricePremium: TIER_PRICE_PREMIUM['small-shop'],
   },
 ];
 

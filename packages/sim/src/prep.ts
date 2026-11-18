@@ -2,6 +2,7 @@ import { RECIPES } from './recipes';
 import type { RecipeId } from './recipes';
 import { MASTERY_PRICE_PER_LEVEL } from './progression';
 import type { ActionResult } from './progression';
+import { getTier } from './shop';
 import type { SimState } from './state';
 
 export const STOCK_BOWL_COST = 3;
@@ -16,12 +17,13 @@ export function effectiveMenu(state: SimState): readonly RecipeId[] {
   return on.length > 0 ? on : state.unlockedRecipes.slice(0, 1);
 }
 
-/** Sale price of one plain bowl: list price x reputation x mastery x price step. */
+/** Sale price of one plain bowl: list price x tier x reputation x mastery x price step. */
 export function salePrice(state: SimState, id: RecipeId): number {
+  const tier = getTier(state.tierId).pricePremium;
   const rep = 1 + Math.min(state.economy.reputation, 5) * 0.02;
   const mastery = 1 + state.mastery[id] * MASTERY_PRICE_PER_LEVEL;
   const step = 1 + state.priceAdjust[id] * PRICE_STEP;
-  return Math.max(1, Math.round(RECIPES[id].basePrice * rep * mastery * step));
+  return Math.max(1, Math.round(RECIPES[id].basePrice * tier * rep * mastery * step));
 }
 
 export function toggleMenu(state: SimState, id: RecipeId): ActionResult {

@@ -81,12 +81,19 @@ export class ShopScene extends Phaser.Scene {
   private sessionMode: 'service' | 'build' = 'service';
   private settled = false;
   private speedButton: ButtonHandle | null = null;
+  /** Qualities of the bowls hand-cooked in the kitchen (ServiceScene) before opening. */
+  private chefQualities: readonly (number | null)[] = [];
 
   constructor() {
     super(SHOP_SCENE_KEY);
   }
 
-  init(data: { session?: boolean; mode?: 'service' | 'build' }): void {
+  init(data: {
+    session?: boolean;
+    mode?: 'service' | 'build';
+    chefQualities?: readonly (number | null)[];
+  }): void {
+    this.chefQualities = data?.chefQualities ?? [];
     this.inSession = data?.session === true && session.active;
     this.sessionMode = data?.mode === 'build' ? 'build' : 'service';
     this.settled = false;
@@ -196,7 +203,7 @@ export class ShopScene extends Phaser.Scene {
   private finishDay(): void {
     if (!this.plan || this.settled) return;
     this.settled = true;
-    const { state } = settleDay(this.state, this.plan);
+    const { state } = settleDay(this.state, this.plan, { chefQualities: this.chefQualities });
     session.update(state);
     this.scene.start(SCENE_KEYS.report);
   }

@@ -1,3 +1,4 @@
+import { STOVE_COST } from './balance';
 export type FurnitureKind = 'stool' | 'table' | 'counter' | 'stove' | 'lantern' | 'plant';
 
 export interface FurnitureDef {
@@ -25,7 +26,14 @@ export const FURNITURE: readonly FurnitureDef[] = [
     solid: true,
     appeal: 0,
   },
-  { kind: 'stove', name: 'Stove', cost: 90, frame: 'furniture/stove', solid: true, appeal: 0 },
+  {
+    kind: 'stove',
+    name: 'Stove',
+    cost: STOVE_COST,
+    frame: 'furniture/stove',
+    solid: true,
+    appeal: 0,
+  },
   {
     kind: 'lantern',
     name: 'Lantern',

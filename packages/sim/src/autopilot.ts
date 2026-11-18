@@ -1,10 +1,11 @@
-import { settleDay } from './day';
+import { playerCapacity, settleDay, staffCapacity } from './day';
 import type { DayResult } from './day';
 import { buyStock, toggleMenu } from './prep';
 import {
   EQUIPMENT,
   MASTERY_MAX,
   RECIPE_UNLOCKS,
+  STAFF_HIRE_COST,
   buyEquipment,
   hireStaff,
   levelStaff,
@@ -15,7 +16,17 @@ import { planService } from './service';
 import { upgradeInfo, upgradeTier } from './build';
 import { STOCK_BOWL_COST } from './prep';
 import type { RecipeId } from './recipes';
-import type { SimState } from './state';
+import type { EquipmentId, SimState } from './state';
+
+import { AUTOPILOT_RESERVE, SAVE_AHEAD_STARS } from './balance';
+import { furnishToCapacity } from './furnish';
+
+export { AUTOPILOT_RESERVE, SAVE_AHEAD_STARS };
+
+function equipmentCost(id: EquipmentId, s: SimState): number {
+  const def = EQUIPMENT.find((e) => e.id === id);
+  return def?.costs[s.equipment[id]] ?? Number.POSITIVE_INFINITY;
+}
 
 function apply(state: SimState, result: { ok: boolean; state?: SimState }): SimState {
   return result.ok && result.state ? result.state : state;
@@ -28,16 +39,29 @@ function apply(state: SimState, result: { ok: boolean; state?: SimState }): SimS
 export function autopilotPrep(start: SimState): SimState {
   let s = start;
   // Spend before buying stock so the shop never goes broke from upgrades.
-  const reserve = 40;
-  // Once the next tier's star gate is open, hoard coins for it.
-  const gate = upgradeInfo(s);
-  const saving = gate !== null && s.economy.reputation >= gate.reputation;
-  const afford = (cost: number): boolean => !saving && s.economy.fishCoins - cost >= reserve;
+  const reserve = AUTOPILOT_RESERVE;
 
   const up = upgradeInfo(s);
   if (up && s.economy.fishCoins >= up.cost + reserve && s.economy.reputation >= up.reputation) {
     s = apply(s, upgradeTier(s));
   }
+  // A new tier carries the old layout over; fill the new floor before anything else.
+  s = furnishToCapacity(s, Math.max(0, s.economy.fishCoins - reserve));
+
+  // The kitchen turned cats away yesterday: more cooking capacity pays for itself, so it
+  // comes before saving for the next tier.
+  const tooSlow = (s.lastReport?.complaintKinds['too-slow'] ?? 0) > 0;
+  if (tooSlow) {
+    const canSpend = (cost: number): boolean => s.economy.fishCoins - cost >= reserve;
+    if (canSpend(equipmentCost('burner', s))) s = apply(s, buyEquipment(s, 'burner'));
+    if (canSpend(STAFF_HIRE_COST)) s = apply(s, hireStaff(s));
+  }
+
+  // Once the next tier's star gate is (nearly) open, hoard coins for it.
+  const gate = upgradeInfo(s);
+  const saving = gate !== null && s.economy.reputation >= gate.reputation - SAVE_AHEAD_STARS;
+  const afford = (cost: number): boolean => !saving && s.economy.fishCoins - cost >= reserve;
+
   for (const id of Object.keys(RECIPE_UNLOCKS) as RecipeId[]) {
     if (!s.unlockedRecipes.includes(id) && afford(RECIPE_UNLOCKS[id].cost)) {
       s = apply(s, unlockRecipe(s, id));
@@ -58,7 +82,8 @@ export function autopilotPrep(start: SimState): SimState {
   for (const member of s.staff.roster) {
     if (afford(40 * member.level)) s = apply(s, levelStaff(s, member.id));
   }
-  const wanted = Math.max(0, 14 + s.staff.roster.length * 6 - s.stock);
+  // Stock what the kitchen can actually cook today (plus a small buffer).
+  const wanted = Math.max(0, playerCapacity(s) + staffCapacity(s) + 2 - s.stock);
   const bowls = Math.min(wanted, Math.floor(s.economy.fishCoins / STOCK_BOWL_COST));
   return bowls > 0 ? apply(s, buyStock(s, bowls)) : s;
 }

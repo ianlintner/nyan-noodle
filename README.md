@@ -2,9 +2,35 @@
 
 A free-to-play browser cat ramen shop management game: pixel art with voxel-style shading, a cozy Cook/Serve daily loop, and incremental shop growth (Cart -> Stall -> Small Shop and beyond).
 
-See [PLAN.md](PLAN.md) for the stack, art direction, MVP scope and card breakdown.
+See [PLAN.md](PLAN.md) for the stack, art direction, MVP scope and card breakdown, and [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and where new code belongs.
 
-## Stack
+## Status
+
+MVP feature-complete on the stacked PR chain (#1-#8 plus this integration pass): sim core, art pipeline, shop scene, cooking minigames, build mode, day loop with saves, and a balanced Cart -> Stall -> Small Shop curve. No backend, accounts, ads or IAP. Not yet: audio, a real bitmap font, tiers beyond Small Shop, mobile/touch polish.
+
+## Play
+
+```sh
+npm install
+npm run dev          # http://127.0.0.1:5173
+```
+
+1. **Title**: _New game_ (or _Continue_ an autosave, _Import_ / _Export_ a save string).
+2. **Prep**: choose the menu, nudge prices (±3 steps of 10%), buy stock (3c a bowl). **Open the shop!**
+3. **Kitchen**: the ticket rail shows today's first seated cats. Click a ticket and cook it by hand:
+   - broth: hold `SPACE`/`W` to keep the needle in the green band,
+   - noodles: `SPACE` to stop the timer in the sweet spot for the ordered doneness,
+   - toppings: keys `1`–`6` in order, then `SPACE` to serve.
+
+   Good bowls earn bigger tips and more Reputation Stars. **Open doors!** starts the service; any ticket you skipped is cooked at your usual quality.
+
+4. **Service**: cats queue, sit and eat while you and your staff cook. Speed it up or _Skip day_.
+5. **Report**: sales, tips, costs, complaints (queue / sold out / kitchen too slow), stars and unlocks. The game **autosaves** here.
+6. **Upgrades** (stars + coins): recipes (Miso, Tonkotsu), mastery, knives / burner / signboard, staff cats. **Build** mode places stools, stoves, tables and decor, and buys the next shop tier.
+
+Expected pace: Stall around day 3–4, Small Shop around day 7–8.
+
+## Develop
 
 Phaser 4.2.1 + TypeScript + Vite, npm workspaces, Vitest, ESLint, Prettier, Playwright. Node >= 22.12.
 
@@ -12,50 +38,27 @@ Phaser 4.2.1 + TypeScript + Vite, npm workspaces, Vitest, ESLint, Prettier, Play
 | -------------- | --------------------------------------------------------------------- |
 | `packages/sim` | Pure deterministic TS simulation (no Phaser/DOM, seeded RNG)          |
 | `apps/game`    | Phaser rendering, UI, input; `src/theme/` holds palette + HUD helpers |
-| `e2e`          | Playwright smoke tests (run against the built, previewed bundle)      |
-
-## Scripts
+| `e2e`          | Playwright specs (run against the built, previewed bundle)            |
+| `scripts`      | Art generation, asset validation, headless sim, architecture tests    |
 
 ```sh
-npm install
-npm run dev          # Vite dev server on http://127.0.0.1:5173
-npm run check        # typecheck + lint + format:check + test + build
-npm run e2e          # Playwright smoke (first: npx playwright install chromium)
-npm run format       # Prettier write
+npm run check            # typecheck + lint + format:check + test + validate-assets + build
+npm run e2e              # Playwright (first: npx playwright install chromium)
+npm run sim:headless     # per-day CSV curve of the reference autopilot (SIM_SEED, SIM_DAYS)
+npm run assets:generate  # regenerate the sprite atlas, then npm run validate-assets
+npm run format           # Prettier write
 ```
 
-## Pixel config
+Dev URLs jump straight into a scene: `?scene=boot|title|prep|shop|service|report|upgrades`. The shop takes `seed=`, `tier=cart|stall|small-shop`, `speed=1..16`, `mode=build`, `coins=`, `rep=`; the service sandbox (no save) takes `seed=` and `count=1..8`. The boot scene shows the palette and HUD chrome.
 
-Native resolution 480x270 (16px tiles), `pixelArt: true`, integer-only zoom chosen from the viewport (`apps/game/src/config.ts`). No sub-pixel movement.
+### Balance
 
-## Theme
+Early-game knobs (cook cap, tier coin/star gates, tier price premium, stove cost, autopilot reserve) live in `packages/sim/src/balance.ts`. `balance.test.ts` pins the curve over 8 seeds and `e2e/mvp.spec.ts` plays 8 days in the browser and checks them against the headless sim day for day. Screenshots of that run are in `docs/mvp/`.
 
-The 24-colour art-direction palette lives in `apps/game/src/theme/palette.ts`. HUD helpers (`pixelText`, `drawPanel`, `createButton`) are in `apps/game/src/theme/hud.ts`. The boot scene renders every swatch and a sample panel. The pixel font is currently a monospace stand-in at the 8px base; a real bitmap font arrives with the art pipeline card.
+### Systems
 
-## Shop scene
-
-`apps/game/src/shop/` renders the shop on a tile grid. The sim (`planService` in `packages/sim`) produces a deterministic per-day timeline (arrivals, queue, seat, leave); `ShopDirector` only plays it back with A\* paths, y-sorted sprites (depth = feet line) and an integer-zoom camera (`+`/`-`/wheel, arrows/WASD/drag to pan). Open it with `?scene=shop` (extras: `seed=`, `tier=cart|stall|small-shop`, `speed=1..16`) or the boot scene's "Open shop" button. The e2e `shop.spec.ts` plays a scripted day for each tier.
-
-## Build mode
-
-The **Build** button (or `?mode=build`, plus `coins=` / `rep=` dev overrides) opens the catalog panel: pick a piece, hover for a green/red ghost, click to buy, `R` to turn, **Move** (free) and **Sell** (50% refund). Rules live in `packages/sim` (`catalog.ts` data, `layoutRules.ts` validity/seats/appeal, `build.ts` actions): the doorway and the cook's tile in front of each stove stay clear, every stool must stay reachable, seats are capped by tier and by stoves, and extra decor raises demand with diminishing returns. **To Stall / Small Shop** spends coins + reputation, grows the grid and re-centres the layout (pieces that no longer fit are refunded). Screenshots: `docs/build/`.
-
-## Service scene
-
-`apps/game/src/service/` hosts the interactive cooking phase. A ticket rail lists the day's orders; click one and run three minigames — a broth heat-hold bar (`SPACE`/`W` to heat, keep the needle in the green band), a noodle boil timer (`SPACE` to stop it on the firm/soft sweet spot), and topping assembly (keys `1`–`6` add each required topping in order). Then press `SPACE` to serve; bowl quality drives tip, rush (fast serve) and combo (consecutive good serves) bonuses, and a failed bowl (quality below `MIN_ACCEPT_QUALITY`) resets the combo. Open it with `?scene=service` (extras: `seed=`, `count=1..8`) or the boot scene.
-
-The scoring rules are pure and deterministic in `packages/sim/src/cooking.ts` (`scoreBowl`, `settleBowl`, `tipForQuality`, etc.); the scene only measures input and plays the sim's payout back. The measurement bridge (`apps/game/src/service/measure.ts`) converts raw minigame readings into the sim's `CookMeasurements`. `e2e/service.spec.ts` drives one scripted order through all three minigames via the `window.__nyanService` debug API and asserts the payout.
-
-## Day loop & saves
-
-The game opens on a title screen (Continue / New game / Import / Export). A day runs **Prep → Service → Report**:
-
-- **Prep** (`apps/game/src/meta/PrepScene.ts`): pick which owned dishes are on the menu, nudge prices (±3 steps of 10%), buy stock (3c per bowl, cap 40). **Open the shop!** plays the day in the shop scene (speed button, _Skip day_).
-- **Report** (`ReportScene.ts`): sales, tips, costs, profit, complaints by kind (waited too long / sold out / kitchen too slow), reputation delta and anything the new star level unlocked. It **autosaves** at day end.
-- **Upgrades** (`UpgradeScene.ts`): unlock recipes (Miso 1★/60c, Tonkotsu 2★/150c), train per-recipe mastery, buy equipment (knives, burner, signboard), hire and level staff cats who auto-cook at lower quality, and jump to build mode. Everything is gated by Reputation Stars.
-
-All rules are pure and deterministic in `packages/sim`: `prep.ts`, `progression.ts` (every action returns the next state or a typed reason), `day.ts` (`settleDay`) and `autopilot.ts` (reference player; `npm run sim:headless` prints a per-day curve).
-
-**Saves** (`packages/sim/src/save.ts`, `migrations.ts`; storage in `apps/game/src/meta/storage.ts`): a versioned JSON envelope written to IndexedDB with a localStorage fallback. `MIGRATIONS[n]` upgrades sim state version n → n+1 (v1/v2 saves load as v3); a damaged or newer-than-supported save is reported, never overwritten. **Export** copies a `NYAN1.<base64url>.<checksum>` string, **Import** validates it. `e2e/dayloop.spec.ts` plays 3 days, reloads and compares the state; screenshots are in `docs/daylog/`. `?scene=boot|shop|service|title|prep|report|upgrades` still jumps straight to a scene.
-
-No backend, accounts, ads or IAP.
+- **Shop scene** (`apps/game/src/shop/`): the sim's `planService` produces a per-day timeline (arrive, queue, seat, leave); `ShopDirector` plays it back with A\* paths, y-sorted sprites and an integer-zoom camera (`+`/`-`/wheel, arrows/WASD/drag). Screenshots: `docs/shop/`.
+- **Build mode** (`apps/game/src/build/`, rules in `catalog.ts`, `layoutRules.ts`, `build.ts`): ghost preview, `R` to rotate, free **Move**, **Sell** at 50%. The doorway and each stove's cook tile stay clear, every stool must be reachable, seats are capped by tier and stoves, decor raises demand. A tier upgrade grows the grid and re-centres the layout. Screenshots: `docs/build/`.
+- **Kitchen** (`apps/game/src/service/`): the scene measures input; `measure.ts` turns it into `CookMeasurements` and `packages/sim/src/cooking.ts` scores it (tips, rush, combo, failed bowls). `chef.ts` picks the day's hand-cooked tickets and `settleDay(..., { chefQualities })` applies them.
+- **Day loop & saves** (`apps/game/src/meta/`, sim `prep.ts`, `progression.ts`, `day.ts`): every action returns the next state or a typed reason. Saves are a versioned JSON envelope in IndexedDB with a localStorage fallback (`save.ts`, `migrations.ts`, `storage.ts`); damaged or newer saves are reported, never overwritten. Screenshots: `docs/daylog/`.
+- **Pixel config**: native 480x270 (16px tiles), `pixelArt: true`, integer-only zoom (`apps/game/src/config.ts`). Palette tokens in `apps/game/src/theme/palette.ts`; the art pipeline reads them. Text uses a monospace stand-in at the 8px base.

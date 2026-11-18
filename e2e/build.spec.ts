@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { getTier } from '../packages/sim/src/shop';
 
 interface Pt {
   x: number;
@@ -159,7 +160,7 @@ test('buying the next shop tier expands the grid and migrates the layout', async
   const after = await api(page, (a) => a.state());
   const size1 = await api(page, (a) => a.layoutSize());
   expect(after.tierId).toBe('stall');
-  expect(after.economy.fishCoins).toBe(1000 - 400);
+  expect(after.economy.fishCoins).toBe(1000 - getTier('stall').unlockCost);
   expect(size1.cols).toBeGreaterThan(size0.cols);
   expect(size1.rows).toBeGreaterThan(size0.rows);
   // Layout migrated: every piece survived, shifted into the centre of the wider floor.
@@ -173,7 +174,7 @@ test('buying the next shop tier expands the grid and migrates the layout', async
   await clickCell(page, 6, 2);
   const grown = await api(page, (a) => a.state());
   expect(grown.items.filter((i) => i.kind === 'stool')).toHaveLength(4);
-  expect(grown.economy.fishCoins).toBe(600 - 40);
+  expect(grown.economy.fishCoins).toBe(after.economy.fishCoins - 40);
   await shoot('tier-stall-furnished');
 
   const toggle = await api(page, (a) => a.toggleScreen());
@@ -184,7 +185,7 @@ test('buying the next shop tier expands the grid and migrates the layout', async
   expect((await api(page, (a) => a.counts())).served).toBeGreaterThan(0);
 
   // Can't skip ahead without the coins.
-  await open(page, 'mode=build&seed=2026&tier=cart&coins=100&rep=2');
+  await open(page, `mode=build&seed=2026&tier=cart&coins=${getTier('stall').unlockCost - 1}&rep=2`);
   await clickTool(page, UPGRADE);
   expect((await api(page, (a) => a.state())).tierId).toBe('cart');
   expect(await api(page, (a) => a.message())).toBe('Not enough Fish Coins');

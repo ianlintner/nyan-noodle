@@ -115,7 +115,7 @@ describe('progression gating by Reputation Stars', () => {
 
   it('reports newly crossed star gates as unlocks', () => {
     const s = createSimState(1, 'cart');
-    const notes = starUnlocks(0.8, 2.1, s);
+    const notes = starUnlocks(0.4, 2.1, s);
     expect(notes.join('|')).toContain('Miso Ramen recipe');
     expect(notes.join('|')).toContain('Tonkotsu Ramen recipe');
     expect(notes.join('|')).toContain('Stall expansion');

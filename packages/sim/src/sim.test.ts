@@ -8,7 +8,7 @@ import { createEconomy, bowlPrice, bowlCost, reputationGain, MAX_REPUTATION } fr
 import { generateOrder, dailyDemand } from './orders';
 import { createSimState, SIM_VERSION } from './state';
 import { createRng } from './rng';
-import { advanceDay, runSimulation } from './simulate';
+import { autopilotDay, autopilotRun } from './autopilot';
 
 describe('recipes', () => {
   it('defines three recipes (only shoyu is owned at the start)', () => {
@@ -154,7 +154,7 @@ describe('simulation', () => {
 
   it('advances a day and records a revenue history entry', () => {
     const state = createSimState(7, 'cart');
-    const next = advanceDay(state, createRng(7));
+    const next = autopilotDay(state).state;
     expect(next.clock.day).toBe(2);
     expect(next.lastReport).not.toBeNull();
     expect(next.revenueHistory).toHaveLength(1);
@@ -164,19 +164,17 @@ describe('simulation', () => {
   it('is byte-identical across runs for a fixed seed (30 days)', () => {
     const run = () => {
       const initial = createSimState(1337, 'cart');
-      const final = runSimulation(initial, createRng(1337), 30);
+      const final = autopilotRun(initial, 30).at(-1);
       return JSON.stringify(final);
     };
     const a = run();
     const b = run();
     expect(a).toBe(b);
-    expect(a).not.toBe(
-      JSON.stringify(runSimulation(createSimState(999, 'cart'), createRng(999), 30)),
-    );
+    expect(a).not.toBe(JSON.stringify(autopilotRun(createSimState(999, 'cart'), 30).at(-1)));
   });
 
   it('revenue curve grows as reputation rises', () => {
-    const final30 = runSimulation(createSimState(42, 'cart'), createRng(42), 30);
+    const final30 = autopilotRun(createSimState(42, 'cart'), 30).at(-1)!;
     expect(final30.revenueHistory).toHaveLength(30);
     const firstDays = final30.revenueHistory.slice(0, 7).reduce((a, b) => a + b, 0);
     const lastDays = final30.revenueHistory.slice(-7).reduce((a, b) => a + b, 0);

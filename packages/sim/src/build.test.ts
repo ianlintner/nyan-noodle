@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSimState } from './state';
 import type { SimState } from './state';
-import { SHOP_TIERS } from './shop';
+import { SHOP_TIERS, getTier } from './shop';
 import { FURNITURE, getFurniture, sellValue } from './catalog';
 import {
   activeSeats,
@@ -14,6 +14,8 @@ import {
 import type { BuildItem } from './layoutRules';
 import { checkPlacement, moveItem, placeItem, rotateItem, sellItem, upgradeTier } from './build';
 import { planService } from './service';
+
+const STALL_COST = getTier('stall').unlockCost;
 
 const withCoins = (
   s: SimState,
@@ -185,12 +187,12 @@ describe('shop tier upgrade', () => {
   it('needs coins and reputation, then expands the grid and keeps the layout valid', () => {
     const cart = createSimState(1, 'cart');
     expect(upgradeTier(withCoins(cart, 5000, 0))).toEqual({ ok: false, reason: 'reputation' });
-    expect(upgradeTier(withCoins(cart, 100, 5))).toEqual({ ok: false, reason: 'funds' });
+    expect(upgradeTier(withCoins(cart, STALL_COST - 1, 5))).toEqual({ ok: false, reason: 'funds' });
 
     const r = ok(upgradeTier(withCoins(cart, 5000, 5)));
     expect(r.state.tierId).toBe('stall');
     expect(r.refunded).toEqual([]);
-    expect(r.state.economy.fishCoins).toBe(5000 - 400);
+    expect(r.state.economy.fishCoins).toBe(5000 - STALL_COST);
     expect(validateLayout('stall', r.state.items)).toEqual([]);
     // Existing furniture survives, centred in the wider grid (one tile right).
     expect(r.state.items).toHaveLength(cart.items.length);
@@ -215,7 +217,7 @@ describe('shop tier upgrade', () => {
     };
     const up = ok(upgradeTier(s));
     expect(up.refunded.map((i) => i.id)).toEqual([90]);
-    expect(up.state.economy.fishCoins).toBe(5000 - 400 + getFurniture('stool').cost);
+    expect(up.state.economy.fishCoins).toBe(5000 - STALL_COST + getFurniture('stool').cost);
     expect(validateLayout('stall', up.state.items)).toEqual([]);
   });
 

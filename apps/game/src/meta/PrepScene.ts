@@ -18,7 +18,7 @@ import {
 import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
-import { SHOP_SCENE_KEY } from '../shop/ShopScene';
+import { SERVICE_SCENE_KEY } from '../service/ServiceScene';
 import { session } from './session';
 import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsText } from './ui';
 import { ATLAS_KEY } from '../shop/CatActor';
@@ -127,7 +127,7 @@ export class PrepScene extends Phaser.Scene {
     createButton(this, NATIVE_WIDTH - 126, NATIVE_HEIGHT - 26, 120, 18, 'Open the shop!', () => {
       if (s.stock <= 0) return this.msg.say('Buy some stock first - bowls need ingredients', false);
       void session.save().catch(() => undefined);
-      this.scene.start(SHOP_SCENE_KEY, { session: true, mode: 'service' });
+      this.scene.start(SERVICE_SCENE_KEY, { session: true });
     });
   }
 
@@ -177,7 +177,7 @@ export class PrepScene extends Phaser.Scene {
       buy: (n: number) => this.apply(buyStock(session.state, n)),
       toggle: (id: RecipeId) => this.apply(toggleMenu(session.state, id)),
       price: (id: RecipeId, d: number) => this.apply(adjustPrice(session.state, id, d)),
-      openShop: () => this.scene.start(SHOP_SCENE_KEY, { session: true, mode: 'service' }),
+      openShop: () => this.scene.start(SERVICE_SCENE_KEY, { session: true }),
       upgrades: () => this.scene.start(SCENE_KEYS.upgrades),
     };
     (window as unknown as { __nyanPrep: typeof api }).__nyanPrep = api;

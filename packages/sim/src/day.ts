@@ -17,7 +17,8 @@ import type { ServicePlan } from './service';
 import type { ComplaintKind, DayReport, SimState } from './state';
 
 /** Bowls the owner cooks alone each day, before equipment and staff. */
-export const PLAYER_BOWLS = 8;
+import { PLAYER_BOWLS } from './balance';
+export { PLAYER_BOWLS };
 export const BURNER_BOWLS_PER_LEVEL = 2;
 export const STAFF_BOWLS_PER_STATION = 5;
 /** Player bowl quality before mastery, equipment and jitter; staff cook worse. */
@@ -89,8 +90,22 @@ export interface DayResult {
  * Settle a planned service into coins, tips, complaints and reputation, then roll the
  * clock to the next day's prep. Deterministic: its own RNG stream is seeded from seed+day.
  */
-export function settleDay(state: SimState, plan: ServicePlan, rng?: Rng): DayResult {
-  const r = rng ?? createRng(settleSeed(state));
+export interface SettleOptions {
+  readonly rng?: Rng;
+  /**
+   * Qualities (0..100) of the bowls the owner cooked by hand in the minigames, applied in
+   * order to the owner's first bowls. Null/missing entries fall back to the modelled quality.
+   */
+  readonly chefQualities?: readonly (number | null)[];
+}
+
+export function settleDay(
+  state: SimState,
+  plan: ServicePlan,
+  options: SettleOptions = {},
+): DayResult {
+  const r = options.rng ?? createRng(settleSeed(state));
+  const chef = options.chefQualities ?? [];
   const menu = effectiveMenu(state);
   const complaintKinds: Record<ComplaintKind, number> = {
     queue: 0,
@@ -127,7 +142,10 @@ export function settleDay(state: SimState, plan: ServicePlan, rng?: Rng): DayRes
     }
     const id = menu.includes(visit.recipeId) ? visit.recipeId : (menu[0] ?? visit.recipeId);
     const byStaff = cooked >= playerCap;
-    const quality = Math.max(0, Math.min(100, cookQuality(state, byStaff, id) + r.int(-8, 8)));
+    // Always draw the jitter so hand-cooked bowls never shift later bowls' RNG stream.
+    const modelled = cookQuality(state, byStaff, id) + r.int(-8, 8);
+    const handCooked = byStaff ? undefined : chef[cooked];
+    const quality = Math.max(0, Math.min(100, Math.round(handCooked ?? modelled)));
     const price = salePrice(state, id);
     stock -= 1;
     cooked += 1;

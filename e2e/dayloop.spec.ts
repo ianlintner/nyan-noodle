@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import type Phaser from 'phaser';
 
 interface Report {
   day: number;
@@ -36,6 +37,19 @@ interface W {
     upgrades(): void;
   };
   __nyanShop?: { setSpeed(n: number): void; inSession(): boolean; done(): boolean };
+  __nyanService?: {
+    inSession(): boolean;
+    select(i: number): void;
+    setBrothHeat(h: number): void;
+    setNoodleSweep(s: number): void;
+    stopNoodles(): void;
+    addToppingByIndex(i: number): void;
+    serve(): void;
+    tickets(): { doneness: string }[];
+    required(): string[];
+    qualities(): (number | null)[];
+    openDoors(): void;
+  };
   __nyanReport?: { report(): Report; state(): Snapshot; next(): void; upgrades(): void };
   __nyanUpgrades?: {
     state(): Snapshot;
@@ -65,6 +79,50 @@ async function clickNative(page: Page, x: number, y: number): Promise<void> {
 
 const titleReady = (page: Page) =>
   page.waitForFunction(() => (window as unknown as W).__nyan?.registry.get('titleReady') === true);
+
+/** In the kitchen (ServiceScene, session mode): optionally hand-cook ticket 0, then open. */
+async function kitchen(page: Page, cookFirst: boolean): Promise<number | null> {
+  await page.waitForFunction(
+    () => (window as unknown as W).__nyan?.registry.get('serviceReady') === true,
+  );
+  expect(await page.evaluate(() => (window as unknown as W).__nyanService!.inSession())).toBe(true);
+  let quality: number | null = null;
+  if (cookFirst) {
+    quality = await page.evaluate(() => {
+      const k = (window as unknown as W).__nyanService!;
+      k.select(0);
+      for (let n = 0; n < 70; n++) k.setBrothHeat(n % 2 === 0 ? 0.6 : 0.7);
+      const d = k.tickets()[0]!.doneness;
+      k.setNoodleSweep(d === 'firm' ? 0.7 : d === 'soft' ? 0.55 : 0.62);
+      k.stopNoodles();
+      for (let i = 0; i < k.required().length; i++) k.addToppingByIndex(i);
+      k.serve();
+      return k.qualities()[0] ?? null;
+    });
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: `${SHOT_DIR}/kitchen.png` });
+    // Text-bounds probe: cooking-panel text (x < 160) stays inside the panel (156 x 216),
+    // everything else inside the 480x270 canvas.
+    const outside = await page.evaluate(() => {
+      const game = (window as unknown as { __nyan: Phaser.Game }).__nyan;
+      const scene = game.scene.getScene('ServiceScene');
+      return scene.children.list
+        .filter((o): o is Phaser.GameObjects.Text => o.type === 'Text')
+        .map((t) => ({ text: t.text, b: t.getBounds() }))
+        .filter(({ text, b }) => {
+          if (!text) return false;
+          const inCook = b.x >= 4 && b.x < 160 && b.y >= 34 && b.y < 216;
+          const maxR = inCook ? 156 : 480;
+          const maxB = inCook ? 216 : 270;
+          return b.right > maxR || b.bottom > maxB || b.x < 0 || b.y < 0;
+        })
+        .map(({ text, b }) => `${text} @${b.x},${b.y},${b.right},${b.bottom}`);
+    });
+    expect(outside).toEqual([]);
+  }
+  await page.evaluate(() => (window as unknown as W).__nyanService!.openDoors());
+  return quality;
+}
 
 async function playDay(page: Page, day: number): Promise<Report> {
   await page.waitForFunction(
@@ -112,6 +170,9 @@ test.describe('day loop meta', () => {
       if (day === 1)
         await clickNative(page, 414, 253); // real click on "Open the shop!"
       else await page.evaluate(() => (window as unknown as W).__nyanPrep!.openShop());
+      // Day 1: hand-cook the first ticket in the minigames; later days open straight away.
+      const quality = await kitchen(page, day === 1);
+      if (day === 1) expect(quality).toBeGreaterThanOrEqual(80);
       const report = await playDay(page, day);
       reports.push(report);
       expect(report.customersServed).toBeGreaterThan(0);

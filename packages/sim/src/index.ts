@@ -33,8 +33,6 @@ export type { Order } from './orders';
 export { SIM_VERSION, createSimState } from './state';
 export type { SimState, DayReport } from './state';
 
-export { advanceDay, runSimulation } from './simulate';
-
 export {
   FURNITURE,
   getFurniture,
@@ -148,7 +146,12 @@ export {
   settleDay,
   staffCapacity,
 } from './day';
-export type { DayResult } from './day';
+export type { DayResult, SettleOptions } from './day';
+
+export { STOVE_COST, TIER_PRICE_PREMIUM, TIER_UNLOCK } from './balance';
+
+export { CHEF_TICKETS, DONENESS_OPTIONS, chefTickets } from './chef';
+export type { ChefTicket, Doneness } from './chef';
 
 export { STARTING_STOCK } from './state';
 export type { ComplaintKind, EquipmentId } from './state';
@@ -168,4 +171,11 @@ export {
 } from './save';
 export type { SaveFile } from './save';
 
-export { autopilotDay, autopilotPrep, autopilotRun } from './autopilot';
+export {
+  AUTOPILOT_RESERVE,
+  SAVE_AHEAD_STARS,
+  autopilotDay,
+  autopilotPrep,
+  autopilotRun,
+} from './autopilot';
+export { furnishToCapacity, nextFurnishing } from './furnish';
