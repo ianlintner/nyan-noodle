@@ -98,6 +98,16 @@ export class ShopDirector {
       }));
   }
 
+  /** Remove every cat and bowl (leaving the shop for build mode). */
+  destroy(): void {
+    for (const r of this.runtimes.values()) {
+      r.bowl?.destroy();
+      if (r.phase !== 'gone') r.actor.destroy();
+    }
+    this.runtimes.clear();
+    this.pending = [];
+  }
+
   update(beat: number, deltaMs: number, speed: number): void {
     this.now = beat;
     while (this.pending.length > 0 && this.pending[0]!.arriveBeat <= beat) {

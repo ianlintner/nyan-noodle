@@ -77,11 +77,13 @@ for (const tier of ['cart', 'stall', 'small-shop'] as const) {
     expect(sortViolations).toBe(0);
 
     const planned = (await api((a) => a.plan())).visits;
-    if (planned.some((v) => v.seatBeat !== null && v.seatBeat > v.arriveBeat + 1)) {
-      expect(maxQueued).toBeGreaterThanOrEqual(1);
+    const events = await api((a) => a.events());
+    if (planned.some((v) => v.seatBeat !== null && v.seatBeat > v.arriveBeat + 8)) {
+      // A cat only reaches its queue spot after walking in; short waits skip the queue.
+      const sawQueue = events.some((e) => e.type === 'queue');
+      expect(maxQueued >= 1 || sawQueue).toBe(true);
     }
 
-    const events = await api((a) => a.events());
     const byCustomer = new Map<number, ShopEvent['type'][]>();
     for (const e of events) {
       byCustomer.set(e.customerId, [...(byCustomer.get(e.customerId) ?? []), e.type]);

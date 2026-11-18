@@ -35,5 +35,43 @@ export type { SimState, DayReport } from './state';
 
 export { advanceDay, runSimulation } from './simulate';
 
+export {
+  FURNITURE,
+  getFurniture,
+  sellValue,
+  SELL_REFUND_RATE,
+  APPEAL_COUNT_CAP,
+  APPEAL_DEMAND_PER_POINT,
+  SEATS_PER_STOVE,
+} from './catalog';
+export type { FurnitureDef, FurnitureKind } from './catalog';
+
+export {
+  activeSeats,
+  appealScore,
+  cookSpot,
+  defaultItems,
+  entryCell,
+  isSolid,
+  layoutDemandMultiplier,
+  nextRotation,
+  validateLayout,
+} from './layoutRules';
+export type { BuildItem, GridCell, LayoutIssue, Rotation, Violation } from './layoutRules';
+
+export {
+  checkPlacement,
+  describeBuildError,
+  itemAt,
+  moveItem,
+  placeItem,
+  rotateItem,
+  seatCount,
+  sellItem,
+  upgradeInfo,
+  upgradeTier,
+} from './build';
+export type { BuildError, BuildResult, UpgradeInfo } from './build';
+
 export { planService, SERVICE_BEATS, SEAT_TURNOVER_BEATS } from './service';
 export type { ServicePlan, ServiceVisit } from './service';

@@ -7,7 +7,7 @@ import { dailyDemand, generateOrder } from './orders';
 import type { Order } from './orders';
 import { bowlCost, bowlPrice, reputationGain } from './economy';
 import { dailyWages } from './staff';
-import { getTier } from './shop';
+import { activeSeats, layoutDemandMultiplier } from './layoutRules';
 import { RECIPES } from './recipes';
 import type { RecipeId, ToppingId } from './recipes';
 
@@ -35,8 +35,11 @@ interface ServiceResult {
 
 /** Spawn a day's customers and generate their orders. Deterministic given `rng`. */
 function openService(state: SimState, rng: Rng): ServiceResult {
-  const tier = getTier(state.tierId);
-  const demand = dailyDemand(tier.demandMultiplier, state.economy.reputation, rng);
+  const demand = dailyDemand(
+    layoutDemandMultiplier(state.tierId, state.items),
+    state.economy.reputation,
+    rng,
+  );
   const basePatience = 20;
 
   const customers: CatCustomer[] = [];
@@ -93,9 +96,8 @@ function resolveService(orders: readonly Order[], tierSeats: number): ServiceOut
  * randomness flows through the supplied `rng`.
  */
 export function advanceDay(state: SimState, rng: Rng): SimState {
-  const tier = getTier(state.tierId);
   const { activeOrders, customers } = openService(state, rng);
-  const outcome = resolveService(activeOrders, tier.seats);
+  const outcome = resolveService(activeOrders, activeSeats(state.tierId, state.items).length);
 
   // Update regular registry: bump visit count for served customers, or add new.
   const regularsById = new Map<number, CatCustomer>(state.regulars.map((c) => [c.id, c]));

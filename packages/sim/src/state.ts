@@ -5,6 +5,8 @@ import type { DayClock } from './clock';
 import { createStaffModel } from './staff';
 import type { StaffModel } from './staff';
 import type { ShopTierId } from './shop';
+import { defaultItems } from './layoutRules';
+import type { BuildItem } from './layoutRules';
 import type { RecipeId } from './recipes';
 import { STARTING_RECIPES } from './recipes';
 import type { CatCustomer } from './customers';
@@ -28,6 +30,9 @@ export interface SimState {
   readonly clock: DayClock;
   readonly economy: Economy;
   readonly tierId: ShopTierId;
+  /** Furniture on the interior grid (see build.ts for the rules that change it). */
+  readonly items: readonly BuildItem[];
+  readonly nextItemId: number;
   readonly unlockedRecipes: readonly RecipeId[];
   readonly staff: StaffModel;
   readonly regulars: readonly CatCustomer[];
@@ -38,10 +43,13 @@ export interface SimState {
   readonly revenueHistory: readonly number[];
 }
 
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;
 
 export function createSimState(seed: number, tierId: ShopTierId): SimState {
+  const items = defaultItems(tierId);
   return {
+    items,
+    nextItemId: items.length,
     version: SIM_VERSION,
     seed,
     clock: createClock(),

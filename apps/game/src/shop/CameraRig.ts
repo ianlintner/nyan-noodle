@@ -27,13 +27,25 @@ export class CameraRig {
 
   constructor(
     private readonly scene: Phaser.Scene,
-    private readonly mapWidth: number,
-    private readonly mapHeight: number,
+    private mapWidth: number,
+    private mapHeight: number,
   ) {
     this.cx = mapWidth / 2;
     this.cy = mapHeight / 2;
     this.setZoom(fitZoom(mapWidth, mapHeight));
     this.bindInput();
+  }
+
+  /** Mouse-drag panning; build mode turns it off so clicks place furniture instead. */
+  dragEnabled = true;
+
+  /** The map grew (shop tier upgrade): recentre and refit the zoom. */
+  resize(mapWidth: number, mapHeight: number): void {
+    this.mapWidth = mapWidth;
+    this.mapHeight = mapHeight;
+    this.cx = mapWidth / 2;
+    this.cy = mapHeight / 2;
+    this.setZoom(fitZoom(mapWidth, mapHeight));
   }
 
   get zoom(): number {
@@ -96,7 +108,7 @@ export class CameraRig {
       this.setZoom(this.zoom + (dy < 0 ? 1 : -1));
     });
     this.scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      this.dragging = true;
+      this.dragging = this.dragEnabled;
       this.last = { x: p.x, y: p.y };
     });
     this.scene.input.on('pointerup', () => {

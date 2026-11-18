@@ -4,7 +4,7 @@ import type { SimState } from './state';
 import { COAT_IDS, createCustomer } from './customers';
 import type { CoatId } from './customers';
 import { dailyDemand } from './orders';
-import { getTier } from './shop';
+import { activeSeats, layoutDemandMultiplier } from './layoutRules';
 import type { RecipeId } from './recipes';
 
 /** Length of the service window on the finer "beat" timeline used for presentation. */
@@ -49,9 +49,13 @@ interface Waiting {
  * from seed+day, so it never perturbs `advanceDay`'s draws.
  */
 export function planService(state: SimState, rng?: Rng): ServicePlan {
-  const tier = getTier(state.tierId);
+  const seatCount = activeSeats(state.tierId, state.items).length;
   const r = rng ?? createRng((state.seed * 2654435761 + state.clock.day * 97) >>> 0);
-  const demand = dailyDemand(tier.demandMultiplier, state.economy.reputation, r);
+  const demand = dailyDemand(
+    layoutDemandMultiplier(state.tierId, state.items),
+    state.economy.reputation,
+    r,
+  );
   const span = Math.floor(SERVICE_BEATS * ARRIVAL_WINDOW);
 
   const draft = Array.from({ length: demand }, (_, i) => {
@@ -68,7 +72,7 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
     };
   });
 
-  const seatFreeAt = Array.from({ length: tier.seats }, () => 0);
+  const seatFreeAt = Array.from({ length: seatCount }, () => 0);
   const visits: ServiceVisit[] = [];
   const queue: Waiting[] = [];
   let next = 0;
@@ -104,7 +108,7 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
     }
   }
   visits.sort((a, b) => a.arriveBeat - b.arriveBeat || a.customerId - b.customerId);
-  return { day: state.clock.day, beats: SERVICE_BEATS, seats: tier.seats, visits };
+  return { day: state.clock.day, beats: SERVICE_BEATS, seats: seatCount, visits };
 }
 
 function pick(d: {
