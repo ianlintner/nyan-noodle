@@ -40,4 +40,10 @@ The 24-colour art-direction palette lives in `apps/game/src/theme/palette.ts`. H
 
 The **Build** button (or `?mode=build`, plus `coins=` / `rep=` dev overrides) opens the catalog panel: pick a piece, hover for a green/red ghost, click to buy, `R` to turn, **Move** (free) and **Sell** (50% refund). Rules live in `packages/sim` (`catalog.ts` data, `layoutRules.ts` validity/seats/appeal, `build.ts` actions): the doorway and the cook's tile in front of each stove stay clear, every stool must stay reachable, seats are capped by tier and by stoves, and extra decor raises demand with diminishing returns. **To Stall / Small Shop** spends coins + reputation, grows the grid and re-centres the layout (pieces that no longer fit are refunded). Screenshots: `docs/build/`.
 
+## Service scene
+
+`apps/game/src/service/` hosts the interactive cooking phase. A ticket rail lists the day's orders; click one and run three minigames — a broth heat-hold bar (`SPACE`/`W` to heat, keep the needle in the green band), a noodle boil timer (`SPACE` to stop it on the firm/soft sweet spot), and topping assembly (keys `1`–`6` add each required topping in order). Then press `SPACE` to serve; bowl quality drives tip, rush (fast serve) and combo (consecutive good serves) bonuses, and a failed bowl (quality below `MIN_ACCEPT_QUALITY`) resets the combo. Open it with `?scene=service` (extras: `seed=`, `count=1..8`) or the boot scene.
+
+The scoring rules are pure and deterministic in `packages/sim/src/cooking.ts` (`scoreBowl`, `settleBowl`, `tipForQuality`, etc.); the scene only measures input and plays the sim's payout back. The measurement bridge (`apps/game/src/service/measure.ts`) converts raw minigame readings into the sim's `CookMeasurements`. `e2e/service.spec.ts` drives one scripted order through all three minigames via the `window.__nyanService` debug API and asserts the payout.
+
 No backend, accounts, ads or IAP.
