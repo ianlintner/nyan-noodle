@@ -36,4 +36,10 @@ The 24-colour art-direction palette lives in `apps/game/src/theme/palette.ts`. H
 
 `apps/game/src/shop/` renders the shop on a tile grid. The sim (`planService` in `packages/sim`) produces a deterministic per-day timeline (arrivals, queue, seat, leave); `ShopDirector` only plays it back with A\* paths, y-sorted sprites (depth = feet line) and an integer-zoom camera (`+`/`-`/wheel, arrows/WASD/drag to pan). Open it with `?scene=shop` (extras: `seed=`, `tier=cart|stall|small-shop`, `speed=1..16`) or the boot scene's "Open shop" button. The e2e `shop.spec.ts` plays a scripted day for each tier.
 
+## Service scene
+
+`apps/game/src/service/` hosts the interactive cooking phase. A ticket rail lists the day's orders; click one and run three minigames — a broth heat-hold bar (`SPACE`/`W` to heat, keep the needle in the green band), a noodle boil timer (`SPACE` to stop it on the firm/soft sweet spot), and topping assembly (keys `1`–`6` add each required topping in order). Then press `SPACE` to serve; bowl quality drives tip, rush (fast serve) and combo (consecutive good serves) bonuses, and a failed bowl (quality below `MIN_ACCEPT_QUALITY`) resets the combo. Open it with `?scene=service` (extras: `seed=`, `count=1..8`) or the boot scene.
+
+The scoring rules are pure and deterministic in `packages/sim/src/cooking.ts` (`scoreBowl`, `settleBowl`, `tipForQuality`, etc.); the scene only measures input and plays the sim's payout back. The measurement bridge (`apps/game/src/service/measure.ts`) converts raw minigame readings into the sim's `CookMeasurements`. `e2e/service.spec.ts` drives one scripted order through all three minigames via the `window.__nyanService` debug API and asserts the payout.
+
 No backend, accounts, ads or IAP.

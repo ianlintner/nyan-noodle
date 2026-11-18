@@ -37,3 +37,30 @@ export { advanceDay, runSimulation } from './simulate';
 
 export { planService, SERVICE_BEATS, SEAT_TURNOVER_BEATS } from './service';
 export type { ServicePlan, ServiceVisit } from './service';
+
+export {
+  MIN_ACCEPT_QUALITY,
+  isFailedOrder,
+  comboMultiplier,
+  reputationDeltaForQuality,
+  rushBonus,
+  scoreBowl,
+  scoreBroth,
+  scoreNoodles,
+  scoreToppings,
+  settleBowl,
+  tipForQuality,
+} from './cooking';
+export type {
+  BowlPayout,
+  BrothResult,
+  BrothVerdict,
+  CookMeasurements,
+  CookScore,
+  CookStepId,
+  NoodleResult,
+  NoodleVerdict,
+  StepScore,
+  ToppingResult,
+  ToppingVerdict,
+} from './cooking';

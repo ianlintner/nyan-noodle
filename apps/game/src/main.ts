@@ -3,6 +3,10 @@ import { NATIVE_HEIGHT, NATIVE_WIDTH, computeIntegerZoom } from './config';
 import { PALETTE } from './theme/palette';
 import { BootScene } from './scenes/BootScene';
 import { ShopScene } from './shop/ShopScene';
+import { ServiceScene } from './service/ServiceScene';
+
+// `?scene=shop` or `?scene=service` boots straight into that scene (e2e / shots).
+const requested = new URLSearchParams(window.location.search).get('scene');
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -17,11 +21,12 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.NONE,
     zoom: computeIntegerZoom(window.innerWidth, window.innerHeight),
   },
-  // `?scene=shop` boots straight into the shop (used by e2e and screenshots).
   scene:
-    new URLSearchParams(window.location.search).get('scene') === 'shop'
+    requested === 'shop'
       ? [ShopScene, BootScene]
-      : [BootScene, ShopScene],
+      : requested === 'service'
+        ? [ServiceScene, BootScene]
+        : [BootScene, ShopScene, ServiceScene],
 });
 
 window.addEventListener('resize', () => {
