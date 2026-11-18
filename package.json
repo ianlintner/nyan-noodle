@@ -13,7 +13,9 @@
     "apps/*"
   ],
   "scripts": {
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run validate-assets && npm run build",
+    "assets:generate": "node scripts/generate-art.mjs",
+    "validate-assets": "node scripts/validate-assets.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

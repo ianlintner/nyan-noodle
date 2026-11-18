@@ -7,3 +7,6 @@ package-lock.json
 .worktrees/
 # Design bible, hand-formatted with wide markdown tables.
 PLAN.md
+
+# Generated pixel-art atlas JSON
+apps/game/public/assets/
