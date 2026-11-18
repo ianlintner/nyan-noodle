@@ -1,26 +1,33 @@
 /**
- * Headless 30-day simulation. Prints a per-day revenue curve.
- * Byte-identical across runs for a fixed seed (all randomness via seeded RNG).
+ * Headless day-loop simulation with the reference autopilot (prep -> service -> report ->
+ * upgrades). Prints a per-day table. Byte-identical across runs for a fixed seed.
  */
-import { createRng, createSimState, runSimulation } from '../packages/sim/src/index';
+import { autopilotDay, createSimState } from '../packages/sim/src/index';
 
-const DAYS = Number.parseInt(process.env.SIM_DAYS ?? '30', 10);
+const DAYS = Number.parseInt(process.env.SIM_DAYS ?? '10', 10);
 const SEED = Number.parseInt(process.env.SIM_SEED ?? '1337', 10);
 
-const rng = createRng(SEED);
-const initialState = createSimState(SEED, 'cart');
-const final = runSimulation(initialState, rng, DAYS);
-
-console.log(`Nyan Noodle — ${DAYS}-day headless sim (seed=${SEED})`);
-console.log('day,revenue');
-final.revenueHistory.forEach((revenue, index) => {
-  console.log(`${index + 1},${revenue}`);
-});
-
-const total = final.revenueHistory.reduce((sum, revenue) => sum + revenue, 0);
-const report = final.lastReport;
-console.log(`total,${total}`);
-console.log(`finalFishCoins,${final.economy.fishCoins}`);
-console.log(`finalReputation,${final.economy.reputation}`);
-console.log(`regulars,${final.regulars.length}`);
-console.log(`lastReport,${JSON.stringify(report)}`);
+let state = createSimState(SEED, 'cart');
+console.log(`Nyan Noodle — ${DAYS}-day headless autopilot (seed=${SEED})`);
+console.log('day,tier,served,lost,revenue,tips,costs,coins,stars,staff,complaints');
+for (let d = 0; d < DAYS; d++) {
+  const { state: next, report } = autopilotDay(state);
+  console.log(
+    [
+      report.day,
+      next.tierId,
+      report.customersServed,
+      report.customersLost,
+      report.revenue,
+      report.tips,
+      report.costs,
+      next.economy.fishCoins,
+      report.reputation,
+      next.staff.roster.length,
+      report.complaints,
+    ].join(','),
+  );
+  state = next;
+}
+console.log(`lifetimeEarned,${state.economy.lifetimeEarned}`);
+console.log(`unlockedRecipes,${state.unlockedRecipes.join('+')}`);

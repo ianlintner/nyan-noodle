@@ -102,4 +102,4 @@ export const RECIPES: Readonly<Record<RecipeId, Recipe>> = {
 };
 
 /** Recipes available from day one. */
-export const STARTING_RECIPES: readonly RecipeId[] = ['shoyu', 'miso', 'tonkotsu'];
+export const STARTING_RECIPES: readonly RecipeId[] = ['shoyu'];

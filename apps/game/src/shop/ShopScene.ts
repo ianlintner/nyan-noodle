@@ -7,6 +7,7 @@ import {
   getTier,
   layoutDemandMultiplier,
   planService,
+  settleDay,
   upgradeInfo,
   upgradeTier,
 } from '@nyan-noodle/sim';
@@ -24,6 +25,8 @@ import { ShopDirector } from './director';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
 import { WorldView } from './WorldView';
+import { session } from '../meta/session';
+import { SCENE_KEYS } from '../meta/ui';
 
 export const SHOP_SCENE_KEY = 'ShopScene';
 /** Real milliseconds per sim beat at 1x speed. */
@@ -73,9 +76,25 @@ export class ShopScene extends Phaser.Scene {
   private msgText!: Phaser.GameObjects.Text;
   private message = '';
   private staffActor: CatActor | null = null;
+  /** True when driven by the day loop (prep -> service -> report) rather than the URL. */
+  private inSession = false;
+  private sessionMode: 'service' | 'build' = 'service';
+  private settled = false;
+  private speedButton: ButtonHandle | null = null;
 
   constructor() {
     super(SHOP_SCENE_KEY);
+  }
+
+  init(data: { session?: boolean; mode?: 'service' | 'build' }): void {
+    this.inSession = data?.session === true && session.active;
+    this.sessionMode = data?.mode === 'build' ? 'build' : 'service';
+    this.settled = false;
+    this.beat = 0;
+    this.plan = null;
+    this.director = null;
+    this.staffActor = null;
+    this.speedButton = null;
   }
 
   preload(): void {
@@ -85,14 +104,17 @@ export class ShopScene extends Phaser.Scene {
   create(): void {
     this.params = readShopParams(window.location.search);
     const fresh = createSimState(this.params.seed, this.params.tier);
-    this.state = {
-      ...fresh,
-      economy: {
-        ...fresh.economy,
-        fishCoins: this.params.coins ?? fresh.economy.fishCoins,
-        reputation: this.params.rep ?? fresh.economy.reputation,
-      },
-    };
+    this.state = this.inSession
+      ? session.state
+      : {
+          ...fresh,
+          economy: {
+            ...fresh.economy,
+            fishCoins: this.params.coins ?? fresh.economy.fishCoins,
+            reputation: this.params.rep ?? fresh.economy.reputation,
+          },
+        };
+    if (this.inSession) this.params = { ...this.params, mode: this.sessionMode };
     createCatAnimations(this);
 
     this.cameras.main.setBackgroundColor(PALETTE.nightBlue);
@@ -125,6 +147,8 @@ export class ShopScene extends Phaser.Scene {
     else this.startService();
     this.exposeDebugApi();
     this.registry.set('shopReady', true);
+    this.registry.set('shopInSession', this.inSession);
+    this.events.once('shutdown', () => this.registry.set('shopInSession', false));
   }
 
   override update(_time: number, deltaMs: number): void {
@@ -140,6 +164,9 @@ export class ShopScene extends Phaser.Scene {
     const dt = Math.min(deltaMs, 100);
     this.beat += (dt * this.params.speed) / BEAT_MS;
     this.director.update(this.beat, dt, this.params.speed);
+    if (this.inSession && !this.settled && this.beat > this.plan.beats && this.director.done) {
+      this.finishDay();
+    }
     const c = this.director.counts();
     this.hudText.setText(
       `Day ${this.plan.day} service ${Math.min(Math.floor(this.beat), this.plan.beats)}/${this.plan.beats}\n` +
@@ -160,8 +187,23 @@ export class ShopScene extends Phaser.Scene {
     this.plan = planService(this.state);
     this.beat = 0;
     this.director = new ShopDirector(this, this.layout, this.plan, (o) => this.uiCam.ignore(o));
-    this.toggle.setLabel('Build');
+    this.toggle.setLabel(this.inSession ? 'Skip day' : 'Build');
+    this.speedButton?.container.setVisible(this.inSession);
     this.message = '';
+  }
+
+  /** Settle the finished service into the session, autosave, and show the report. */
+  private finishDay(): void {
+    if (!this.plan || this.settled) return;
+    this.settled = true;
+    const { state } = settleDay(this.state, this.plan);
+    session.update(state);
+    this.scene.start(SCENE_KEYS.report);
+  }
+
+  private leaveBuild(): void {
+    void session.save().catch(() => undefined);
+    this.scene.start(SCENE_KEYS.prep);
   }
 
   private enterBuild(): void {
@@ -173,13 +215,15 @@ export class ShopScene extends Phaser.Scene {
     this.buildPanel.setVisible(true);
     this.buildPanel.setTier(this.state.tierId);
     this.build.enable();
-    this.toggle.setLabel('Open shop');
+    this.toggle.setLabel(this.inSession ? 'Done' : 'Open shop');
+    this.speedButton?.container.setVisible(false);
     this.say('Pick furniture, click to place', true);
   }
 
   private commit(next: SimState): void {
     const tierChanged = next.tierId !== this.state.tierId;
     this.state = next;
+    if (this.inSession) session.update(next);
     this.relayout(tierChanged);
   }
 
@@ -257,9 +301,17 @@ export class ShopScene extends Phaser.Scene {
     this.hudText = pixelText(this, content.x + 2, content.y + 1, '');
     this.msgText = pixelText(this, 6, 56, '', { token: 'brothGold' });
     this.toggle = createButton(this, 4, NATIVE_HEIGHT - 18, 64, 14, 'Build', () => {
+      if (this.inSession) return this.mode === 'build' ? this.leaveBuild() : this.finishDay();
       if (this.mode === 'build') this.startService();
       else this.enterBuild();
     });
+    if (this.inSession) {
+      this.speedButton = createButton(this, 72, NATIVE_HEIGHT - 18, 48, 14, 'x1', () => {
+        const next = this.params.speed >= 8 ? 1 : this.params.speed * 2;
+        this.params = { ...this.params, speed: next };
+        this.speedButton?.setLabel(`x${next}`);
+      });
+    }
     this.buildPanel = new BuildPanel(
       this,
       {
@@ -318,6 +370,9 @@ export class ShopScene extends Phaser.Scene {
         return { x: rect.left + 36 * k, y: rect.top + (NATIVE_HEIGHT - 11) * k };
       },
       startService: () => this.startService(),
+      finishDay: () => this.finishDay(),
+      setSpeed: (n: number) => (this.params = { ...this.params, speed: n }),
+      inSession: () => this.inSession,
       enterBuild: () => this.enterBuild(),
     };
     (window as unknown as { __nyanShop: typeof api }).__nyanShop = api;

@@ -46,4 +46,16 @@ The **Build** button (or `?mode=build`, plus `coins=` / `rep=` dev overrides) op
 
 The scoring rules are pure and deterministic in `packages/sim/src/cooking.ts` (`scoreBowl`, `settleBowl`, `tipForQuality`, etc.); the scene only measures input and plays the sim's payout back. The measurement bridge (`apps/game/src/service/measure.ts`) converts raw minigame readings into the sim's `CookMeasurements`. `e2e/service.spec.ts` drives one scripted order through all three minigames via the `window.__nyanService` debug API and asserts the payout.
 
+## Day loop & saves
+
+The game opens on a title screen (Continue / New game / Import / Export). A day runs **Prep → Service → Report**:
+
+- **Prep** (`apps/game/src/meta/PrepScene.ts`): pick which owned dishes are on the menu, nudge prices (±3 steps of 10%), buy stock (3c per bowl, cap 40). **Open the shop!** plays the day in the shop scene (speed button, _Skip day_).
+- **Report** (`ReportScene.ts`): sales, tips, costs, profit, complaints by kind (waited too long / sold out / kitchen too slow), reputation delta and anything the new star level unlocked. It **autosaves** at day end.
+- **Upgrades** (`UpgradeScene.ts`): unlock recipes (Miso 1★/60c, Tonkotsu 2★/150c), train per-recipe mastery, buy equipment (knives, burner, signboard), hire and level staff cats who auto-cook at lower quality, and jump to build mode. Everything is gated by Reputation Stars.
+
+All rules are pure and deterministic in `packages/sim`: `prep.ts`, `progression.ts` (every action returns the next state or a typed reason), `day.ts` (`settleDay`) and `autopilot.ts` (reference player; `npm run sim:headless` prints a per-day curve).
+
+**Saves** (`packages/sim/src/save.ts`, `migrations.ts`; storage in `apps/game/src/meta/storage.ts`): a versioned JSON envelope written to IndexedDB with a localStorage fallback. `MIGRATIONS[n]` upgrades sim state version n → n+1 (v1/v2 saves load as v3); a damaged or newer-than-supported save is reported, never overwritten. **Export** copies a `NYAN1.<base64url>.<checksum>` string, **Import** validates it. `e2e/dayloop.spec.ts` plays 3 days, reloads and compares the state; screenshots are in `docs/daylog/`. `?scene=boot|shop|service|title|prep|report|upgrades` still jumps straight to a scene.
+
 No backend, accounts, ads or IAP.

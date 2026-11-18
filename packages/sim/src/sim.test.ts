@@ -11,8 +11,8 @@ import { createRng } from './rng';
 import { advanceDay, runSimulation } from './simulate';
 
 describe('recipes', () => {
-  it('defines the three starting recipes with shoyu/miso/tonkotsu broths', () => {
-    expect(STARTING_RECIPES).toEqual(['shoyu', 'miso', 'tonkotsu']);
+  it('defines three recipes (only shoyu is owned at the start)', () => {
+    expect(STARTING_RECIPES).toEqual(['shoyu']);
     expect(RECIPES.shoyu!.name).toBe('Shoyu Ramen');
     expect(RECIPES.miso!.name).toBe('Miso Ramen');
     expect(RECIPES.tonkotsu!.name).toBe('Tonkotsu Ramen');
@@ -148,7 +148,7 @@ describe('simulation', () => {
     const state = createSimState(42, 'cart');
     expect(state.version).toBe(SIM_VERSION);
     expect(state.clock.day).toBe(1);
-    expect(state.unlockedRecipes).toEqual(['shoyu', 'miso', 'tonkotsu']);
+    expect(state.unlockedRecipes).toEqual(['shoyu']);
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
   });
 

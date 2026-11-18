@@ -127,9 +127,15 @@ export function advanceDay(state: SimState, rng: Rng): SimState {
     customersServed: outcome.served,
     customersLost: outcome.lost,
     revenue: outcome.revenue,
+    tips: 0,
     costs: outcome.costs + wages,
     profit,
+    complaints: outcome.lost,
+    complaintKinds: { queue: outcome.lost, 'sold-out': 0, 'too-slow': 0, pricey: 0 },
     reputation: newReputation,
+    reputationDelta: Math.round((newReputation - state.economy.reputation) * 100) / 100,
+    unlocks: [],
+    stockLeft: state.stock,
   };
 
   return {

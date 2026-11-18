@@ -98,6 +98,8 @@ export function drawPanel(
 export interface ButtonHandle {
   container: Phaser.GameObjects.Container;
   setLabel(label: string): void;
+  /** Greyed look for a gated action; the button still fires so the UI can explain why. */
+  setDim(dim: boolean): void;
 }
 
 /** Button with outline, 3-tone face and a pressed state that shifts the face 1px. */
@@ -143,5 +145,9 @@ export function createButton(
   });
   container.on('pointerout', () => draw(false));
 
-  return { container, setLabel: (next) => text.setText(next) };
+  return {
+    container,
+    setLabel: (next) => text.setText(next),
+    setDim: (dim) => container.setAlpha(dim ? 0.55 : 1),
+  };
 }

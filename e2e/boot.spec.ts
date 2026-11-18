@@ -16,7 +16,7 @@ interface NyanWindow {
 test('boot scene renders palette swatches and panel', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto('/');
+  await page.goto('/?scene=boot');
   await page.waitForFunction(
     () => (window as unknown as NyanWindow).__nyan?.registry.get('bootReady') === true,
   );

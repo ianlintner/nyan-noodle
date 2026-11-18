@@ -102,3 +102,70 @@ export type {
   ToppingResult,
   ToppingVerdict,
 } from './cooking';
+
+export {
+  EQUIPMENT,
+  MASTERY_MAX,
+  MASTERY_PRICE_PER_LEVEL,
+  MASTERY_QUALITY_PER_LEVEL,
+  MASTERY_STARS,
+  RECIPE_UNLOCKS,
+  STAFF_HIRE_COST,
+  STAFF_HIRE_STARS,
+  STAFF_LEVEL_MAX,
+  STAFF_MAX,
+  buyEquipment,
+  describeProgressionError,
+  hireStaff,
+  levelStaff,
+  masteryCost,
+  staffLevelCost,
+  starUnlocks,
+  trainMastery,
+  unlockRecipe,
+} from './progression';
+export type { ActionResult, EquipmentDef, ProgressionError } from './progression';
+
+export {
+  PRICE_ADJUST_MAX,
+  PRICE_ADJUST_MIN,
+  PRICE_STEP,
+  STOCK_BOWL_COST,
+  STOCK_CAP,
+  adjustPrice,
+  buyStock,
+  effectiveMenu,
+  salePrice,
+  toggleMenu,
+} from './prep';
+
+export {
+  PLAYER_BOWLS,
+  cookQuality,
+  nextPrepClock,
+  planDay,
+  playerCapacity,
+  settleDay,
+  staffCapacity,
+} from './day';
+export type { DayResult } from './day';
+
+export { STARTING_STOCK } from './state';
+export type { ComplaintKind, EquipmentId } from './state';
+
+export { MIGRATIONS, MigrationError, migrateState, validateState } from './migrations';
+export {
+  EXPORT_PREFIX,
+  SAVE_FORMAT,
+  SAVE_VERSION,
+  SaveError,
+  checksum,
+  createSave,
+  exportSaveString,
+  importSaveString,
+  parseSave,
+  serializeSave,
+} from './save';
+export type { SaveFile } from './save';
+
+export { autopilotDay, autopilotPrep, autopilotRun } from './autopilot';
