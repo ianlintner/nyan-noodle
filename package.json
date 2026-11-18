@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "sim:headless": "tsx scripts/sim-headless.ts",
     "build": "npm run build -w @nyan-noodle/game",
     "dev": "npm run dev -w @nyan-noodle/game",
     "preview": "npm run preview -w @nyan-noodle/game",
@@ -36,6 +37,7 @@
     "globals": "^17.13.0",
     "jsdom": "^30.1.3",
     "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.5"
