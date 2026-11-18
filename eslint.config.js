@@ -44,6 +44,11 @@ export default tseslint.config(
     },
   },
   {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { 'no-console': ['warn', { allow: ['warn', 'error', 'info'] }] },
+  },
+  {
     files: ['**/*.test.ts', 'e2e/**/*.ts', 'vitest.config.ts', 'playwright.config.ts'],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
