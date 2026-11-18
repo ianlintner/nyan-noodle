@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { createRng } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { PALETTE, PALETTE_TOKENS, color } from '../theme/palette';
+import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 
 export const BOOT_SCENE_KEY = 'BootScene';
@@ -57,7 +58,7 @@ export class BootScene extends Phaser.Scene {
     pixelText(this, content.x + 4, content.y + 4, 'Ink on cream, 8px pixel font.');
     pixelText(this, content.x + 4, content.y + 16, `Seeded sim RNG ok: ${rng.int(1, 99)}`);
     createButton(this, content.x + 4, content.y + 36, 72, 18, 'Open shop', () => {
-      this.cameras.main.flash(120, 255, 243, 214);
+      this.scene.start(SHOP_SCENE_KEY);
     });
     createButton(this, content.x + 84, content.y + 36, 72, 18, 'Menu', () => undefined);
   }

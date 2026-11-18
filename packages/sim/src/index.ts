@@ -34,3 +34,6 @@ export { SIM_VERSION, createSimState } from './state';
 export type { SimState, DayReport } from './state';
 
 export { advanceDay, runSimulation } from './simulate';
+
+export { planService, SERVICE_BEATS, SEAT_TURNOVER_BEATS } from './service';
+export type { ServicePlan, ServiceVisit } from './service';

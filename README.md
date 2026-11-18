@@ -32,4 +32,8 @@ Native resolution 480x270 (16px tiles), `pixelArt: true`, integer-only zoom chos
 
 The 24-colour art-direction palette lives in `apps/game/src/theme/palette.ts`. HUD helpers (`pixelText`, `drawPanel`, `createButton`) are in `apps/game/src/theme/hud.ts`. The boot scene renders every swatch and a sample panel. The pixel font is currently a monospace stand-in at the 8px base; a real bitmap font arrives with the art pipeline card.
 
+## Shop scene
+
+`apps/game/src/shop/` renders the shop on a tile grid. The sim (`planService` in `packages/sim`) produces a deterministic per-day timeline (arrivals, queue, seat, leave); `ShopDirector` only plays it back with A\* paths, y-sorted sprites (depth = feet line) and an integer-zoom camera (`+`/`-`/wheel, arrows/WASD/drag to pan). Open it with `?scene=shop` (extras: `seed=`, `tier=cart|stall|small-shop`, `speed=1..16`) or the boot scene's "Open shop" button. The e2e `shop.spec.ts` plays a scripted day for each tier.
+
 No backend, accounts, ads or IAP.
