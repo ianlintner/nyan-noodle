@@ -132,4 +132,23 @@ describe('migrations', () => {
     expect(() => migrateState({ version: SIM_VERSION + 1 })).toThrow(/newer game/);
     expect(() => migrateState({ version: 0 })).toThrow(MigrationError);
   });
+
+  it('rejects null and malformed items rather than crashing later in activeSeats', () => {
+    const base = createSimState(4, 'stall') as unknown as Record<string, unknown>;
+    const withItems = (items: unknown): Record<string, unknown> => ({ ...base, items });
+    expect(() => migrateState(withItems([null]))).toThrow(/invalid save: items\[0\]/);
+    expect(() => migrateState(withItems(['stool']))).toThrow(/invalid save: items\[0\]/);
+    expect(() => migrateState(withItems([{ id: 'x', kind: 'stool', x: 0, y: 0, rot: 0 }]))).toThrow(
+      /invalid save: items\[0\]/,
+    );
+    expect(() => migrateState(withItems([{ id: 1, kind: 'unknown', x: 0, y: 0, rot: 0 }]))).toThrow(
+      /invalid save: items\[0\]/,
+    );
+    expect(() => migrateState(withItems([{ id: 1, kind: 'stool', x: '0', y: 0, rot: 0 }]))).toThrow(
+      /invalid save: items\[0\]/,
+    );
+    expect(() => migrateState(withItems([{ id: 1, kind: 'stool', x: 0, y: 0, rot: 9 }]))).toThrow(
+      /invalid save: items\[0\]/,
+    );
+  });
 });

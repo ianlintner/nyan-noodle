@@ -90,8 +90,9 @@ export function memoryBackend(): KeyValueBackend {
 
 /**
  * Versioned save slot. Writes go to the first backend that accepts them (IndexedDB, then
- * localStorage); reads take the first backend holding a save. A corrupt save is reported,
- * never silently deleted.
+ * localStorage); reads compare every backend and return the newest save so a fallback write
+ * never rolls progress back to an older copy. A corrupt save is reported, never silently
+ * deleted.
  */
 export class SaveStore {
   /** Which backend served the last successful read or write. */
@@ -100,19 +101,27 @@ export class SaveStore {
   constructor(private readonly backends: readonly KeyValueBackend[]) {}
 
   async read(): Promise<SaveFile | null> {
+    let best: SaveFile | null = null;
+    let bestAt = Number.NEGATIVE_INFINITY;
     for (const backend of this.backends) {
       try {
         const text = await backend.get(SAVE_KEY);
         if (text === null) continue;
         const save = parseSave(text);
-        this.lastBackend = backend.name;
-        return save;
+        const at = Date.parse(save.savedAt);
+        // Prefer the newest save across backends: after an IndexedDB write fails and the
+        // fallback lands in localStorage, the older IndexedDB copy must not win.
+        if (best === null || (Number.isFinite(at) && at >= bestAt)) {
+          best = save;
+          bestAt = Number.isFinite(at) ? at : bestAt;
+          this.lastBackend = backend.name;
+        }
       } catch (error) {
         // A damaged save must surface; an unavailable backend just means "try the next".
         if (error instanceof SaveError) throw error;
       }
     }
-    return null;
+    return best;
   }
 
   async write(save: SaveFile): Promise<void> {

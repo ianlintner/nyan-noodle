@@ -44,6 +44,19 @@ describe('SaveStore', () => {
     await expect(new SaveStore([backend]).read()).rejects.toThrow(/Not a Nyan Noodle save/);
     expect(await backend.get(SAVE_KEY)).toBe('{"format":"nope"}');
   });
+
+  it('returns the newest save when an older copy survives in an earlier backend', async () => {
+    // Simulate a fallback write: IndexedDB holds an older save, localStorage a newer one.
+    const older = createSave(createSimState(1, 'cart'), '2026-11-18T00:00:00.000Z');
+    const newer = createSave(createSimState(2, 'cart'), '2026-11-20T12:00:00.000Z');
+    const idb = memoryBackend();
+    const ls = memoryBackend();
+    await idb.set(SAVE_KEY, JSON.stringify(older));
+    await ls.set(SAVE_KEY, JSON.stringify(newer));
+    const store = new SaveStore([idb, ls]);
+    expect(await store.read()).toEqual(newer);
+    expect(store.lastBackend).toBe('memory'); // both backends are memoryBackend() here
+  });
 });
 
 describe('Session', () => {
@@ -75,5 +88,22 @@ describe('Session', () => {
     const session = new Session(new SaveStore([backend]));
     expect(await session.peek()).toBeNull();
     expect(session.lastError).toMatch(/valid JSON/);
+  });
+
+  it('exportString reflects the live state rather than re-reading a stale stored save', async () => {
+    const store = new SaveStore([memoryBackend()]);
+    const a = new Session(store);
+    a.newGame(1);
+    await a.save(); // persist day 0 to storage
+    const before = a.state.economy.fishCoins;
+    // Move the live state forward without re-saving (autosave failure scenario).
+    a.update({ ...a.state, economy: { ...a.state.economy, fishCoins: before + 999 } });
+    // A fresh session reading only storage still sees the stale coins.
+    const b = new Session(store);
+    expect(await b.continueGame()).toBe(true);
+    expect(b.state.economy.fishCoins).toBe(before);
+    // The live session's export reflects the newer state, not the stored one.
+    const imported = new Session(new SaveStore([memoryBackend()]));
+    expect(imported.importString(a.exportString()).economy.fishCoins).toBe(before + 999);
   });
 });
