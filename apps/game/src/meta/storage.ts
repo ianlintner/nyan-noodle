@@ -163,8 +163,8 @@ export class SaveStore {
       }
     }
     this.lastWarning = null;
-    if (!wrote && this.backends.length > 0) {
-      throw lastError ?? new Error('no storage backend could write');
+    if (!wrote) {
+      throw lastError ?? new Error('no storage backend');
     }
   }
 

@@ -38,6 +38,12 @@ describe('SaveStore', () => {
     await expect(new SaveStore([broken()]).write(sample())).rejects.toThrow('blocked');
   });
 
+  it('rejects a write when there are no backends at all', async () => {
+    // An empty backend list must not silently report success: Session.save() would claim the
+    // save persisted even though a subsequent read returns null.
+    await expect(new SaveStore([]).write(sample())).rejects.toThrow('no storage backend');
+  });
+
   it('surfaces a damaged save instead of discarding it', async () => {
     const backend = memoryBackend();
     await backend.set(SAVE_KEY, '{"format":"nope"}');
