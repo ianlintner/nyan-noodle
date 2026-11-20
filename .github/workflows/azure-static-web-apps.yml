@@ -16,6 +16,10 @@ permissions:
 
 jobs:
   build_and_deploy:
+    # The deploy action uses repo_token to post the preview URL as a PR comment.
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
     # Skip fork PRs (no secret access) and closed PRs (handled by close_preview).

@@ -1,13 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": [
-      "/assets/*",
-      "/*.{png,jpg,jpeg,gif,webp,svg,ico,json,webmanifest,txt,ogg,mp3,wav,woff,woff2}"
-    ]
-  },
   "routes": [
+    {
+      "route": "/assets/nyan-atlas.*",
+      "headers": { "cache-control": "no-cache" }
+    },
     {
       "route": "/assets/*",
       "headers": { "cache-control": "public, max-age=31536000, immutable" }
@@ -17,9 +14,6 @@
       "headers": { "cache-control": "no-cache" }
     }
   ],
-  "responseOverrides": {
-    "404": { "rewrite": "/index.html", "statusCode": 200 }
-  },
   "globalHeaders": {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer"

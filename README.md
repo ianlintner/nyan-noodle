@@ -69,7 +69,7 @@ Live build: _URL pending first deploy_ — after the one-time setup below, paste
 
 ## Deploy (Azure Static Web Apps)
 
-`.github/workflows/azure-static-web-apps.yml` builds with `npm run build` and uploads the prebuilt `apps/game/dist` (`skip_app_build: true`; no Oryx build, no API). Pushes to `main` go to production; same-repo PRs get a preview that is closed when the PR closes. `apps/game/public/staticwebapp.config.json` is copied into `dist` and provides the SPA fallback, immutable caching for hashed `/assets/*`, `no-cache` for `index.html`, and basic security headers.
+`.github/workflows/azure-static-web-apps.yml` builds with `npm run build` and uploads the prebuilt `apps/game/dist` (`skip_app_build: true`; no Oryx build, no API). Pushes to `main` go to production; same-repo PRs get a preview that is closed when the PR closes. `apps/game/public/staticwebapp.config.json` is copied into `dist` and provides immutable caching for hashed `/assets/*` (the unhashed `nyan-atlas.*` files and `index.html` are `no-cache`) and basic security headers. The game is a single page with relative asset URLs, so there is deliberately no SPA navigation fallback or 404 rewrite: missing files return a real 404.
 
 One-time setup (not done by the workflow; no Azure resources or secrets are created by this repo):
 
