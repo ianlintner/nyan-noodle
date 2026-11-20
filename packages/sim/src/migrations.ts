@@ -102,8 +102,8 @@ export function validateState(raw: Raw): SimState {
         typeof item.id === 'number' &&
         typeof item.kind === 'string' &&
         kinds.has(item.kind) &&
-        typeof item.x === 'number' &&
-        typeof item.y === 'number' &&
+        Number.isInteger(item.x) &&
+        Number.isInteger(item.y) &&
         (item.rot === 0 || item.rot === 1 || item.rot === 2 || item.rot === 3),
       `items[${i}]`,
     );

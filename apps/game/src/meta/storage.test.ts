@@ -57,6 +57,39 @@ describe('SaveStore', () => {
     expect(await store.read()).toEqual(newer);
     expect(store.lastBackend).toBe('memory'); // both backends are memoryBackend() here
   });
+
+  it('returns a valid IndexedDB save even when a damaged localStorage copy exists', async () => {
+    // IndexedDB holds a valid save; localStorage holds a damaged copy. Reading every backend
+    // must not let the damaged fallback reject the readable save.
+    const valid = sample();
+    const idb = memoryBackend();
+    const ls = memoryBackend();
+    await idb.set(SAVE_KEY, JSON.stringify(valid));
+    await ls.set(SAVE_KEY, '{"format":"nope"}');
+    const store = new SaveStore([idb, ls]);
+    const result = await store.read();
+    expect(result).toEqual(valid);
+    expect(store.lastWarning).toMatch(/Not a Nyan Noodle save/);
+    expect(store.lastBackend).toBe('memory');
+  });
+
+  it('a confirmed write repairs the damaged fallback copy', async () => {
+    const valid = sample();
+    const idb = memoryBackend();
+    const ls = memoryBackend();
+    await idb.set(SAVE_KEY, JSON.stringify(valid));
+    await ls.set(SAVE_KEY, '{"format":"nope"}');
+    const store = new SaveStore([idb, ls]);
+    await store.read(); // returns valid, records warning
+    expect(store.lastWarning).toMatch(/Not a Nyan Noodle save/);
+    // Confirmed replacement writes every backend, clearing the damaged copy so a fresh load
+    // no longer rejects or warns.
+    const replacement = createSave(createSimState(9, 'stall'), '2026-11-21T00:00:00.000Z');
+    await store.write(replacement);
+    const fresh = new SaveStore([idb, ls]);
+    expect(await fresh.read()).toEqual(replacement);
+    expect(fresh.lastWarning).toBeNull();
+  });
 });
 
 describe('Session', () => {

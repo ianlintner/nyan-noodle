@@ -147,6 +147,12 @@ describe('migrations', () => {
     expect(() => migrateState(withItems([{ id: 1, kind: 'stool', x: '0', y: 0, rot: 0 }]))).toThrow(
       /invalid save: items\[0\]/,
     );
+    expect(() => migrateState(withItems([{ id: 1, kind: 'stool', x: 0.5, y: 0, rot: 0 }]))).toThrow(
+      /invalid save: items\[0\]/,
+    );
+    expect(() => migrateState(withItems([{ id: 1, kind: 'stool', x: 0, y: 1.5, rot: 0 }]))).toThrow(
+      /invalid save: items\[0\]/,
+    );
     expect(() => migrateState(withItems([{ id: 1, kind: 'stool', x: 0, y: 0, rot: 9 }]))).toThrow(
       /invalid save: items\[0\]/,
     );
