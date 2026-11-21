@@ -45,6 +45,9 @@ export class TitleScene extends Phaser.Scene {
       this.summary = summary;
       this.buildMenu();
       if (session.lastError) this.msg.say(`Save problem: ${session.lastError}`, false);
+      else if (session.lastWarning) {
+        this.msg.say(`Note: ${session.lastWarning}`, true);
+      }
       this.registry.set('titleReady', true);
     });
     this.exposeDebugApi();

@@ -27,6 +27,13 @@ export class Session {
   /** Last save-slot problem, shown on the title screen. */
   lastError: string | null = null;
 
+  /**
+   * Secondary-corruption warning from the last read: a valid save was returned, but another
+   * backend held an unparseable copy. Shown on the title screen separately from load errors
+   * (it does not disable Continue); the next autosave repairs the secondary copy.
+   */
+  lastWarning: string | null = null;
+
   constructor(readonly store: SaveStore = createDefaultStore()) {}
 
   get state(): SimState {
@@ -43,9 +50,11 @@ export class Session {
     try {
       const save = await this.store.read();
       this.lastError = null;
+      this.lastWarning = this.store.lastWarning;
       return save ? summarize(save) : null;
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : String(error);
+      this.lastWarning = null;
       return null;
     }
   }

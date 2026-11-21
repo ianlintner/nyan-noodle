@@ -127,6 +127,22 @@ describe('Session', () => {
     const session = new Session(new SaveStore([backend]));
     expect(await session.peek()).toBeNull();
     expect(session.lastError).toMatch(/valid JSON/);
+    expect(session.lastWarning).toBeNull();
+  });
+
+  it('peek surfaces a secondary-corruption warning without a load error', async () => {
+    // IndexedDB holds a valid save; localStorage holds a damaged copy. The load must succeed
+    // (Continue stays enabled) while the warning about the secondary copy is surfaced so the
+    // player knows the next autosave will overwrite it.
+    const valid = sample();
+    const idb = memoryBackend();
+    const ls = memoryBackend();
+    await idb.set(SAVE_KEY, JSON.stringify(valid));
+    await ls.set(SAVE_KEY, '{"format":"nope"}');
+    const session = new Session(new SaveStore([idb, ls]));
+    expect(await session.peek()).not.toBeNull();
+    expect(session.lastError).toBeNull();
+    expect(session.lastWarning).toMatch(/Not a Nyan Noodle save/);
   });
 
   it('exportString reflects the live state rather than re-reading a stale stored save', async () => {
