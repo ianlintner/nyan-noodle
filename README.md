@@ -62,3 +62,20 @@ Early-game knobs (cook cap, tier coin/star gates, tier price premium, stove cost
 - **Kitchen** (`apps/game/src/service/`): the scene measures input; `measure.ts` turns it into `CookMeasurements` and `packages/sim/src/cooking.ts` scores it (tips, rush, combo, failed bowls). `chef.ts` picks the day's hand-cooked tickets and `settleDay(..., { chefQualities })` applies them.
 - **Day loop & saves** (`apps/game/src/meta/`, sim `prep.ts`, `progression.ts`, `day.ts`): every action returns the next state or a typed reason. Saves are a versioned JSON envelope in IndexedDB with a localStorage fallback (`save.ts`, `migrations.ts`, `storage.ts`); damaged or newer saves are reported, never overwritten. Screenshots: `docs/daylog/`.
 - **Pixel config**: native 480x270 (16px tiles), `pixelArt: true`, integer-only zoom (`apps/game/src/config.ts`). Palette tokens in `apps/game/src/theme/palette.ts`; the art pipeline reads them. Text uses a monospace stand-in at the 8px base.
+
+## Play
+
+Live build: _URL pending first deploy_ — after the one-time setup below, paste the Static Web App's default hostname here (`https://<name>.azurestaticapps.net`). Same-repo PRs into `main` also get a preview environment (URL posted as a PR comment by the deploy action) once the deploy secret below is configured; fork PRs and PRs opened before the secret exists get no preview.
+
+## Deploy (Azure Static Web Apps)
+
+`.github/workflows/azure-static-web-apps.yml` builds with `npm run build` in a read-only job that never sees the Azure token, then a separate deploy job (which holds the token and runs no repo code) uploads the prebuilt `apps/game/dist` artifact (`skip_app_build: true`; no Oryx build, no API). Pushes to `main` go to production; same-repo PRs get a preview that is closed when the PR closes. `apps/game/public/staticwebapp.config.json` is copied into `dist` and provides immutable caching for hashed `/assets/*` (the unhashed `nyan-atlas.*` files and `index.html` are `no-cache`) and basic security headers. The game is a single page with relative asset URLs, so there is deliberately no SPA navigation fallback or 404 rewrite: missing files return a real 404.
+
+One-time setup (not done by the workflow; no Azure resources or secrets are created by this repo):
+
+1. Create a **Free**-plan Static Web App (no Functions, no linked backend) in the Azure portal or with `az staticwebapp create --sku Free`. Choose "Other"/custom deployment source, not GitHub-managed, so Azure does not generate a second workflow.
+2. Copy its deployment token (portal -> Static Web App -> Manage deployment token, or `az staticwebapp secrets list --name <name> --query properties.apiKey -o tsv`).
+3. Add it as the repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (Settings -> Secrets and variables -> Actions).
+4. Push to `main` (or re-run the workflow), then put the hostname in "Play" above.
+
+Until the secret exists the upload/close steps are skipped (build still runs), so PRs stay green; `ci.yml` is unaffected. Rotate the token by resetting it in Azure and updating the secret.
