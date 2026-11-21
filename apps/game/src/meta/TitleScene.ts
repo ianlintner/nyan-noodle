@@ -87,7 +87,7 @@ export class TitleScene extends Phaser.Scene {
         this,
         NATIVE_WIDTH / 2,
         204,
-        `Day ${s.day} - ${getTier(s.tierId).name} - ${s.fishCoins}c - ${starsText(s.reputation)} stars`,
+        `Day ${s.day} - ${getTier(s.tierId).name} - ${s.fishCoins}c - ${starsText(s.reputation)}`,
         { token: 'cream', originX: 0.5 },
       );
     }

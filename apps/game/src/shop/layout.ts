@@ -1,5 +1,6 @@
 import { activeSeats, cookSpot, defaultItems, getFurniture, getTier } from '@nyan-noodle/sim';
 import type { BuildItem, Rotation, ShopTierId } from '@nyan-noodle/sim';
+import { TILE_SIZE } from '../config';
 
 export type Dir = 'down' | 'up' | 'left' | 'right';
 
@@ -18,6 +19,9 @@ export interface Placed extends Cell {
   readonly frame: string;
   /** Sim item this sprite shows (null for fixed set dressing such as the noren). */
   readonly itemId: number | null;
+  /** Optional explicit draw depth; set dressing that must float in front of the walk
+   * (e.g. the noren over the doorway) declares an absolute depth instead of sorting by row. */
+  readonly depth?: number;
 }
 
 export interface ShopLayout {
@@ -121,8 +125,27 @@ export function buildLayout(
   }
 
   const door: Cell = { tx: doorX, ty: bottomWall };
-  furniture.push({ frame: 'furniture/noren', tx: doorX, ty: bottomWall, itemId: null });
+  // The noren hangs over the doorway and must draw in front of the whole queue that
+  // forms on the street below it, so a cat "ducks under" the curtain as it walks in.
+  furniture.push({
+    frame: 'furniture/noren',
+    tx: doorX,
+    ty: bottomWall,
+    itemId: null,
+    depth: rows * TILE_SIZE + 1,
+  });
   furniture.push({ frame: 'furniture/sign', tx: Math.max(1, doorX - 1), ty: 0, itemId: null });
+
+  // Wall menu hangs high on the back wall above the counter, centred between the
+  // lantern (left) and plant (right). It must draw in front of the wall but behind
+  // the counter, so give it a wall-row depth (same line walls use).
+  furniture.push({
+    frame: 'furniture/wall_menu',
+    tx: Math.max(1, Math.min(cols - 2, doorX - 1)),
+    ty: 0,
+    itemId: null,
+    depth: (0 + 1) * TILE_SIZE + 0.2,
+  });
 
   const stoves: Cell[] = [];
   for (const item of items) {

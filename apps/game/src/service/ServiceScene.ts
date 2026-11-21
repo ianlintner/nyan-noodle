@@ -1,13 +1,7 @@
 import Phaser from 'phaser';
 import {
   CHEF_TICKETS,
-  DONENESS_OPTIONS,
-  RECIPES,
-  bowlPrice,
   chefTickets,
-  createRng,
-  createSimState,
-  generateOrder,
   planService,
   settleBowl,
   type CookMeasurements,
@@ -17,16 +11,19 @@ import {
 } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { PALETTE } from '../theme/palette';
-import { createButton, drawPanel, pixelText, type ButtonHandle } from '../theme/hud';
+import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from '../meta/session';
+import { backdrop } from '../meta/ui';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
+import { seededServiceTickets } from './tickets';
 import {
   BROTH_HI,
   BROTH_LO,
   BROTH_SAMPLES,
   drawBroth,
   drawNoodles,
+  drawTicketRail,
   drawTodayPanel,
   drawToppings,
 } from './stageView';
@@ -41,6 +38,10 @@ const RUSH_THRESHOLD_BEATS = 30;
 interface Ticket {
   readonly order: Order;
   readonly doneness: Doneness;
+  /** Customer coat for the rail portrait. */
+  readonly coat: string;
+  /** Static patience budget (ticks) shown as a rail indicator. */
+  readonly patience: number;
 }
 
 interface ServiceParams {
@@ -48,23 +49,12 @@ interface ServiceParams {
   count: number;
 }
 
-function readServiceParams(search: string): ServiceParams {
-  const q = new URLSearchParams(search);
-  return {
-    seed: Number(q.get('seed') ?? 2026) || 2026,
-    count: Math.min(8, Math.max(1, Number(q.get('count') ?? 4) || 4)),
-  };
-}
-
 /**
  * Interactive service phase: a ticket rail, three cooking minigames, serve with
  * quality-driven tips/combos. The pure sim scores every result; this scene only
- * measures player input (heat samples, boil stop, topping taps) and plays the
- * payout back. Keyboard + mouse both drive the same handlers.
- *
- * In a game session (started from Prep) the rail holds today's first seated cats and
- * "Open doors!" hands the hand-cooked qualities to the shop's service and settlement.
- * Without a session (`?scene=service`) it is a sandbox with seeded tickets.
+ * measures player input and plays the payout back. With a session the rail holds
+ * today's first cats and "Open doors!" starts the shop; `?scene=service` alone is
+ * a seeded sandbox.
  */
 export class ServiceScene extends Phaser.Scene {
   private params: ServiceParams = { seed: 2026, count: 4 };
@@ -87,7 +77,8 @@ export class ServiceScene extends Phaser.Scene {
   private coins = 0;
   private beats = 0;
 
-  private railButtons: ButtonHandle[] = [];
+  private railButtons: Phaser.GameObjects.Container[] = [];
+  private railRings: Phaser.GameObjects.Rectangle[] = [];
   private stageG!: Phaser.GameObjects.Graphics;
   private stageText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
@@ -113,8 +104,13 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.params = readServiceParams(window.location.search);
+    const q = new URLSearchParams(window.location.search);
+    this.params = {
+      seed: Number(q.get('seed') ?? 2026) || 2026,
+      count: Math.min(8, Math.max(1, Number(q.get('count') ?? 4) || 4)),
+    };
     this.cameras.main.setBackgroundColor(PALETTE.nightBlue);
+    backdrop(this);
     this.keys = this.input.keyboard!.addKeys(
       'SPACE,W,ONE,TWO,THREE,FOUR,FIVE,SIX',
     ) as unknown as ServiceScene['keys'];
@@ -131,7 +127,12 @@ export class ServiceScene extends Phaser.Scene {
     if (this.inSession) {
       const state = session.state;
       const plan = planService(state);
-      this.tickets = chefTickets(state, plan, CHEF_TICKETS);
+      this.tickets = chefTickets(state, plan, CHEF_TICKETS).map((t) => ({
+        order: t.order,
+        doneness: t.doneness,
+        coat: t.coat,
+        patience: t.patience,
+      }));
       const coming = plan.visits.filter((v) => v.outcome === 'served').length;
       this.todayLines = [
         `${coming} cats will get a seat (${plan.seats} seats)`,
@@ -141,27 +142,15 @@ export class ServiceScene extends Phaser.Scene {
         'Skipped tickets cook at your usual quality.',
       ];
     } else {
-      const state = createSimState(this.params.seed, 'cart');
-      const rng = createRng((this.params.seed * 31 + 7) >>> 0);
-      for (let i = 0; i < this.params.count; i++) {
-        const recipeId = state.unlockedRecipes[rng.int(0, state.unlockedRecipes.length - 1)]!;
-        const cat = {
-          id: i,
-          coat: 'tabby' as const,
-          patience: 0,
-          preferences: { recipeOrder: [recipeId], likedToppings: [] },
-          isRegular: false,
-          visits: 0,
-        };
-        const order = generateOrder(i, cat, state.economy.reputation, bowlPrice, rng);
-        this.tickets.push({ order, doneness: DONENESS_OPTIONS[rng.int(0, 2)]! });
-      }
+      // Sandbox (`?scene=service&seed=...`): seeded tickets from a fresh sim state.
+      this.tickets = seededServiceTickets(this.params.seed, this.params.count);
     }
     this.qualities = this.tickets.map(() => null);
   }
 
   private buildUi(): void {
-    drawPanel(this, 4, 4, NATIVE_WIDTH - 8, 26, { title: 'Ticket rail' });
+    // Ticket rail: one row of ticket cards (portrait + bowl + patience) in a thin band.
+    drawPanel(this, 4, 4, NATIVE_WIDTH - 8, 26);
     const { content } = drawPanel(this, 4, 34, 156, 186, { title: 'Cooking' });
     this.stageG = this.add.graphics();
     const intro = this.inSession
@@ -190,17 +179,24 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   private drawRail(): void {
-    this.railButtons.forEach((b) => b.container.destroy());
+    this.railButtons.forEach((b) => b.destroy());
     this.railButtons = [];
-    this.tickets.forEach((t, i) => {
-      const done = this.completed.has(i);
-      const label = done
-        ? `Q${this.qualities[i] ?? 0}`
-        : `${i + 1}.${RECIPES[t.order.recipeId].name.slice(0, 6)}`;
-      const btn = createButton(this, 8 + i * 58, 9, 54, 16, label, () => this.select(i));
-      btn.container.setAlpha(i === this.activeIdx ? 1 : done ? 0.5 : 0.85);
-      this.railButtons.push(btn);
-    });
+    this.railRings.forEach((r) => r.destroy());
+    this.railRings = [];
+    const { buttons, rings } = drawTicketRail(
+      this,
+      this.tickets.map((t) => ({
+        recipeId: t.order.recipeId,
+        coat: t.coat,
+        patience: t.patience,
+        resolveCoat: (coat) => (coat === 'sakura' ? 'white' : coat),
+        onSelect: (i) => this.select(i),
+      })),
+      this.activeIdx,
+      this.completed,
+    );
+    this.railButtons = buttons;
+    this.railRings = rings;
   }
 
   // --- ticket selection & stage machine ------------------------------------
@@ -376,14 +372,10 @@ export class ServiceScene extends Phaser.Scene {
       serve: () => this.serve(),
       openDoors: () => this.openDoors(),
       /** DEBUG: drive the broth needle directly, one sample per call. */
-      setBrothHeat: (h: number) => {
-        this.brothHeat = Phaser.Math.Clamp(h, 0, 1);
-        this.sampleBroth();
-      },
+      setBrothHeat: (h: number) =>
+        void ((this.brothHeat = Phaser.Math.Clamp(h, 0, 1)), this.sampleBroth()),
       /** DEBUG: set the noodle sweep position directly (before/after stop). */
-      setNoodleSweep: (s: number) => {
-        this.noodleSweep = s % 1;
-      },
+      setNoodleSweep: (s: number) => void (this.noodleSweep = s % 1),
     };
     (window as unknown as { __nyanService: typeof api }).__nyanService = api;
   }

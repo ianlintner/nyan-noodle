@@ -1,7 +1,8 @@
-import type Phaser from 'phaser';
+import Phaser from 'phaser';
 import type { Doneness } from '@nyan-noodle/sim';
 import { color } from '../theme/palette';
 import { drawPanel, pixelText } from '../theme/hud';
+import { ATLAS_KEY } from '../shop/CatActor';
 
 /** Broth band the needle has to stay inside, as a 0..1 fraction of the bar. */
 export const BROTH_LO = 0.4;
@@ -60,4 +61,85 @@ export function drawToppings(g: Phaser.GameObjects.Graphics, required: number, d
     g.fillStyle(color(done > i ? 'noriGreen' : 'slate'), 1);
     g.fillRect(cx, STAGE_BAR.y + 4, 8, 8);
   }
+}
+
+/** A single service-ticket card on the rail: cat portrait, dish icon, patience bar. */
+export interface RailTicket {
+  recipeId: string;
+  coat: string;
+  patience: number;
+  /** Sim coats beyond the atlas get a base coat (sakura -> white + bow). */
+  resolveCoat: (coat: string) => string;
+  /** Called on tap, with the ticket's index. */
+  onSelect: (index: number) => void;
+}
+
+/**
+ * Draws the ticket rail: one row of cards (portrait + bowl + patience) in a thin band.
+ * Returns the created containers and selection rings so the caller can clear/destroy
+ * them on the next redraw.
+ */
+export function drawTicketRail(
+  scene: Phaser.Scene,
+  tickets: readonly RailTicket[],
+  activeIdx: number,
+  completed: ReadonlySet<number>,
+): { buttons: Phaser.GameObjects.Container[]; rings: Phaser.GameObjects.Rectangle[] } {
+  const buttons: Phaser.GameObjects.Container[] = [];
+  const rings: Phaser.GameObjects.Rectangle[] = [];
+  tickets.forEach((t, i) => {
+    const done = completed.has(i);
+    const active = i === activeIdx;
+    const x = 8 + i * 58;
+    const w = 54;
+    const h = 22;
+    const c = scene.add.container(x, 6);
+
+    // Ticket tile background: a small card with a 1px outline and 3-tone face.
+    const g = scene.add.graphics();
+    g.fillStyle(color('outline'), 1);
+    g.fillRect(0, 0, w, h);
+    g.fillStyle(color(done ? 'tatami' : 'cream'), 1);
+    g.fillRect(1, 1, w - 2, h - 2);
+    g.fillStyle(color(done ? 'tatami' : 'steamWhite'), 1);
+    g.fillRect(1, 1, w - 2, 1);
+
+    // Cat portrait: head crop of the down/idle frame.
+    const coat = t.resolveCoat(t.coat);
+    const portrait = scene.add.image(9, 12, ATLAS_KEY, `cat/${coat}/down/idle_0`);
+    portrait.setOrigin(0.5, 1);
+    portrait.setCrop(0, 0, 16, 12); // head + ears only
+    portrait.setScale(0.75);
+
+    // Dish icon: the broth's bowl.
+    const bowl = scene.add.image(w - 9, 12, ATLAS_KEY, `food/bowl_${t.recipeId}`);
+    bowl.setOrigin(0.5, 1);
+    bowl.setScale(0.7);
+
+    // Patience bar: calm coats wait longer. Normalised over the coat patience range.
+    const patienceG = scene.add.graphics();
+    const frac = Phaser.Math.Clamp((t.patience - 50) / (80 - 50), 0.06, 1);
+    const full = Math.round(frac * (w - 6));
+    patienceG.fillStyle(color('slate'), 1);
+    patienceG.fillRect(3, h - 4, w - 6, 2);
+    patienceG.fillStyle(
+      color(t.patience >= 69 ? 'noriGreen' : t.patience >= 60 ? 'brothGold' : 'chiliRed'),
+      1,
+    );
+    patienceG.fillRect(3, h - 4, full, 2);
+
+    c.add([g, portrait, bowl, patienceG]);
+    c.setSize(w, h);
+    c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
+    c.on('pointerup', () => t.onSelect(i));
+    if (active) {
+      const ring = scene.add
+        .rectangle(x + w / 2, 6 + h / 2, w + 2, h + 2)
+        .setStrokeStyle(1, color('misoOrange'));
+      rings.push(ring);
+    }
+    c.setAlpha(done ? 0.55 : 1);
+    buttons.push(c);
+  });
+  return { buttons, rings };
 }

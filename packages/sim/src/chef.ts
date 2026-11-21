@@ -1,6 +1,7 @@
 import { createRng } from './rng';
 import { generateOrder } from './orders';
 import type { Order } from './orders';
+import type { CoatId } from './customers';
 import { salePrice } from './prep';
 import type { ServicePlan } from './service';
 import type { SimState } from './state';
@@ -16,6 +17,10 @@ export interface ChefTicket {
   readonly visitIndex: number;
   readonly order: Order;
   readonly doneness: Doneness;
+  /** Coat of the customer this ticket cooks for (for the rail portrait). */
+  readonly coat: CoatId;
+  /** Patience budget in beats (for the rail patience indicator). */
+  readonly patience: number;
 }
 
 /**
@@ -46,7 +51,13 @@ export function chefTickets(
       (recipeId) => salePrice(state, recipeId),
       rng,
     );
-    out.push({ visitIndex, order, doneness: DONENESS_OPTIONS[rng.int(0, 2)]! });
+    out.push({
+      visitIndex,
+      order,
+      doneness: DONENESS_OPTIONS[rng.int(0, 2)]!,
+      coat: visit.coat,
+      patience: visit.patienceBeats,
+    });
   });
   return out;
 }

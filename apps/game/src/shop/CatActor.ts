@@ -193,10 +193,14 @@ export class CatActor {
     }
   }
 
-  /** y-sort: depth is the feet line; seated cats sit just in front of their stool. */
+  /** y-sort: depth is the tile feet line, matching furniture. Cats render in front of
+   * the furniture they share a row with (+0.5); the seated `bias` keeps a cat on its
+   * stool in front of that stool. Uses `fy` (true feet) so the seated SIT_DROP render
+   * offset never shifts a cat into the next row. */
   private syncDepth(bias = 0): void {
-    const depth = this.sprite.y + bias;
+    const ty = Math.floor((this.fy + FEET_OFFSET - 1) / TILE_SIZE);
+    const depth = (ty + 1) * TILE_SIZE + 0.5 + bias;
     this.sprite.setDepth(depth);
-    this.overlay?.setPosition(this.sprite.x, this.sprite.y).setDepth(depth + 0.1);
+    this.overlay?.setPosition(this.sprite.x, this.sprite.y).setDepth(depth + 0.05);
   }
 }

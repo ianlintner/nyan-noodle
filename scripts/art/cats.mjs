@@ -83,7 +83,8 @@ function front(c, k, p, back) {
     c.rect(4, ty + 2, 1, 1, k.stripe); // brow stripes
     c.rect(11, ty + 2, 1, 1, k.stripe);
   } else {
-    c.rect(7, ty + 1, 2, 2, k.stripe);
+    // Back of the head (bob cut): a soft dark crown, not a face. Nothing here — a solid
+    // stripe reads as a "dark rectangle" over the head, especially on grey/black coats.
   }
 }
 

@@ -126,6 +126,31 @@ const sign = () =>
     c.bitmap(4, 6, ['..c..c..', '...c..c.', 'cccccccc', '.cccccc.', '..cccc..'], { c: 'cream' });
   });
 
+// Wall menu: a wood board of menu plates (noren-indigo slip with a bowl, a price plate and
+// two nori strips), hung high on the back wall. Pure set dressing (never a sim item).
+const wallMenu = () =>
+  make(48, 20, (c) => {
+    // Board frame with 3-tone wood and a lit top edge.
+    c.box(1, 1, 46, 18, 3, 2, ['woodLight', 'woodMid', 'woodDark']);
+    c.rect(2, 2, 44, 1, 'woodLight');
+    // Three menu slips, left to right: a bowl, a price plate, a nori strip.
+    const slip = (x, w) => c.box(x, 5, w, 11, 1, 1, ['norenIndigo', 'nightBlue', 'ink']);
+    slip(4, 11);
+    slip(18, 11);
+    slip(32, 11);
+    // Bowl on the left slip.
+    c.shadedEllipse(9, 11, 4, 3, ['cream', 'norenIndigo', 'nightBlue']);
+    c.ellipse(9, 9, 4, 2, 'cream');
+    c.ellipse(9, 9, 2, 1, 'brothGold');
+    c.rect(5, 8, 2, 1, 'steamWhite');
+    // Price plate on the middle slip.
+    c.shadedEllipse(23, 11, 4, 3, ['cream', 'catGrey', 'slate']);
+    c.bitmap(21, 9, ['..c..', '.ccc.', 'cc.cc', '.ccc.', '..c..'], { c: 'scallion' });
+    // Nori strips on the right slip.
+    c.rect(34, 7, 6, 2, 'noriGreen');
+    c.rect(34, 11, 6, 2, 'noriGreen');
+  });
+
 export function buildFurniture() {
   return {
     'furniture/counter': counter(),
@@ -136,5 +161,6 @@ export function buildFurniture() {
     'furniture/lantern': lantern(),
     'furniture/plant': plant(),
     'furniture/sign': sign(),
+    'furniture/wall_menu': wallMenu(),
   };
 }
