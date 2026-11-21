@@ -90,44 +90,82 @@ export function memoryBackend(): KeyValueBackend {
 
 /**
  * Versioned save slot. Writes go to the first backend that accepts them (IndexedDB, then
- * localStorage); reads take the first backend holding a save. A corrupt save is reported,
- * never silently deleted.
+ * localStorage); reads compare every backend and return the newest save so a fallback write
+ * never rolls progress back to an older copy. A corrupt save is reported, never silently
+ * deleted.
  */
 export class SaveStore {
   /** Which backend served the last successful read or write. */
   lastBackend: KeyValueBackend['name'] | null = null;
 
+  /**
+   * Secondary-corruption note from the last read: a valid save was returned, but another
+   * backend held a copy that could not be parsed. The next successful `write()` repairs it,
+   * so this is a warning, not a load failure.
+   */
+  lastWarning: string | null = null;
+
   constructor(private readonly backends: readonly KeyValueBackend[]) {}
 
   async read(): Promise<SaveFile | null> {
+    let best: SaveFile | null = null;
+    let bestAt = Number.NEGATIVE_INFINITY;
+    // Damage in one backend must not reject a readable save from another. Remember the first
+    // unparseable copy as a warning and only surface it when no valid save exists anywhere.
+    let damaged: SaveError | null = null;
+    this.lastWarning = null;
     for (const backend of this.backends) {
       try {
         const text = await backend.get(SAVE_KEY);
         if (text === null) continue;
         const save = parseSave(text);
-        this.lastBackend = backend.name;
-        return save;
+        const at = Date.parse(save.savedAt);
+        // Prefer the newest save across backends: after an IndexedDB write fails and the
+        // fallback lands in localStorage, the older IndexedDB copy must not win.
+        if (best === null || (Number.isFinite(at) && at >= bestAt)) {
+          best = save;
+          bestAt = Number.isFinite(at) ? at : bestAt;
+          this.lastBackend = backend.name;
+        }
       } catch (error) {
-        // A damaged save must surface; an unavailable backend just means "try the next".
-        if (error instanceof SaveError) throw error;
+        if (error instanceof SaveError) damaged ??= error;
+        // An unavailable backend just means "try the next".
       }
     }
+    if (best !== null) {
+      // A valid save won, but another backend held an unparseable copy. Warn (the next
+      // write repairs every backend) instead of failing the whole load.
+      if (damaged) this.lastWarning = damaged.message;
+      return best;
+    }
+    if (damaged) {
+      // Every backend that held anything held a damaged copy: report it rather than silently
+      // pretending there is no save.
+      throw damaged;
+    }
+    this.lastBackend = null;
     return null;
   }
 
   async write(save: SaveFile): Promise<void> {
     const text = serializeSave(save);
-    let lastError: unknown = new Error('no storage backend');
+    let lastError: unknown = null;
+    let wrote = false;
     for (const backend of this.backends) {
       try {
         await backend.set(SAVE_KEY, text);
         this.lastBackend = backend.name;
-        return;
+        wrote = true;
       } catch (error) {
+        // Try the remaining backends too: a confirmed replacement must also repair a damaged
+        // fallback copy, or it will keep rejecting later loads.
         lastError = error;
       }
     }
-    throw lastError;
+    this.lastWarning = null;
+    if (!wrote) {
+      throw lastError ?? new Error('no storage backend');
+    }
   }
 
   async clear(): Promise<void> {

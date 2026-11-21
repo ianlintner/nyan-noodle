@@ -16,8 +16,16 @@ const requested = new URLSearchParams(window.location.search).get('scene');
 
 const meta = [TitleScene, PrepScene, ReportScene, UpgradeScene];
 
+/**
+ * Direct URLs into prep/report/upgrades need a live session; booting straight into one with no
+ * session makes `session.state` throw "No game in progress". Redirect those to the title screen,
+ * which loads or creates the session before the day-loop scenes can run.
+ */
+const DIRECT_META = new Set(['prep', 'report', 'upgrades']);
+const first = requested && DIRECT_META.has(requested) ? 'title' : requested;
+
 /** The first scene in the list starts first; the rest stay registered for scene.start(). */
-function sceneList(first: string | null): Phaser.Types.Scenes.SceneType[] {
+function sceneList(firstScene: string | null): Phaser.Types.Scenes.SceneType[] {
   const all: Record<string, Phaser.Types.Scenes.SceneType> = {
     shop: ShopScene,
     service: ServiceScene,
@@ -27,7 +35,7 @@ function sceneList(first: string | null): Phaser.Types.Scenes.SceneType[] {
     report: ReportScene,
     upgrades: UpgradeScene,
   };
-  const start = (first && all[first]) || TitleScene;
+  const start = (firstScene && all[firstScene]) || TitleScene;
   return [start, ...[BootScene, ShopScene, ServiceScene, ...meta].filter((s) => s !== start)];
 }
 
@@ -44,7 +52,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.NONE,
     zoom: computeIntegerZoom(window.innerWidth, window.innerHeight),
   },
-  scene: sceneList(requested),
+  scene: sceneList(first),
 });
 
 window.addEventListener('resize', () => {

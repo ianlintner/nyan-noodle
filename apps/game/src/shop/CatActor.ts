@@ -62,6 +62,9 @@ export class CatActor {
   private dir: Dir = 'down';
   private seated = false;
   private onArrive: (() => void) | null = null;
+  /** True (sub-pixel) feet position, separate from the whole-pixel sprite render. */
+  private fx = 0;
+  private fy = 0;
   speedScale = 1;
 
   constructor(
@@ -73,6 +76,8 @@ export class CatActor {
   ) {
     const x = cellCenterX(cell.tx);
     const y = cellFeetY(cell.ty);
+    this.fx = x;
+    this.fy = y;
     this.sprite = scene.add.sprite(x, y, ATLAS_KEY).setOrigin(0.5, 1);
     register(this.sprite);
     this.overlay = accessory ? scene.add.sprite(x, y, ATLAS_KEY).setOrigin(0.5, 1) : null;
@@ -82,10 +87,10 @@ export class CatActor {
   }
 
   get x(): number {
-    return this.sprite.x;
+    return this.fx;
   }
   get y(): number {
-    return this.sprite.y;
+    return this.fy;
   }
   get isSeated(): boolean {
     return this.seated;
@@ -95,9 +100,10 @@ export class CatActor {
   }
   /** Nearest tile cell to the sprite's feet. */
   get cell(): Cell {
+    // `fy` is the true feet line (SIT_DROP is a render-only offset), so no correction needed.
     return {
-      tx: Math.floor(this.sprite.x / TILE_SIZE),
-      ty: Math.floor((this.sprite.y + FEET_OFFSET - 1) / TILE_SIZE),
+      tx: Math.floor(this.fx / TILE_SIZE),
+      ty: Math.floor((this.fy + FEET_OFFSET - 1) / TILE_SIZE),
     };
   }
 
@@ -106,6 +112,8 @@ export class CatActor {
     this.seated = false;
     this.waypoints = path.slice(1).map((c) => ({ ...c }));
     this.onArrive = done ?? null;
+    // Drop the seated render offset immediately so the sprite is back on its feet line.
+    this.sprite.setPosition(this.fx, this.fy);
     if (this.waypoints.length === 0) this.finish();
     this.refresh();
   }
@@ -120,7 +128,9 @@ export class CatActor {
     this.seated = true;
     this.waypoints = [];
     this.dir = dir;
-    this.sprite.setPosition(cellCenterX(cell.tx), cellFeetY(cell.ty) + SIT_DROP);
+    this.fx = cellCenterX(cell.tx);
+    this.fy = cellFeetY(cell.ty);
+    this.sprite.setPosition(this.fx, this.fy + SIT_DROP);
     this.refresh();
     this.syncDepth(1);
   }
@@ -134,8 +144,8 @@ export class CatActor {
       const target = this.waypoints[0]!;
       const tx = cellCenterX(target.tx);
       const ty = cellFeetY(target.ty);
-      const dx = tx - this.sprite.x;
-      const dy = ty - this.sprite.y;
+      const dx = tx - this.fx;
+      const dy = ty - this.fy;
       const dist = Math.hypot(dx, dy);
       if (dist > 0.01) {
         const nextDir: Dir =
@@ -146,19 +156,19 @@ export class CatActor {
         }
       }
       if (dist <= budget) {
-        this.sprite.setPosition(tx, ty);
+        this.fx = tx;
+        this.fy = ty;
         budget -= dist;
         this.waypoints.shift();
       } else {
-        this.sprite.setPosition(
-          this.sprite.x + (dx / dist) * budget,
-          this.sprite.y + (dy / dist) * budget,
-        );
+        this.fx += (dx / dist) * budget;
+        this.fy += (dy / dist) * budget;
         budget = 0;
       }
     }
-    // Whole-pixel render positions keep the pixel grid crisp.
-    this.sprite.setPosition(Math.round(this.sprite.x), Math.round(this.sprite.y));
+    // Whole-pixel render positions keep the pixel grid crisp; the true position stays in
+    // fx/fy so sub-pixel movement accumulates instead of being rounded away each frame.
+    this.sprite.setPosition(Math.round(this.fx), Math.round(this.fy));
     this.syncDepth();
     if (this.waypoints.length === 0) this.finish();
   }

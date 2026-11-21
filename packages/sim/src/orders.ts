@@ -35,6 +35,9 @@ function pickExtras(customer: CatCustomer, recipeId: RecipeId, rng: Rng): Toppin
   const recipe = RECIPES[recipeId];
   const extras: ToppingId[] = [];
   for (const topping of recipe.availableToppings) {
+    // Default toppings are already on the bowl; only offer the rest as extras so the
+    // assembly sequence stays within the supported control positions.
+    if (recipe.defaultToppings.includes(topping)) continue;
     const liked = customer.preferences.likedToppings.includes(topping);
     const chance = liked ? 0.5 : 0.15;
     if (rng.next() < chance) extras.push(topping);

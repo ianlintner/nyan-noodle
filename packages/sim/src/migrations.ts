@@ -1,3 +1,4 @@
+import { FURNITURE } from './catalog';
 import { defaultItems } from './layoutRules';
 import { STARTING_RECIPES } from './recipes';
 import { SIM_VERSION, STARTING_STOCK, zeroByRecipe, zeroEquipment } from './state';
@@ -94,6 +95,19 @@ export function validateState(raw: Raw): SimState {
   );
   need(raw.tierId === 'cart' || raw.tierId === 'stall' || raw.tierId === 'small-shop', 'tierId');
   need(Array.isArray(raw.items), 'items');
+  const kinds = new Set<string>(FURNITURE.map((f) => f.kind));
+  (raw.items as unknown[]).forEach((item, i) => {
+    need(
+      isRecord(item) &&
+        typeof item.id === 'number' &&
+        typeof item.kind === 'string' &&
+        kinds.has(item.kind) &&
+        Number.isInteger(item.x) &&
+        Number.isInteger(item.y) &&
+        (item.rot === 0 || item.rot === 1 || item.rot === 2 || item.rot === 3),
+      `items[${i}]`,
+    );
+  });
   need(Array.isArray(raw.unlockedRecipes) && raw.unlockedRecipes.length > 0, 'unlockedRecipes');
   need(Array.isArray(raw.menu), 'menu');
   need(isRecord(raw.mastery) && isRecord(raw.priceAdjust) && isRecord(raw.equipment), 'meta');

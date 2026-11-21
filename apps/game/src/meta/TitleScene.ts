@@ -45,6 +45,9 @@ export class TitleScene extends Phaser.Scene {
       this.summary = summary;
       this.buildMenu();
       if (session.lastError) this.msg.say(`Save problem: ${session.lastError}`, false);
+      else if (session.lastWarning) {
+        this.msg.say(`Note: ${session.lastWarning}`, true);
+      }
       this.registry.set('titleReady', true);
     });
     this.exposeDebugApi();
@@ -104,7 +107,10 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private newGame(): void {
-    if (this.summary && !this.armedNewGame) {
+    // A stored save OR a load error (damaged/newer-version save still on disk) both mean a
+    // destructive replace, so require the second click in both cases.
+    const hasExisting = this.summary !== null || session.lastError !== null;
+    if (hasExisting && !this.armedNewGame) {
       this.armedNewGame = true;
       this.newButton.setLabel('Erase & start?');
       return this.msg.say('Click again to replace the saved game', false);
@@ -127,12 +133,21 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private async exportSave(): Promise<void> {
+    // Export the live session when there is one (it is newer than the stored save after an
+    // autosave failure); otherwise load the stored save to export.
+    if (session.active) {
+      this.copyExport(session.exportString());
+      return;
+    }
     try {
       if (!(await session.continueGame())) return this.msg.say('Nothing to export yet', false);
     } catch (error) {
       return this.msg.say(error instanceof Error ? error.message : 'Export failed', false);
     }
-    const text = session.exportString();
+    this.copyExport(session.exportString());
+  }
+
+  private async copyExport(text: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
       this.msg.say('Export string copied to clipboard');
