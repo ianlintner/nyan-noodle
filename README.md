@@ -65,11 +65,11 @@ Early-game knobs (cook cap, tier coin/star gates, tier price premium, stove cost
 
 ## Play
 
-Live build: _URL pending first deploy_ — after the one-time setup below, paste the Static Web App's default hostname here (`https://<name>.azurestaticapps.net`). Every PR into `main` also gets an automatic preview environment (URL is posted as a PR comment by the deploy action).
+Live build: _URL pending first deploy_ — after the one-time setup below, paste the Static Web App's default hostname here (`https://<name>.azurestaticapps.net`). Same-repo PRs into `main` also get a preview environment (URL posted as a PR comment by the deploy action) once the deploy secret below is configured; fork PRs and PRs opened before the secret exists get no preview.
 
 ## Deploy (Azure Static Web Apps)
 
-`.github/workflows/azure-static-web-apps.yml` builds with `npm run build` and uploads the prebuilt `apps/game/dist` (`skip_app_build: true`; no Oryx build, no API). Pushes to `main` go to production; same-repo PRs get a preview that is closed when the PR closes. `apps/game/public/staticwebapp.config.json` is copied into `dist` and provides immutable caching for hashed `/assets/*` (the unhashed `nyan-atlas.*` files and `index.html` are `no-cache`) and basic security headers. The game is a single page with relative asset URLs, so there is deliberately no SPA navigation fallback or 404 rewrite: missing files return a real 404.
+`.github/workflows/azure-static-web-apps.yml` builds with `npm run build` in a read-only job that never sees the Azure token, then a separate deploy job (which holds the token and runs no repo code) uploads the prebuilt `apps/game/dist` artifact (`skip_app_build: true`; no Oryx build, no API). Pushes to `main` go to production; same-repo PRs get a preview that is closed when the PR closes. `apps/game/public/staticwebapp.config.json` is copied into `dist` and provides immutable caching for hashed `/assets/*` (the unhashed `nyan-atlas.*` files and `index.html` are `no-cache`) and basic security headers. The game is a single page with relative asset URLs, so there is deliberately no SPA navigation fallback or 404 rewrite: missing files return a real 404.
 
 One-time setup (not done by the workflow; no Azure resources or secrets are created by this repo):
 
