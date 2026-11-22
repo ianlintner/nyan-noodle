@@ -28,6 +28,8 @@ export interface ServiceVisit {
   /** Beat a seat is assigned (null if the cat gave up while queuing). */
   readonly seatBeat: number | null;
   readonly seatIndex: number | null;
+  /** Total patience budget in beats (0 when unavailable / sandbox). */
+  readonly patienceBeats: number;
   /** Beat the cat stands up and heads out (finished eating, or lost patience). */
   readonly leaveBeat: number;
   readonly outcome: 'served' | 'lost';
@@ -97,6 +99,7 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
           ...pick(d),
           seatBeat: null,
           seatIndex: null,
+          patienceBeats: d.patienceBeats,
           leaveBeat: beat,
           outcome: 'lost',
         });
@@ -109,7 +112,14 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
       const d = draft[w.index]!;
       const leaveBeat = beat + WALK_IN_BEATS + d.dwell;
       seatFreeAt[seat] = leaveBeat + SEAT_TURNOVER_BEATS;
-      visits.push({ ...pick(d), seatBeat: beat, seatIndex: seat, leaveBeat, outcome: 'served' });
+      visits.push({
+        ...pick(d),
+        seatBeat: beat,
+        seatIndex: seat,
+        patienceBeats: d.patienceBeats,
+        leaveBeat,
+        outcome: 'served',
+      });
     }
   }
   visits.sort((a, b) => a.arriveBeat - b.arriveBeat || a.customerId - b.customerId);

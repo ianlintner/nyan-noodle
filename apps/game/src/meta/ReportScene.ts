@@ -4,7 +4,7 @@ import type { ComplaintKind, DayReport } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from './session';
-import { SCENE_KEYS, backdrop, icon, loadAtlas, messageLine, signed, starsText } from './ui';
+import { SCENE_KEYS, backdrop, icon, loadAtlas, messageLine, signed, starsNumber } from './ui';
 
 export const REPORT_SCENE_KEY = SCENE_KEYS.report;
 
@@ -103,7 +103,7 @@ export class ReportScene extends Phaser.Scene {
     let ry = right.content.y + 4;
     const rx = right.content.x + 4;
     icon(this, rx, ry - 2, 'star');
-    pixelText(this, rx + 20, ry + 1, `${starsText(report.reputation)}/5 stars`, { scale: 2 });
+    pixelText(this, rx + 20, ry + 1, `${starsNumber(report.reputation)}/5`, { scale: 2 });
     ry += 20;
     pixelText(
       this,

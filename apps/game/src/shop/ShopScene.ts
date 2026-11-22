@@ -24,6 +24,7 @@ import { CameraRig } from './CameraRig';
 import { ShopDirector } from './director';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
+import { startSteam } from './steam';
 import { WorldView } from './WorldView';
 import { session } from '../meta/session';
 import { SCENE_KEYS } from '../meta/ui';
@@ -83,6 +84,8 @@ export class ShopScene extends Phaser.Scene {
   private speedButton: ButtonHandle | null = null;
   /** Qualities of the bowls hand-cooked in the kitchen (ServiceScene) before opening. */
   private chefQualities: readonly (number | null)[] = [];
+  /** Cleanup for the animated stove-steam puffs (cosmetic, no sim effect). */
+  private stopSteam: (() => void) | null = null;
 
   constructor() {
     super(SHOP_SCENE_KEY);
@@ -144,6 +147,8 @@ export class ShopScene extends Phaser.Scene {
     this.layout = buildLayout(this.state.tierId, this.state.items);
     this.world.render(this.layout);
     this.rebuildStaff();
+    this.stopSteam?.();
+    this.stopSteam = startSteam(this, this.layout, this.uiCam);
     this.rig = new CameraRig(this, this.layout.cols * TILE_SIZE, this.layout.rows * TILE_SIZE);
 
     const hudBefore = new Set(this.children.list);
@@ -238,6 +243,8 @@ export class ShopScene extends Phaser.Scene {
     this.layout = buildLayout(this.state.tierId, this.state.items);
     this.world.render(this.layout);
     this.rebuildStaff();
+    this.stopSteam?.();
+    this.stopSteam = startSteam(this, this.layout, this.uiCam);
     if (tierChanged) {
       this.rig.resize(this.layout.cols * TILE_SIZE, this.layout.rows * TILE_SIZE);
       this.buildPanel.setTier(this.state.tierId);
@@ -304,9 +311,11 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    const { content } = drawPanel(this, 4, 4, 128, 48, { title: 'Nyan Noodle' });
+    // 3 lines of status text at 8px need the content area to be ~34px tall; the panel
+    // header (14px) + borders (8px) + 34px content = 56px, so the last line isn't clipped.
+    const { content } = drawPanel(this, 4, 4, 128, 56, { title: 'Nyan Noodle' });
     this.hudText = pixelText(this, content.x + 2, content.y + 1, '');
-    this.msgText = pixelText(this, 6, 56, '', { token: 'brothGold' });
+    this.msgText = pixelText(this, 6, 62, '', { token: 'brothGold' });
     this.toggle = createButton(this, 4, NATIVE_HEIGHT - 18, 64, 14, 'Build', () => {
       if (this.inSession) return this.mode === 'build' ? this.leaveBuild() : this.finishDay();
       if (this.mode === 'build') this.startService();

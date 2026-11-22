@@ -25,7 +25,7 @@ import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { session } from './session';
-import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsText } from './ui';
+import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsNumber } from './ui';
 
 export const UPGRADE_SCENE_KEY = SCENE_KEYS.upgrades;
 
@@ -96,7 +96,7 @@ export class UpgradeScene extends Phaser.Scene {
       this,
       NATIVE_WIDTH - 8,
       8,
-      `${tier.name}   ${s.economy.fishCoins} coins   ${starsText(rep)}/5 stars`,
+      `${tier.name}   ${s.economy.fishCoins} coins   ${starsNumber(rep)}/5`,
       { token: 'cream', originX: 1 },
     );
 

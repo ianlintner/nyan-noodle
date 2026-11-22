@@ -23,22 +23,34 @@ const STATIC = {
     'wall_wood',
     'wall_window',
   ],
-  furniture: ['counter', 'stove', 'stool', 'table', 'noren', 'lantern', 'plant', 'sign'],
+  furniture: [
+    'counter',
+    'stove',
+    'stool',
+    'table',
+    'noren',
+    'lantern',
+    'plant',
+    'sign',
+    'wall_menu',
+  ],
   food: ['bowl_empty', 'bowl_shoyu', 'bowl_miso', 'bowl_tonkotsu', 'bowl_spicy'],
   topping: ['egg', 'nori', 'scallion', 'chashu', 'naruto'],
   ingredient: ['noodles', 'broth', 'pork', 'egg', 'fish', 'chili', 'scallion'],
   icon: ['coin', 'star', 'heart', 'clock', 'flame', 'hammer', 'check', 'cross', 'plus'],
+  fx: ['steam'],
 };
 /** category -> [w, h] rule; h may be a function. */
 const SIZE = {
   tile: (w, h) => w === 16 && h === 16,
-  furniture: (w, h) => w === 16 && h % 8 === 0 && h >= 16,
+  furniture: (w, h) => (w === 16 && h % 8 === 0 && h >= 16) || (w === 48 && h === 20),
   cat: (w, h) => w === 16 && h === 24,
   cataccessory: (w, h) => w === 16 && h === 24,
   food: (w, h) => w === 16 && h === 16,
   topping: (w, h) => w === 16 && h === 16,
   ingredient: (w, h) => w === 16 && h === 16,
   icon: (w, h) => w === 16 && h === 16,
+  fx: (w, h) => w === 16 && h === 16,
 };
 const OUTLINED = new Set(['furniture', 'cat', 'food', 'topping', 'ingredient', 'icon']);
 const OUTLINE_COLORS = new Set([PALETTE.outline, PALETTE.ink]);

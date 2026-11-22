@@ -115,5 +115,12 @@ export function buildIcons() {
       c.rect(2, 6, 12, 4, 'noriGreen');
       c.edgeShade('noriGreen', 'scallion', 'nightBlue');
     }),
+    // Steam puff (soft white, lightly outlined): used as an animated stove effect.
+    'fx/steam': make((c) => {
+      c.ellipse(8, 9, 5, 6, 'steamWhite');
+      c.ellipse(5, 11, 3, 3, 'steamWhite');
+      c.ellipse(11, 11, 3, 3, 'steamWhite');
+      c.ellipse(8, 8, 3, 3, 'steamWhite');
+    }),
   };
 }

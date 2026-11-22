@@ -20,7 +20,7 @@ import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { SERVICE_SCENE_KEY } from '../service/ServiceScene';
 import { session } from './session';
-import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsText } from './ui';
+import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsNumber } from './ui';
 import { ATLAS_KEY } from '../shop/CatActor';
 
 export const PREP_SCENE_KEY = SCENE_KEYS.prep;
@@ -74,7 +74,7 @@ export class PrepScene extends Phaser.Scene {
       this,
       NATIVE_WIDTH - 8,
       8,
-      `${tier.name}   ${s.economy.fishCoins} coins   ${starsText(s.economy.reputation)}/5 stars`,
+      `${tier.name}   ${s.economy.fishCoins} coins   ${starsNumber(s.economy.reputation)}/5`,
       { token: 'cream', originX: 1 },
     );
 
@@ -147,15 +147,15 @@ export class PrepScene extends Phaser.Scene {
       });
       return;
     }
-    createButton(this, x + 22, y, 14, 14, on ? 'x' : ' ', () =>
+    createButton(this, x + 22, y, 30, 14, on ? 'On' : 'Off', () =>
       this.apply(toggleMenu(session.state, id)),
     );
-    pixelText(this, x + 42, y + 1, recipe.name);
+    pixelText(this, x + 58, y + 1, recipe.name);
     const adj = s.priceAdjust[id];
     const pct = Math.round(adj * PRICE_STEP * 100);
     pixelText(
       this,
-      x + 42,
+      x + 58,
       y + 12,
       `Mastery ${s.mastery[id]}  ${pct >= 0 ? '+' : ''}${pct}% price`,
       {

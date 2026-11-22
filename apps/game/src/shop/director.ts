@@ -81,7 +81,7 @@ export class ShopDirector {
     for (const r of this.runtimes.values()) {
       if (r.phase !== 'seated') continue;
       const seat = this.layout.seats[r.visit.seatIndex!]!;
-      if (r.actor.sprite.depth <= (seat.ty + 1) * TILE_SIZE - 1) bad += 1;
+      if (r.actor.sprite.depth <= (seat.ty + 1) * TILE_SIZE + 0.3) bad += 1;
     }
     return bad;
   }
