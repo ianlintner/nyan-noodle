@@ -84,7 +84,7 @@ Pages builds with `VITE_BASE=/nyan-noodle/` so all URLs (including the runtime-l
 
 ```sh
 VITE_BASE=/nyan-noodle/ npm run build
-npx vite preview --base /nyan-noodle/   # http://127.0.0.1:4173/nyan-noodle/
+npm run preview -- --base /nyan-noodle/   # http://127.0.0.1:4173/nyan-noodle/
 npm run e2e:subpath                     # Playwright: title → game → service, zero failed requests
 ```
 

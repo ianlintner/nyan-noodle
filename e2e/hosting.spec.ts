@@ -26,7 +26,7 @@ test('loads title, starts a game and reaches service with no failed requests', a
     failures.push(`${url}${reason ? ` (${reason})` : ''}`);
   page.on('requestfailed', (r) => track(r.url(), r.failure()?.errorText));
   page.on('response', (r) => {
-    if (r.status() >= 400) track(r.url(), `HTTP ${r.status()}`);
+    if (r.status() < 200 || r.status() > 299) track(r.url(), `HTTP ${r.status()}`);
     if (r.url().includes('nyan-atlas')) atlasRequests.push(r.url());
   });
 
