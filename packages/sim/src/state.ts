@@ -9,8 +9,8 @@ import { defaultItems } from './layoutRules';
 import type { BuildItem } from './layoutRules';
 import type { RecipeId } from './recipes';
 import { STARTING_RECIPES } from './recipes';
-import type { CatCustomer } from './customers';
 import type { Order } from './orders';
+import type { Regular } from './regulars';
 
 export type ComplaintKind = 'queue' | 'sold-out' | 'too-slow' | 'pricey';
 
@@ -62,7 +62,7 @@ export interface SimState {
   readonly mastery: Readonly<Record<RecipeId, number>>;
   readonly equipment: Readonly<Record<EquipmentId, number>>;
   readonly staff: StaffModel;
-  readonly regulars: readonly CatCustomer[];
+  readonly regulars: readonly Regular[];
   /** In-flight orders during the current service phase. */
   readonly activeOrders: readonly Order[];
   readonly lastReport: DayReport | null;
@@ -70,7 +70,7 @@ export interface SimState {
   readonly revenueHistory: readonly number[];
 }
 
-export const SIM_VERSION = 3;
+export const SIM_VERSION = 4;
 export const STARTING_STOCK = 8;
 
 export function zeroByRecipe(): Record<RecipeId, number> {

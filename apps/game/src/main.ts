@@ -8,20 +8,21 @@ import { TitleScene } from './meta/TitleScene';
 import { PrepScene } from './meta/PrepScene';
 import { ReportScene } from './meta/ReportScene';
 import { UpgradeScene } from './meta/UpgradeScene';
+import { RegularsScene } from './meta/RegularsScene';
 import { session } from './meta/session';
 
-// `?scene=shop|service|boot|title|prep|report|upgrades` boots straight into that scene
+// `?scene=shop|service|boot|title|prep|report|upgrades|regulars` boots straight into that scene
 // (e2e / shots). With no param the game opens on the title screen.
 const requested = new URLSearchParams(window.location.search).get('scene');
 
-const meta = [TitleScene, PrepScene, ReportScene, UpgradeScene];
+const meta = [TitleScene, PrepScene, ReportScene, UpgradeScene, RegularsScene];
 
 /**
- * Direct URLs into prep/report/upgrades need a live session; booting straight into one with no
- * session makes `session.state` throw "No game in progress". Redirect those to the title screen,
- * which loads or creates the session before the day-loop scenes can run.
+ * Direct URLs into prep/report/upgrades/regulars need a live session; booting straight into one
+ * with no session makes `session.state` throw "No game in progress". Redirect those to the title
+ * screen, which loads or creates the session before the day-loop scenes can run.
  */
-const DIRECT_META = new Set(['prep', 'report', 'upgrades']);
+const DIRECT_META = new Set(['prep', 'report', 'upgrades', 'regulars']);
 const first = requested && DIRECT_META.has(requested) ? 'title' : requested;
 
 /** The first scene in the list starts first; the rest stay registered for scene.start(). */
@@ -34,6 +35,7 @@ function sceneList(firstScene: string | null): Phaser.Types.Scenes.SceneType[] {
     prep: PrepScene,
     report: ReportScene,
     upgrades: UpgradeScene,
+    regulars: RegularsScene,
   };
   const start = (firstScene && all[firstScene]) || TitleScene;
   return [start, ...[BootScene, ShopScene, ServiceScene, ...meta].filter((s) => s !== start)];

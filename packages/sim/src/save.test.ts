@@ -121,6 +121,16 @@ describe('migrations', () => {
     expect(parseSave(serializeSave(createSave(migrated, 'x'))).state).toEqual(migrated);
   });
 
+  it('upgrades a v3 save, adding an empty regulars roster', () => {
+    const v4 = createSimState(4, 'stall') as unknown as Record<string, unknown>;
+    const v3: Record<string, unknown> = { ...v4, version: 3 };
+    delete v3.regulars;
+    const migrated = migrateState(v3);
+    expect(migrated.version).toBe(SIM_VERSION);
+    expect(migrated.regulars).toEqual([]);
+    expect(parseSave(serializeSave(createSave(migrated, 'x'))).state).toEqual(migrated);
+  });
+
   it('parses an old-version save inside a current envelope', () => {
     const file = { format: SAVE_FORMAT, saveVersion: 1, savedAt: 'x', state: legacyV1() };
     expect(parseSave(JSON.stringify(file)).state.version).toBe(SIM_VERSION);

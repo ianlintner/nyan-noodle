@@ -24,6 +24,7 @@ import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
+import { REGULARS_SCENE_KEY } from './RegularsScene';
 import { session } from './session';
 import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsNumber } from './ui';
 
@@ -201,6 +202,9 @@ export class UpgradeScene extends Phaser.Scene {
 
     createButton(this, 6, NATIVE_HEIGHT - 26, 90, 18, 'Back to prep', () =>
       this.scene.start(SCENE_KEYS.prep),
+    );
+    createButton(this, 100, NATIVE_HEIGHT - 26, 90, 18, 'Regulars', () =>
+      this.scene.start(REGULARS_SCENE_KEY),
     );
     pixelText(this, NATIVE_WIDTH - 8, NATIVE_HEIGHT - 22, `Day ${s.clock.day} next`, {
       token: 'cream',
