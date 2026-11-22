@@ -22,7 +22,7 @@ function unlockAudio(): void {
 }
 window.addEventListener('pointerdown', unlockAudio, { once: true });
 window.addEventListener('keydown', unlockAudio, { once: true });
-// UI click for every Phaser pointer-up unless the target opted out (audio buttons play their own).
+// UI click for every Phaser pointer-up; panel controls rely on this single click source.
 window.addEventListener('pointerdown', () => audio.play('click'));
 
 // `?scene=shop|service|boot|title|prep|report|upgrades` boots straight into that scene

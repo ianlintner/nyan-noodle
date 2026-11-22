@@ -57,7 +57,6 @@ export function createSettingsPanel(
   };
   const mute = createButton(scene, px, rowY + 64, pw, 14, 'Mute: off', () => {
     audio.setMuted(!audio.state.muted);
-    audio.play('click');
     refresh();
     onChange(audio.state);
   });
@@ -65,7 +64,6 @@ export function createSettingsPanel(
   type Channel = 'master' | 'music' | 'sfx';
   function edit(channel: Channel, direction: number): void {
     audio.setVolume(channel, bump(audio.state[channel], direction));
-    audio.play('click');
     refresh();
     onChange(audio.state);
   }

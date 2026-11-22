@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
-import { audio } from './manager';
 import { createSettingsPanel } from './settingsPanel';
 import type { AudioSettings } from './settings';
 
@@ -47,7 +46,6 @@ export function createPauseOverlay(
     createSettingsPanel(scene, 124, 72, 232, 116, onChange);
     // Every object created above is new; destroy them as one set on resume.
     for (const o of scene.children.list) if (!before.has(o)) owned.push(o);
-    audio.play('click');
   }
 
   const onKey = (): void => {
