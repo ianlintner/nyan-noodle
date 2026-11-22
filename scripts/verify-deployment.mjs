@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Verify a deployed build over HTTP: status, security headers and sha256
- * equality of index.html and the main JS bundle against the local dist/.
+ * equality of every emitted file against the local dist/.
  *
  *   node scripts/verify-deployment.mjs https://<swa-host>
  */
@@ -37,16 +37,24 @@ if (!existsSync(localIndex)) {
   process.exit(2);
 }
 const html = readFileSync(localIndex, 'utf8');
-// Vite emits the app entry as /assets/index-<hash>.js (the atlas and phaser
-// chunk are covered by the asset check below; index.html + the entry are the
-// two files that change on every content update).
-const entry = html.match(/src="([^"]*\/assets\/index-[^"]+\.js)"/)?.[1];
-if (!entry) {
-  console.error('could not find main JS bundle in local index.html');
+
+// Vite splits Phaser into a separate chunk: hashing only the entry would pass
+// a partial upload missing the largest bundle. Collect every JS chunk emitted
+// in index.html so a missing/stale chunk fails verification.
+const chunks = [...html.matchAll(/(?:src|href)="([^"]*\/assets\/[^"?#]+\.js)"/g)].map((m) => m[1]);
+if (chunks.length === 0) {
+  console.error('could not find any JS chunks in local index.html');
   process.exit(2);
 }
-const paths = ['/index.html', entry];
-console.info(`verify-deployment: comparing ${paths.length} files (index.html + main JS)`);
+// The atlas is loaded at runtime by Phaser (not referenced by index.html), and
+// scripts/generate-art.mjs rewrites the same filenames on each art change, so
+// its bytes must be hashed rather than merely checked for HTTP 200.
+const atlas = readdirSync(join(DIST, 'assets')).filter((f) => f.startsWith('nyan-atlas.'));
+if (atlas.length !== 2) fail(`expected atlas PNG+JSON in dist/assets, found ${atlas.length}`);
+const paths = ['/index.html', ...chunks, ...atlas.map((f) => `/assets/${f}`)];
+console.info(
+  `verify-deployment: comparing ${paths.length} files (index + ${chunks.length} JS chunks + ${atlas.length} atlas files)`,
+);
 
 for (const path of paths) {
   let res;
@@ -68,16 +76,6 @@ for (const path of paths) {
   const actual = sha256(Buffer.from(await res.arrayBuffer()));
   if (actual !== expected) fail(`${path} sha256 mismatch: local ${expected} vs served ${actual}`);
   else console.info(`  OK ${path} (${expected.slice(0, 12)}…)`);
-}
-
-// Sanity-check that the atlas asset is present locally and fetchable. Its
-// contents are immutable art, so only status is checked here (the JS bundle
-// hash above covers code changes).
-const atlas = readdirSync(join(DIST, 'assets')).filter((f) => f.startsWith('nyan-atlas.'));
-if (atlas.length !== 2) fail(`expected atlas PNG+JSON in dist/assets, found ${atlas.length}`);
-for (const file of atlas) {
-  const res = await fetch(`${base}/assets/${file}`).catch(() => null);
-  if (!res || res.status !== 200) fail(`atlas asset ${file} not served`);
 }
 
 if (failures) {

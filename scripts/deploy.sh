@@ -22,7 +22,6 @@ esac
 
 SWA_APP_NAME="${SWA_APP_NAME:-nyan-noodle}"
 SWA_RESOURCE_GROUP="${SWA_RESOURCE_GROUP:-nekoc}"
-PRODUCTION_HOST="green-plant-0c71c9f10.3.azurestaticapps.net"
 
 echo "==> Preflight: npm run check"
 npm run check
@@ -67,20 +66,7 @@ if [[ -z "$token" || "$token" == "None" ]]; then
   exit 1
 fi
 
-if [[ "$ENVIRONMENT" == "review" ]]; then
-  host="$(az staticwebapp environment list \
-    --name "$SWA_APP_NAME" --resource-group "$SWA_RESOURCE_GROUP" \
-    --query "[?name=='review'].hostname" -o tsv)"
-else
-  host="$(az staticwebapp show \
-    --name "$SWA_APP_NAME" \
-    --resource-group "$SWA_RESOURCE_GROUP" \
-    --query defaultHostname -o tsv)"
-fi
-[[ -n "$host" ]] || host="$PRODUCTION_HOST"
-if [[ "$host" != http* ]]; then host="https://$host"; fi
-
-echo "==> Deploying dist/ to $host ($ENVIRONMENT)"
+echo "==> Deploying dist/ to $ENVIRONMENT environment of $SWA_APP_NAME"
 # --no-use-keychain prevents the token being persisted outside this process.
 SWA_CLI_DEPLOYMENT_TOKEN="$token" npx @azure/static-web-apps-cli deploy \
   --output-location ./apps/game/dist \
@@ -88,6 +74,30 @@ SWA_CLI_DEPLOYMENT_TOKEN="$token" npx @azure/static-web-apps-cli deploy \
   --env "$ENVIRONMENT" \
   --no-use-keychain
 unset token
+
+# Resolve the hostname AFTER upload: a first review deployment may not have an
+# environment hostname until swa creates it. Never fall back to the production
+# hostname for a review deploy — that would verify the wrong site.
+host=''
+for attempt in 1 2 3; do
+  if [[ "$ENVIRONMENT" == "review" ]]; then
+    host="$(az staticwebapp environment list \
+      --name "$SWA_APP_NAME" --resource-group "$SWA_RESOURCE_GROUP" \
+      --query "[?name=='review'].hostname" -o tsv)"
+  else
+    host="$(az staticwebapp show \
+      --name "$SWA_APP_NAME" \
+      --resource-group "$SWA_RESOURCE_GROUP" \
+      --query defaultHostname -o tsv)"
+  fi
+  [[ -n "$host" && "$host" != "None" ]] && break
+  sleep 5
+done
+if [[ -z "$host" || "$host" == "None" ]]; then
+  echo " could not resolve $ENVIRONMENT hostname for $SWA_APP_NAME after upload" >&2
+  exit 1
+fi
+if [[ "$host" != http* ]]; then host="https://$host"; fi
 
 echo "==> Verifying deployment at $host"
 node scripts/verify-deployment.mjs "$host"

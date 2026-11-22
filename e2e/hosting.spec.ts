@@ -30,7 +30,7 @@ test('loads title, starts a game and reaches service with no failed requests', a
     if (r.url().includes('nyan-atlas')) atlasRequests.push(r.url());
   });
 
-  await page.goto('/');
+  await page.goto(BASE_PATH);
   await page.waitForFunction(
     () => (window as unknown as W).__nyan?.registry.get('titleReady') === true,
     undefined,
