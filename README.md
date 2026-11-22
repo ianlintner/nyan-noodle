@@ -10,9 +10,17 @@ MVP feature-complete on the stacked PR chain (#1-#8 plus this integration pass):
 
 ## Play
 
+- **GitHub Pages:** https://ianlintner.github.io/nyan-noodle/
+- **Azure Static Web Apps:** https://green-plant-0c71c9f10.3.azurestaticapps.net/
+- **Local dev:** `npm install && npm run dev` → http://127.0.0.1:5173
+
+Saves live in IndexedDB with a localStorage fallback, both scoped to the browser origin. Pages (`ianlintner.github.io`) and the SWA hostname are different origins, so **each site has its own separate saves** — a game started on one does not appear on the other. Use _Export_ / _Import_ on the title screen to move a save between them.
+
+To play from source:
+
 ```sh
 npm install
-npm run dev          # http://127.0.0.1:5173
+npm run dev
 ```
 
 1. **Title**: _New game_ (or _Continue_ an autosave, _Import_ / _Export_ a save string).
@@ -63,19 +71,30 @@ Early-game knobs (cook cap, tier coin/star gates, tier price premium, stove cost
 - **Day loop & saves** (`apps/game/src/meta/`, sim `prep.ts`, `progression.ts`, `day.ts`): every action returns the next state or a typed reason. Saves are a versioned JSON envelope in IndexedDB with a localStorage fallback (`save.ts`, `migrations.ts`, `storage.ts`); damaged or newer saves are reported, never overwritten. Screenshots: `docs/daylog/`.
 - **Pixel config**: native 480x270 (16px tiles), `pixelArt: true`, integer-only zoom (`apps/game/src/config.ts`). Palette tokens in `apps/game/src/theme/palette.ts`; the art pipeline reads them. Text uses a monospace stand-in at the 8px base.
 
-## Play
+## Hosting
 
-Live build: _URL pending first deploy_ — after the one-time setup below, paste the Static Web App's default hostname here (`https://<name>.azurestaticapps.net`). Same-repo PRs into `main` also get a preview environment (URL posted as a PR comment by the deploy action) once the deploy secret below is configured; fork PRs and PRs opened before the secret exists get no preview.
+Two production hosts serve the same prebuilt Vite bundle:
 
-## Deploy (Azure Static Web Apps)
+| Host                  | URL                                                  | Automated by                                                                          |
+| --------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| GitHub Pages          | https://ianlintner.github.io/nyan-noodle/            | `.github/workflows/pages.yml` (push to `main` / `workflow_dispatch`)                  |
+| Azure Static Web Apps | https://green-plant-0c71c9f10.3.azurestaticapps.net/ | `.github/workflows/azure-static-web-apps.yml` (push to `main`, same-repo PR previews) |
 
-`.github/workflows/azure-static-web-apps.yml` builds with `npm run build` in a read-only job that never sees the Azure token, then a separate deploy job (which holds the token and runs no repo code) uploads the prebuilt `apps/game/dist` artifact (`skip_app_build: true`; no Oryx build, no API). Pushes to `main` go to production; same-repo PRs get a preview that is closed when the PR closes. `apps/game/public/staticwebapp.config.json` is copied into `dist` and provides immutable caching for hashed `/assets/*` (the unhashed `nyan-atlas.*` files and `index.html` are `no-cache`) and basic security headers. The game is a single page with relative asset URLs, so there is deliberately no SPA navigation fallback or 404 rewrite: missing files return a real 404.
+Pages builds with `VITE_BASE=/nyan-noodle/` so all URLs (including the runtime-loaded sprite atlas) resolve under the project subpath; SWA and local dev use the default `/` base. The Pages site requires repository Settings → Pages → Source = **GitHub Actions** (one-time setup). To preview that subpath locally:
 
-One-time setup (not done by the workflow; no Azure resources or secrets are created by this repo):
+```sh
+VITE_BASE=/nyan-noodle/ npm run build
+npx vite preview --base /nyan-noodle/   # http://127.0.0.1:4173/nyan-noodle/
+npm run e2e:subpath                     # Playwright: title → game → service, zero failed requests
+```
 
-1. Create a **Free**-plan Static Web App (no Functions, no linked backend) in the Azure portal or with `az staticwebapp create --sku Free`. Choose "Other"/custom deployment source, not GitHub-managed, so Azure does not generate a second workflow.
-2. Copy its deployment token (portal -> Static Web App -> Manage deployment token, or `az staticwebapp secrets list --name <name> --query properties.apiKey -o tsv`).
-3. Add it as the repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (Settings -> Secrets and variables -> Actions).
-4. Push to `main` (or re-run the workflow), then put the hostname in "Play" above.
+### Deploy (Azure Static Web Apps, manual)
 
-Until the secret exists the upload/close steps are skipped (build still runs), so PRs stay green; `ci.yml` is unaffected. Rotate the token by resetting it in Azure and updating the secret.
+`scripts/deploy.sh [review|production]` deploys the checked-in build via the SWA CLI, reading the deployment token from Azure at runtime (`az staticwebapp secrets list -n nyan-noodle -g nekoc`) and passing it only to the `swa` child process with `--no-use-keychain`. It requires `az` and a logged-in account, runs `npm run check` plus a clean-tree gate, and allows `production` only from local `main` aligned with `origin/main`. After upload it fetches the served `index.html` and main JS and compares their sha256 hashes with `apps/game/dist` (also checking atlas assets and the SWA security headers), so a stale CDN or partial upload fails loudly.
+
+```sh
+scripts/deploy.sh review       # review environment (default)
+scripts/deploy.sh production   # main only
+```
+
+The GitHub Actions SWA workflow keeps its graceful skip when `AZURE_STATIC_WEB_APPS_API_TOKEN` is unset: the build still runs and PRs stay green, but no upload happens. Configure that secret (Settings → Secrets and variables → Actions) to enable CI deploys; `ci.yml` is unaffected either way. Rotate the token by resetting it in Azure and updating the secret.

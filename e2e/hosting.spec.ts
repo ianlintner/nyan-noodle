@@ -19,9 +19,7 @@ interface W {
   __nyanService?: { openDoors(): void };
 }
 
-test('loads title, starts a game and reaches service with no failed requests', async ({
-  page,
-}) => {
+test('loads title, starts a game and reaches service with no failed requests', async ({ page }) => {
   const failures: string[] = [];
   const atlasRequests: string[] = [];
   const track = (url: string, reason?: string) =>
