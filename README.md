@@ -90,7 +90,7 @@ npm run e2e:subpath                     # Playwright: title → game → service
 
 ### Deploy (Azure Static Web Apps, manual)
 
-`scripts/deploy.sh [review|production]` deploys the checked-in build via the SWA CLI, reading the deployment token from Azure at runtime (`az staticwebapp secrets list -n nyan-noodle -g nekoc`) and passing it only to the `swa` child process with `--no-use-keychain`. It requires `az` and a logged-in account, runs `npm run check` plus a clean-tree gate, and allows `production` only from local `main` aligned with `origin/main`. After upload it fetches the served `index.html` and main JS and compares their sha256 hashes with `apps/game/dist` (also checking atlas assets and the SWA security headers), so a stale CDN or partial upload fails loudly.
+`scripts/deploy.sh [review|production]` deploys the checked-in build via the SWA CLI, reading the deployment token from Azure at runtime (`az staticwebapp secrets list -n nyan-noodle -g nekoc`) and passing it only to the `swa` child process with `--no-use-keychain`. It requires `az` and a logged-in account, installs the pinned CLI from `npm ci` before reading any token, runs `npm run check` plus a clean-tree gate, and allows `production` only from local `main` aligned with `origin/main`. After upload it fetches the served `index.html`, every emitted JS chunk (including the separate Phaser bundle) and both atlas files, compares their sha256 hashes with `apps/game/dist`, and checks the SWA security headers — a stale CDN, stale art or partial upload fails loudly. It forces `VITE_BASE=/` for its build, so a Pages base left in the caller's environment cannot produce broken root-hosted SWA URLs.
 
 ```sh
 scripts/deploy.sh review       # review environment (default)

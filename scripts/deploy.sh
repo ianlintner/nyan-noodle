@@ -23,8 +23,18 @@ esac
 SWA_APP_NAME="${SWA_APP_NAME:-nyan-noodle}"
 SWA_RESOURCE_GROUP="${SWA_RESOURCE_GROUP:-nekoc}"
 
-echo "==> Preflight: npm run check"
-npm run check
+echo "==> Installing pinned dependencies and SWA CLI"
+# Install up front so no npm lifecycle script ever runs while the deployment
+# token is in the environment. @azure/static-web-apps-cli is pinned at 2.1.0.
+npm ci --no-audit --no-fund
+SWA_CLI="$ROOT/node_modules/.bin/swa"
+[[ -x "$SWA_CLI" ]] || { echo " pinned SWA CLI missing at $SWA_CLI" >&2; exit 1; }
+
+echo "==> Preflight: npm run check (SWA is root-hosted, force VITE_BASE=/)"
+# A caller's VITE_BASE=/nyan-noodle/ from Pages work must not leak into this
+# root-hosted SWA build: dist is gitignored, so the clean-tree gate cannot
+# detect a subpath build being uploaded to SWA.
+VITE_BASE=/ npm run check
 
 echo "==> Preflight: clean working tree"
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -68,7 +78,9 @@ fi
 
 echo "==> Deploying dist/ to $ENVIRONMENT environment of $SWA_APP_NAME"
 # --no-use-keychain prevents the token being persisted outside this process.
-SWA_CLI_DEPLOYMENT_TOKEN="$token" npx @azure/static-web-apps-cli deploy \
+# The pinned local binary (installed before the token was read) is invoked
+# directly: npx would expose the token to an unpinned package install step.
+SWA_CLI_DEPLOYMENT_TOKEN="$token" "$SWA_CLI" deploy \
   --output-location ./apps/game/dist \
   --swa-config-location ./apps/game/dist \
   --env "$ENVIRONMENT" \
