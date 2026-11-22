@@ -28,6 +28,7 @@
     "dev": "npm run dev -w @nyan-noodle/game",
     "preview": "npm run preview -w @nyan-noodle/game",
     "e2e": "playwright test",
+    "e2e:subpath": "E2E_BASE_PATH=/nyan-noodle/ playwright test e2e/hosting.spec.ts",
     "e2e:report": "playwright show-report"
   },
   "devDependencies": {

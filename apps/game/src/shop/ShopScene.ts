@@ -20,6 +20,7 @@ import { BuildController } from '../build/BuildController';
 import type { BuildTool } from '../build/BuildController';
 import { BuildPanel } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
+import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { CameraRig } from './CameraRig';
 import { ShopDirector } from './director';
 import { buildLayout } from './layout';
@@ -108,7 +109,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.atlas(ATLAS_KEY, 'assets/nyan-atlas.png', 'assets/nyan-atlas.json');
+    this.load.atlas(ATLAS_KEY, ATLAS_PNG, ATLAS_JSON);
   }
 
   create(): void {
