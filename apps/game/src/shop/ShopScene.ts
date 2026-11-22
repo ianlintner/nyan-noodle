@@ -159,7 +159,7 @@ export class ShopScene extends Phaser.Scene {
 
     const hudBefore = new Set(this.children.list);
     this.buildHud();
-    this.shopAudio.install(this, this.soundSource);
+    this.shopAudio.install(this, this.soundSource, { registerUi: register });
     for (const o of this.children.list) if (!hudBefore.has(o)) this.cameras.main.ignore(o);
 
     if (this.params.mode === 'build') this.enterBuild();

@@ -14,6 +14,8 @@ import { PALETTE } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from '../meta/session';
 import { audio } from '../audio/manager';
+import { installPause } from '../audio/pause';
+import { persistAudioSettings } from '../audio/controller';
 import { backdrop } from '../meta/ui';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { ATLAS_KEY } from '../shop/CatActor';
@@ -125,6 +127,7 @@ export class ServiceScene extends Phaser.Scene {
     ) as unknown as ServiceScene['keys'];
     this.buildTickets();
     this.buildUi();
+    installPause(this, persistAudioSettings);
     this.exposeDebugApi();
     this.registry.set('serviceReady', true);
     this.events.once('shutdown', () => this.registry.set('serviceReady', false));

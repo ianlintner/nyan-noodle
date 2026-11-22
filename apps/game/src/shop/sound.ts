@@ -17,6 +17,11 @@ export const shopSoundSource = (
   mode: () => 'service' | 'build',
 ): ShopSoundSource => ({ events, beat, mode });
 
+export interface ShopSoundOptions {
+  /** Exclude newly created pause UI objects from the world camera. */
+  registerUi?: (object: Phaser.GameObjects.GameObject) => void;
+}
+
 /** Shop-side audio: phase music, in-game pause (ESC) and event-driven SFX. */
 export class ShopSound {
   private lastBeat = 0;
@@ -25,9 +30,9 @@ export class ShopSound {
   private pause: ReturnType<typeof createPauseOverlay> | null = null;
   private source: ShopSoundSource | null = null;
 
-  install(scene: Phaser.Scene, source: ShopSoundSource): void {
+  install(scene: Phaser.Scene, source: ShopSoundSource, options: ShopSoundOptions = {}): void {
     this.source = source;
-    this.pause = createPauseOverlay(scene, persistAudioSettings);
+    this.pause = createPauseOverlay(scene, persistAudioSettings, options.registerUi);
     scene.events.on('update', this.tick, this);
     scene.events.once('shutdown', this.destroy, this);
   }

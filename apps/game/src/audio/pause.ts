@@ -14,10 +14,15 @@ export interface PauseOverlay {
  * In-game pause: dims the scene, pauses the scene clock and hosts the shared audio settings
  * panel. The caller supplies `onChange` to persist edits; this helper owns presentation and
  * pause/resume only. Phaser input events still fire on a paused scene, so buttons and ESC work.
+ *
+ * `register` is called for every newly created display object so scenes with a separate UI
+ * camera can exclude the overlay from the world camera even when it is created after the
+ * scene's initial HUD pass.
  */
 export function createPauseOverlay(
   scene: Phaser.Scene,
   onChange: (settings: AudioSettings) => void,
+  register?: (object: Phaser.GameObjects.GameObject) => void,
 ): PauseOverlay {
   let active = false;
   let owned: Phaser.GameObjects.GameObject[] = [];
@@ -45,8 +50,15 @@ export function createPauseOverlay(
     });
     createButton(scene, 180, 196, 120, 16, 'Resume', () => toggle());
     createSettingsPanel(scene, 124, 72, 232, 116, onChange);
-    // Every object created above is new; destroy them as one set on resume.
-    for (const o of scene.children.list) if (!before.has(o)) owned.push(o);
+    // Every object created above is new; destroy them as one set on resume. A scene with
+    // a UI camera also needs each one excluded from the world camera here: its earlier
+    // HUD-exclusion pass ran before this overlay existed.
+    for (const o of scene.children.list) {
+      if (!before.has(o)) {
+        owned.push(o);
+        register?.(o);
+      }
+    }
   }
 
   const onKey = (): void => {
@@ -64,4 +76,14 @@ export function createPauseOverlay(
       key?.off('down', onKey);
     },
   };
+}
+
+/** Install the pause overlay for a single-camera scene and tear it down on shutdown. */
+export function installPause(
+  scene: Phaser.Scene,
+  onChange: (settings: AudioSettings) => void,
+): PauseOverlay {
+  const overlay = createPauseOverlay(scene, onChange);
+  scene.events.once('shutdown', () => overlay.destroy());
+  return overlay;
 }
