@@ -1,10 +1,7 @@
 import type { AudioSettings } from './settings';
 
 /** Effective gain for a channel: muted means silence everywhere, master scales each bus. */
-export function channelGain(
-  settings: AudioSettings,
-  channel: 'music' | 'sfx',
-): number {
+export function channelGain(settings: AudioSettings, channel: 'music' | 'sfx'): number {
   if (settings.muted) return 0;
   const level = channel === 'music' ? settings.music : settings.sfx;
   return clamp01(settings.master * level);

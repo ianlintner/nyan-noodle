@@ -30,7 +30,10 @@ class FakeGain implements GainLike {
 
 class FakeOscillator implements OscillatorLike {
   type: OscillatorType = 'sine';
-  frequency = { value: 0, setValueAtTime: vi.fn((value: number) => (this.frequency.value = value)) };
+  frequency = {
+    value: 0,
+    setValueAtTime: vi.fn((value: number) => (this.frequency.value = value)),
+  };
   started: number[] = [];
   stopped: number[] = [];
   connections: AudioNodeLike[] = [];

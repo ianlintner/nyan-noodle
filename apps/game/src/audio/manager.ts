@@ -7,11 +7,15 @@ type ContextFactory = () => AudioContextLike;
 
 /** Default browser factory; injected in tests so no real output device is touched. */
 export function browserAudioContext(): AudioContextLike {
-  const Ctor = (
-    globalThis as unknown as { AudioContext?: new () => AudioContextLike; webkitAudioContext?: new () => AudioContextLike }
-  ).AudioContext ?? (
-    globalThis as unknown as { webkitAudioContext?: new () => AudioContextLike }
-  ).webkitAudioContext;
+  const Ctor =
+    (
+      globalThis as unknown as {
+        AudioContext?: new () => AudioContextLike;
+        webkitAudioContext?: new () => AudioContextLike;
+      }
+    ).AudioContext ??
+    (globalThis as unknown as { webkitAudioContext?: new () => AudioContextLike })
+      .webkitAudioContext;
   if (!Ctor) throw new Error('WebAudio is not available in this browser');
   return new Ctor();
 }
@@ -126,7 +130,12 @@ export class AudioManager {
   }
 
   /** Debug/e2e surface; does not create a context or emit sound. */
-  snapshot(): { unlocked: boolean; mode: MusicMode; musicWanted: boolean; settings: AudioSettings } {
+  snapshot(): {
+    unlocked: boolean;
+    mode: MusicMode;
+    musicWanted: boolean;
+    settings: AudioSettings;
+  } {
     return {
       unlocked: this.unlocked,
       mode: this.mode,

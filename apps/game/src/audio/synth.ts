@@ -196,7 +196,14 @@ const SFX: Record<SfxName, readonly NoteSpec[]> = {
   sizzle: [{ frequency: 2600, endFrequency: 900, duration: 0.35, type: 'sawtooth', level: 0.05 }],
   boil: [
     { frequency: 420, endFrequency: 720, duration: 0.22, type: 'triangle', level: 0.09 },
-    { frequency: 540, endFrequency: 360, duration: 0.25, type: 'triangle', level: 0.07, delay: 0.16 },
+    {
+      frequency: 540,
+      endFrequency: 360,
+      duration: 0.25,
+      type: 'triangle',
+      level: 0.07,
+      delay: 0.16,
+    },
   ],
   topping: [{ frequency: 1300, endFrequency: 700, duration: 0.06, level: 0.12 }],
   servePerfect: [
@@ -208,9 +215,7 @@ const SFX: Record<SfxName, readonly NoteSpec[]> = {
     { frequency: 523, duration: 0.1, level: 0.14 },
     { frequency: 659, duration: 0.16, level: 0.13, delay: 0.09 },
   ],
-  serveFail: [
-    { frequency: 330, endFrequency: 220, duration: 0.3, type: 'triangle', level: 0.15 },
-  ],
+  serveFail: [{ frequency: 330, endFrequency: 220, duration: 0.3, type: 'triangle', level: 0.15 }],
   coins: [
     { frequency: 1046, duration: 0.07, level: 0.14 },
     { frequency: 1568, duration: 0.13, level: 0.12, delay: 0.06 },

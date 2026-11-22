@@ -9,6 +9,21 @@ import { PrepScene } from './meta/PrepScene';
 import { ReportScene } from './meta/ReportScene';
 import { UpgradeScene } from './meta/UpgradeScene';
 import { session } from './meta/session';
+import { audio } from './audio/manager';
+import { loadAudioSettings } from './audio/controller';
+
+// Preferences are read before the first gesture; the AudioContext itself is created lazily.
+void loadAudioSettings();
+
+/** Browser autoplay policy: an AudioContext may only start inside a real user gesture. */
+function unlockAudio(): void {
+  void audio.unlock();
+  audio.startMusic();
+}
+window.addEventListener('pointerdown', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
+// UI click for every Phaser pointer-up unless the target opted out (audio buttons play their own).
+window.addEventListener('pointerdown', () => audio.play('click'));
 
 // `?scene=shop|service|boot|title|prep|report|upgrades` boots straight into that scene
 // (e2e / shots). With no param the game opens on the title screen.
@@ -62,3 +77,4 @@ window.addEventListener('resize', () => {
 // Test hook for e2e / debugging only.
 (window as unknown as { __nyan: Phaser.Game }).__nyan = game;
 (window as unknown as { __nyanSession: typeof session }).__nyanSession = session;
+(window as unknown as { __nyanAudio: typeof audio }).__nyanAudio = audio;

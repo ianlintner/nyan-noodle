@@ -6,6 +6,9 @@ import type { ButtonHandle } from '../theme/hud';
 import { ATLAS_KEY, catAnimKey, createCatAnimations } from '../shop/CatActor';
 import { session } from './session';
 import type { SaveSummary } from './session';
+import { audio } from '../audio/manager';
+import { createSettingsPanel } from '../audio/settingsPanel';
+import { persistAudioSettings } from '../audio/controller';
 import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsText } from './ui';
 
 export const TITLE_SCENE_KEY = SCENE_KEYS.title;
@@ -16,6 +19,8 @@ export class TitleScene extends Phaser.Scene {
   private armedNewGame = false;
   private msg!: ReturnType<typeof messageLine>;
   private newButton!: ButtonHandle;
+  private muteButton: ButtonHandle | null = null;
+  private audioPanel: ReturnType<typeof createSettingsPanel> | null = null;
 
   constructor() {
     super(TITLE_SCENE_KEY);
@@ -66,7 +71,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private buildMenu(): void {
-    const { content } = drawPanel(this, 164, 78, 152, 120, { title: 'Menu' });
+    const { content } = drawPanel(this, 164, 70, 152, 154, { title: 'Menu' });
     const x = content.x + 6;
     const w = content.width - 12;
     let y = content.y + 6;
@@ -82,11 +87,19 @@ export class TitleScene extends Phaser.Scene {
     add('Import save', () => this.importSave());
     const exp = add('Export save', () => void this.exportSave());
     exp.setDim(!s);
+    this.muteButton = add(audio.state.muted ? 'Unmute' : 'Mute', () => {
+      audio.toggleMute();
+      audio.play('click');
+      persistAudioSettings(audio.state);
+      this.muteButton?.setLabel(audio.state.muted ? 'Unmute' : 'Mute');
+      this.audioPanel?.refresh();
+    });
+    add('Sound settings', () => this.toggleAudioPanel());
     if (s) {
       pixelText(
         this,
         NATIVE_WIDTH / 2,
-        204,
+        232,
         `Day ${s.day} - ${getTier(s.tierId).name} - ${s.fishCoins}c - ${starsText(s.reputation)}`,
         { token: 'cream', originX: 0.5 },
       );
@@ -95,6 +108,18 @@ export class TitleScene extends Phaser.Scene {
       token: 'stone',
       originX: 0.5,
     });
+  }
+
+  private toggleAudioPanel(): void {
+    if (this.audioPanel) {
+      this.audioPanel.destroy();
+      this.audioPanel = null;
+      return;
+    }
+    this.audioPanel = createSettingsPanel(this, 324, 70, 152, 128, (settings) =>
+      persistAudioSettings(settings),
+    );
+    this.msg.say('Drag the faders: master / music / sfx');
   }
 
   private async continueGame(): Promise<void> {
@@ -161,6 +186,8 @@ export class TitleScene extends Phaser.Scene {
       summary: () => this.summary,
       continueGame: () => this.continueGame(),
       newGame: () => this.newGame(),
+      audio: () => audio.snapshot(),
+      toggleAudioPanel: () => this.toggleAudioPanel(),
     };
     (window as unknown as { __nyanTitle: typeof api }).__nyanTitle = api;
   }
