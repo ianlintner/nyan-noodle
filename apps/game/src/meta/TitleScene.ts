@@ -19,8 +19,8 @@ export class TitleScene extends Phaser.Scene {
   private armedNewGame = false;
   private msg!: ReturnType<typeof messageLine>;
   private newButton!: ButtonHandle;
-  private muteButton: ButtonHandle | null = null;
   private audioPanel: ReturnType<typeof createSettingsPanel> | null = null;
+  private soundButton!: ButtonHandle;
 
   constructor() {
     super(TITLE_SCENE_KEY);
@@ -44,6 +44,8 @@ export class TitleScene extends Phaser.Scene {
       originX: 0.5,
     });
     this.decorate();
+    audio.setMusicMode('prep');
+    this.soundButton = createButton(this, 426, 12, 48, 14, 'Sound', () => this.toggleAudioPanel());
     this.msg = messageLine(this, 212);
     this.registry.set('titleReady', false);
     void session.peek().then((summary) => {
@@ -71,7 +73,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private buildMenu(): void {
-    const { content } = drawPanel(this, 164, 70, 152, 154, { title: 'Menu' });
+    const { content } = drawPanel(this, 164, 78, 152, 120, { title: 'Menu' });
     const x = content.x + 6;
     const w = content.width - 12;
     let y = content.y + 6;
@@ -87,19 +89,11 @@ export class TitleScene extends Phaser.Scene {
     add('Import save', () => this.importSave());
     const exp = add('Export save', () => void this.exportSave());
     exp.setDim(!s);
-    this.muteButton = add(audio.state.muted ? 'Unmute' : 'Mute', () => {
-      audio.toggleMute();
-      audio.play('click');
-      persistAudioSettings(audio.state);
-      this.muteButton?.setLabel(audio.state.muted ? 'Unmute' : 'Mute');
-      this.audioPanel?.refresh();
-    });
-    add('Sound settings', () => this.toggleAudioPanel());
     if (s) {
       pixelText(
         this,
         NATIVE_WIDTH / 2,
-        232,
+        204,
         `Day ${s.day} - ${getTier(s.tierId).name} - ${s.fishCoins}c - ${starsText(s.reputation)}`,
         { token: 'cream', originX: 0.5 },
       );
@@ -114,6 +108,7 @@ export class TitleScene extends Phaser.Scene {
     if (this.audioPanel) {
       this.audioPanel.destroy();
       this.audioPanel = null;
+      this.soundButton.setLabel('Sound');
       return;
     }
     this.audioPanel = createSettingsPanel(this, 324, 70, 152, 128, (settings) =>
