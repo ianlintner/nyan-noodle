@@ -88,6 +88,8 @@ export class MusicSynth {
   private nextLoopAt = 0;
   private loopIndex = 0;
   private crackle: AudioBufferLike | null = null;
+  /** Sources from already-scheduled loops; WebAudio has no cancel for future starts. */
+  private live: Array<{ source: OscillatorLike | BufferSourceLike; end: number }> = [];
 
   constructor(
     private readonly ctx: AudioContextLike,
@@ -112,6 +114,18 @@ export class MusicSynth {
   stop(): void {
     if (this.timer !== null) clearInterval(this.timer);
     this.timer = null;
+    // Oscillators and crackle buffers were scheduled ahead with absolute times; clearing the
+    // timer alone leaves them sounding for the rest of the six-second loop. Stop them now.
+    const now = this.ctx.currentTime;
+    for (const { source } of this.live) {
+      try {
+        source.stop(now);
+      } catch {
+        // A source that already ended is harmless.
+      }
+      source.disconnect();
+    }
+    this.live = [];
   }
 
   private pump(): void {
@@ -151,6 +165,9 @@ export class MusicSynth {
     gain.connect(this.bus);
     osc.start(at);
     osc.stop(at + 0.6);
+    this.live.push({ source: osc, end: at + 0.6 });
+    // Prune sources that have finished so long sessions do not accumulate nodes.
+    this.live = this.live.filter((entry) => entry.end > this.ctx.currentTime);
   }
 
   private scheduleCrackle(at: number): void {
@@ -176,6 +193,8 @@ export class MusicSynth {
     gain.connect(this.bus);
     source.start(at);
     source.stop(at + LOOP_SECONDS);
+    this.live.push({ source, end: at + LOOP_SECONDS });
+    this.live = this.live.filter((entry) => entry.end > this.ctx.currentTime);
   }
 }
 

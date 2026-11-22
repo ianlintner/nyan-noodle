@@ -91,8 +91,8 @@ export class ShopScene extends Phaser.Scene {
   private soundSource = shopSoundSource(
     () => this.director?.events ?? [],
     () => this.beat,
+    () => this.mode,
   );
-
   constructor() {
     super(SHOP_SCENE_KEY);
   }

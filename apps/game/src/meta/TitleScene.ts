@@ -48,6 +48,10 @@ export class TitleScene extends Phaser.Scene {
     this.soundButton = createButton(this, 426, 12, 48, 14, 'Sound', () => this.toggleAudioPanel());
     this.msg = messageLine(this, 212);
     this.registry.set('titleReady', false);
+    // Phaser destroys scene-owned objects on shutdown; the panel handle must not survive it.
+    this.events.once('shutdown', () => {
+      this.audioPanel = null;
+    });
     void session.peek().then((summary) => {
       this.summary = summary;
       this.buildMenu();

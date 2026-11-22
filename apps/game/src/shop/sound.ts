@@ -7,23 +7,26 @@ import type { ShopEvent } from './director';
 export interface ShopSoundSource {
   events(): readonly ShopEvent[];
   beat(): number;
+  /** Current shop phase; the music bed follows it. */
+  mode(): 'service' | 'build';
 }
 
 export const shopSoundSource = (
   events: () => readonly ShopEvent[],
   beat: () => number,
-): ShopSoundSource => ({ events, beat });
+  mode: () => 'service' | 'build',
+): ShopSoundSource => ({ events, beat, mode });
 
-/** Shop-side audio: service music, in-game pause (ESC) and event-driven SFX. */
+/** Shop-side audio: phase music, in-game pause (ESC) and event-driven SFX. */
 export class ShopSound {
   private lastBeat = 0;
   private lastSeen = 0;
+  private mode: 'service' | 'build' | null = null;
   private pause: ReturnType<typeof createPauseOverlay> | null = null;
   private source: ShopSoundSource | null = null;
 
   install(scene: Phaser.Scene, source: ShopSoundSource): void {
     this.source = source;
-    audio.setMusicMode('service');
     this.pause = createPauseOverlay(scene, persistAudioSettings);
     scene.events.on('update', this.tick, this);
     scene.events.once('shutdown', this.destroy, this);
@@ -31,6 +34,11 @@ export class ShopSound {
 
   private tick(): void {
     if (!this.source) return;
+    const mode = this.source.mode();
+    if (mode !== this.mode) {
+      this.mode = mode;
+      audio.setMusicMode(mode === 'build' ? 'prep' : 'service');
+    }
     const events = this.source.events();
     const beat = this.source.beat();
     if (beat < this.lastBeat) this.lastSeen = 0;

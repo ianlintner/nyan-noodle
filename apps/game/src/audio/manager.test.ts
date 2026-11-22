@@ -156,6 +156,22 @@ describe('AudioManager', () => {
     manager.stopMusic();
   });
 
+  it('stopping music silences sources already scheduled ahead', async () => {
+    const fake = fakeContext();
+    const manager = new AudioManager(() => fake.ctx);
+    await manager.unlock();
+    manager.setMusicMode('service');
+    manager.startMusic();
+    expect(fake.sources.length).toBeGreaterThan(0);
+    const scheduled = [...fake.oscillators, ...fake.sources];
+    const stoppedAt = (s: (typeof scheduled)[number]): boolean =>
+      Array.isArray(s.stopped) ? s.stopped.includes(10) : s.stopped === 10;
+    expect(scheduled.every((s) => !stoppedAt(s))).toBe(true);
+    manager.stopMusic();
+    // Every scheduled source received a stop() at the current time; none keep playing.
+    expect(scheduled.every(stoppedAt)).toBe(true);
+  });
+
   it('keeps working when WebAudio is unavailable', async () => {
     const manager = new AudioManager(() => {
       throw new Error('no device');

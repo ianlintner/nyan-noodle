@@ -22,6 +22,7 @@ export function createPauseOverlay(
   let active = false;
   let owned: Phaser.GameObjects.GameObject[] = [];
 
+  // ESC opens as well as closes the overlay; the key is not consumed by scene.pause().
   const key = scene.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
   function toggle(): void {
@@ -49,7 +50,7 @@ export function createPauseOverlay(
   }
 
   const onKey = (): void => {
-    if (active) toggle();
+    toggle();
   };
   key?.on('down', onKey);
 

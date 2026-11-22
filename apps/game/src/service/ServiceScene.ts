@@ -112,6 +112,7 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   create(): void {
+    audio.setMusicMode('service');
     const q = new URLSearchParams(window.location.search);
     this.params = {
       seed: Number(q.get('seed') ?? 2026) || 2026,

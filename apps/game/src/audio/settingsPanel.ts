@@ -35,7 +35,11 @@ export function createSettingsPanel(
   height: number,
   onChange: (settings: AudioSettings) => void,
 ): SettingsPanel {
+  // drawPanel creates a graphics object and a header text; capture both so destroy() leaves
+  // no panel behind and repeated open/close cycles do not accumulate objects.
+  const before = new Set(scene.children.list);
   const { content } = drawPanel(scene, x, y, width, height, { title: 'Audio' });
+  const panelObjects = scene.children.list.filter((o) => !before.has(o));
   const px = content.x + 6;
   const pw = content.width - 12;
   const rowY = content.y + 4;
@@ -85,6 +89,7 @@ export function createSettingsPanel(
       Object.values(buttons).forEach((b) => b.container.destroy());
       Object.values(plus).forEach((b) => b.container.destroy());
       mute.container.destroy();
+      panelObjects.forEach((o) => o.destroy());
     },
   };
 }
