@@ -107,6 +107,11 @@ export class SaveStore {
 
   constructor(private readonly backends: readonly KeyValueBackend[]) {}
 
+  /** Backends shared with non-save preferences (audio settings) so they persist in the same place. */
+  get stores(): readonly KeyValueBackend[] {
+    return this.backends;
+  }
+
   async read(): Promise<SaveFile | null> {
     let best: SaveFile | null = null;
     let bestAt = Number.NEGATIVE_INFINITY;

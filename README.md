@@ -6,7 +6,7 @@ See [PLAN.md](PLAN.md) for the stack, art direction, MVP scope and card breakdow
 
 ## Status
 
-MVP feature-complete on the stacked PR chain (#1-#8 plus this integration pass): sim core, art pipeline, shop scene, cooking minigames, build mode, day loop with saves, and a balanced Cart -> Stall -> Small Shop curve. No backend, accounts, ads or IAP. Not yet: audio, a real bitmap font, tiers beyond Small Shop, mobile/touch polish.
+MVP feature-complete on the stacked PR chain (#1-#8 plus this integration pass): sim core, art pipeline, shop scene, cooking minigames, build mode, day loop with saves, and a balanced Cart -> Stall -> Small Shop curve. No backend, accounts, ads or IAP. Not yet: a real bitmap font, tiers beyond Small Shop, mobile/touch polish.
 
 ## Play
 
@@ -35,6 +35,7 @@ npm run dev
 4. **Service**: cats queue, sit and eat while you and your staff cook. Speed it up or _Skip day_.
 5. **Report**: sales, tips, costs, complaints (queue / sold out / kitchen too slow), stars and unlocks. The game **autosaves** here.
 6. **Upgrades** (stars + coins): recipes (Miso, Tonkotsu), mastery, knives / burner / signboard, staff cats. **Build** mode places stools, stoves, tables and decor, and buys the next shop tier.
+7. **Sound**: click _Sound_ at the title screen, or press `ESC` during the day, to open the audio panel. Adjust Master / Music / SFX and mute; settings persist in this browser independently of save import/export. Browsers require a first click or keypress before any sound plays.
 
 Expected pace: Stall around day 3–4, Small Shop around day 7–8.
 

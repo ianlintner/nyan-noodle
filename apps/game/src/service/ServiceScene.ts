@@ -13,6 +13,9 @@ import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { PALETTE } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from '../meta/session';
+import { audio } from '../audio/manager';
+import { installPause } from '../audio/pause';
+import { persistAudioSettings } from '../audio/controller';
 import { backdrop } from '../meta/ui';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { ATLAS_KEY } from '../shop/CatActor';
@@ -112,6 +115,7 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   create(): void {
+    audio.setMusicMode('service');
     const q = new URLSearchParams(window.location.search);
     this.params = {
       seed: Number(q.get('seed') ?? 2026) || 2026,
@@ -124,6 +128,7 @@ export class ServiceScene extends Phaser.Scene {
     ) as unknown as ServiceScene['keys'];
     this.buildTickets();
     this.buildUi();
+    installPause(this, persistAudioSettings);
     this.exposeDebugApi();
     this.registry.set('serviceReady', true);
     this.events.once('shutdown', () => this.registry.set('serviceReady', false));
@@ -283,6 +288,7 @@ export class ServiceScene extends Phaser.Scene {
   addTopping(id: ToppingId): void {
     if (this.stage !== 'toppings') return;
     this.toppingSequence = [...this.toppingSequence, id];
+    audio.play('topping');
     drawToppings(this.stageG, this.required.length, this.toppingSequence.length);
     if (this.toppingSequence.length >= this.required.length) {
       this.stage = 'serve';
@@ -294,6 +300,7 @@ export class ServiceScene extends Phaser.Scene {
     if (this.stage !== 'noodles') return;
     this.noodleStopped = true;
     this.stage = 'toppings';
+    audio.play('boil');
     this.toppingSequence = [];
     drawToppings(this.stageG, this.required.length, 0);
     this.stageText.setText(`Toppings: tap 1..${this.required.length} in order.`);
@@ -301,6 +308,7 @@ export class ServiceScene extends Phaser.Scene {
 
   private advanceBroth(): void {
     this.stage = 'noodles';
+    audio.play('sizzle');
     this.noodleSweep = 0;
     this.noodleStopped = false;
     this.stageText.setText('Noodles: press SPACE when the\nbar hits the thick band.');
@@ -322,6 +330,7 @@ export class ServiceScene extends Phaser.Scene {
     );
     this.qualities[this.activeIdx] = payout.quality;
     if (payout.failed) {
+      audio.play('serveFail');
       this.streak = 0;
       this.statusText
         .setText(`Quality ${payout.quality} — FAILED. Combo reset.`)
@@ -330,6 +339,8 @@ export class ServiceScene extends Phaser.Scene {
       this.streak += 1;
       const gain = ticket.order.price + payout.bonusCoins;
       this.coins += gain;
+      audio.play(payout.quality >= 90 ? 'servePerfect' : 'serveOk');
+      if (payout.bonusCoins > 0) audio.play('coins');
       this.statusText
         .setText(
           `+${gain} (price ${ticket.order.price}, tip ${payout.bonusCoins})\ncombo x${payout.comboMultiplier.toFixed(2)}  total ${this.coins}`,
