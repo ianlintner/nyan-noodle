@@ -132,7 +132,6 @@ export class ShopScene extends Phaser.Scene {
         };
     if (this.inSession) this.params = { ...this.params, mode: this.sessionMode };
     createCatAnimations(this);
-
     this.cameras.main.setBackgroundColor(PALETTE.nightBlue);
     this.cameras.main.setRoundPixels(true);
     this.uiCam = this.cameras.add(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
@@ -156,10 +155,11 @@ export class ShopScene extends Phaser.Scene {
     this.stopSteam?.();
     this.stopSteam = startSteam(this, this.layout, this.uiCam);
     this.rig = new CameraRig(this, this.layout.cols * TILE_SIZE, this.layout.rows * TILE_SIZE);
-
     const hudBefore = new Set(this.children.list);
     this.buildHud();
-    this.shopAudio.install(this, this.soundSource, { registerUi: register });
+    this.shopAudio.install(this, this.soundSource, {
+      registerUi: (o) => this.cameras.main.ignore(o),
+    });
     for (const o of this.children.list) if (!hudBefore.has(o)) this.cameras.main.ignore(o);
 
     if (this.params.mode === 'build') this.enterBuild();

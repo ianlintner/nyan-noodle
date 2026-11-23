@@ -12,7 +12,11 @@ export interface GainLike extends AudioNodeLike {
 }
 
 export interface OscillatorLike extends AudioNodeLike {
-  frequency: { value: number; setValueAtTime(value: number, when: number): void };
+  frequency: {
+    value: number;
+    setValueAtTime(value: number, when: number): void;
+    linearRampToValueAtTime(value: number, when: number): void;
+  };
   type: OscillatorType;
   start(when?: number): void;
   stop(when?: number): void;
@@ -253,7 +257,8 @@ export function playSfx(ctx: AudioContextLike, bus: GainLike, name: SfxName): vo
     osc.type = note.type ?? 'sine';
     osc.frequency.setValueAtTime(note.frequency, at);
     if (note.endFrequency !== undefined) {
-      osc.frequency.setValueAtTime(note.endFrequency, at + note.duration);
+      // Ramp across the audible duration, not at the end where the note is already faded out.
+      osc.frequency.linearRampToValueAtTime(note.endFrequency, at + note.duration * 0.9);
     }
     gain.gain.setValueAtTime(note.level ?? 0.1, at);
     gain.gain.setValueAtTime(0.0001, at + note.duration);

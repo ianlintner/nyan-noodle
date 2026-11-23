@@ -33,6 +33,7 @@ class FakeOscillator implements OscillatorLike {
   frequency = {
     value: 0,
     setValueAtTime: vi.fn((value: number) => (this.frequency.value = value)),
+    linearRampToValueAtTime: vi.fn((value: number) => (this.frequency.value = value)),
   };
   started: number[] = [];
   stopped: number[] = [];
@@ -170,6 +171,19 @@ describe('AudioManager', () => {
     manager.stopMusic();
     // Every scheduled source received a stop() at the current time; none keep playing.
     expect(scheduled.every(stoppedAt)).toBe(true);
+  });
+
+  it('sweeps pitch across the audible duration of an effect', async () => {
+    const fake = fakeContext();
+    const manager = new AudioManager(() => fake.ctx);
+    await manager.unlock();
+    manager.play('sizzle');
+    const osc = fake.oscillators[0]!;
+    expect(osc.frequency.setValueAtTime).toHaveBeenCalledWith(2600, 10);
+    expect(osc.frequency.linearRampToValueAtTime).toHaveBeenCalledWith(
+      900,
+      expect.closeTo(10 + 0.35 * 0.9, 5),
+    );
   });
 
   it('keeps working when WebAudio is unavailable', async () => {

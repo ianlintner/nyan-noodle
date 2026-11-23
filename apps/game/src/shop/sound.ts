@@ -18,7 +18,7 @@ export const shopSoundSource = (
 ): ShopSoundSource => ({ events, beat, mode });
 
 export interface ShopSoundOptions {
-  /** Exclude newly created pause UI objects from the world camera. */
+  /** Exclude newly created pause UI objects from the world camera (caller supplies the ignore). */
   registerUi?: (object: Phaser.GameObjects.GameObject) => void;
 }
 
@@ -50,7 +50,9 @@ export class ShopSound {
     this.lastBeat = beat;
     for (let i = this.lastSeen; i < events.length; i++) {
       const type = events[i]!.type;
-      if (type === 'queue') audio.play('ticket');
+      // `spawn` is the arrival event emitted by ShopDirector; `queue` is declared but never
+      // emitted, so keying the ticket chime off `queue` left it silent during service.
+      if (type === 'spawn') audio.play('ticket');
       else if (type === 'enter') audio.play('sizzle');
       else if (type === 'sit') audio.play('meow');
       else if (type === 'leave') audio.play('coins');

@@ -4,13 +4,15 @@ import { session } from '../meta/session';
 
 /** Debounced preference writes: sliders fire fast, storage does not need every intermediate value. */
 let timer: ReturnType<typeof setTimeout> | null = null;
-let loaded = false;
+let load: Promise<void> | null = null;
 
-/** Read persisted preferences once at boot, then apply them to the manager. */
-export async function loadAudioSettings(): Promise<void> {
-  if (loaded) return;
-  loaded = true;
-  audio.configure(await session.audioSettings.read());
+/** Read persisted preferences once at boot; every caller shares the same in-flight promise. */
+export function loadAudioSettings(): Promise<void> {
+  load ??= session.audioSettings
+    .read()
+    .then((settings) => audio.configure(settings))
+    .catch(() => undefined);
+  return load;
 }
 
 /** Persist the manager's current settings; coalesce rapid slider edits. */
