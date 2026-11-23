@@ -16,6 +16,7 @@ import { session } from '../meta/session';
 import { backdrop } from '../meta/ui';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { ATLAS_KEY } from '../shop/CatActor';
+import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
 import { seededServiceTickets } from './tickets';
 import {
@@ -107,7 +108,7 @@ export class ServiceScene extends Phaser.Scene {
   preload(): void {
     // The ticket rail draws cat portraits and dish icons from the shared atlas; when
     // booting straight into `?scene=service` this scene is first and must load it itself.
-    this.load.atlas(ATLAS_KEY, 'assets/nyan-atlas.png', 'assets/nyan-atlas.json');
+    this.load.atlas(ATLAS_KEY, ATLAS_PNG, ATLAS_JSON);
   }
 
   create(): void {

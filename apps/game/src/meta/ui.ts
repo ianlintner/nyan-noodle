@@ -3,6 +3,7 @@ import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { PALETTE, color } from '../theme/palette';
 import { pixelText } from '../theme/hud';
 import { ATLAS_KEY } from '../shop/CatActor';
+import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 
 export const SCENE_KEYS = {
   title: 'TitleScene',
@@ -13,7 +14,7 @@ export const SCENE_KEYS = {
 
 /** Queue the shared sprite atlas (cached after the first scene loads it). */
 export function loadAtlas(scene: Phaser.Scene): void {
-  scene.load.atlas(ATLAS_KEY, 'assets/nyan-atlas.png', 'assets/nyan-atlas.json');
+  scene.load.atlas(ATLAS_KEY, ATLAS_PNG, ATLAS_JSON);
 }
 
 /** Dusk ramen-shop backdrop behind the meta screens: warm wood wall, lantern glow,

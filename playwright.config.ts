@@ -1,7 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT ?? 4173);
-const BASE_URL = `http://127.0.0.1:${PORT}`;
+// E2E_BASE_PATH lets the same specs (and the subpath smoke) run against a
+// Pages-style deployment: set E2E_BASE_PATH=/nyan-noodle/ and the webServer
+// builds with the matching Vite base.
+const BASE_PATH = process.env.E2E_BASE_PATH ?? '/';
+const BASE_URL = `http://127.0.0.1:${PORT}${BASE_PATH}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -30,6 +34,6 @@ export default defineConfig({
     timeout: 180_000,
     stdout: 'pipe',
     stderr: 'pipe',
-    env: { E2E_PORT: String(PORT) },
+    env: { E2E_PORT: String(PORT), VITE_BASE: BASE_PATH },
   },
 });
