@@ -10,11 +10,11 @@ MVP feature-complete on the stacked PR chain (#1-#8 plus this integration pass):
 
 ## Play
 
-- **GitHub Pages:** https://ianlintner.github.io/nyan-noodle/
-- **Azure Static Web Apps:** https://green-plant-0c71c9f10.3.azurestaticapps.net/
+- **GitHub Pages (mirror):** https://ianlintner.github.io/nyan-noodle/
+- **Cat Herding Games hub (primary):** https://games.cat-herding.net/nyan-noodle/
 - **Local dev:** `npm install && npm run dev` → http://127.0.0.1:5173
 
-Saves live in IndexedDB with a localStorage fallback, both scoped to the browser origin. Pages (`ianlintner.github.io`) and the SWA hostname are different origins, so **each site has its own separate saves** — a game started on one does not appear on the other. Use _Export_ / _Import_ on the title screen to move a save between them.
+Saves live in IndexedDB with a localStorage fallback, both scoped to the browser origin. Pages (`ianlintner.github.io`) and the hub (`games.cat-herding.net`) are different origins, so **each site has its own separate saves** — a game started on one does not appear on the other. Use _Export_ / _Import_ on the title screen to move a save between them.
 
 To play from source:
 
@@ -74,28 +74,20 @@ Early-game knobs (cook cap, tier coin/star gates, tier price premium, stove cost
 
 ## Hosting
 
-Two production hosts serve the same prebuilt Vite bundle:
+The primary host is the [Cat Herding Games hub](https://github.com/ianlintner/cat-herding-games), which builds this repo's `main` under the `/nyan-noodle/` subpath and deploys it to a shared Azure Static Web App. This repo no longer deploys to its own SWA.
 
-| Host                  | URL                                                  | Automated by                                                                          |
-| --------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| GitHub Pages          | https://ianlintner.github.io/nyan-noodle/            | `.github/workflows/pages.yml` (push to `main` / `workflow_dispatch`)                  |
-| Azure Static Web Apps | https://green-plant-0c71c9f10.3.azurestaticapps.net/ | `.github/workflows/azure-static-web-apps.yml` (push to `main`, same-repo PR previews) |
+| Host                  | URL                                        | Automated by                                                         |
+| --------------------- | ------------------------------------------ | -------------------------------------------------------------------- |
+| Cat Herding Games hub | https://games.cat-herding.net/nyan-noodle/ | hub repo `ianlintner/cat-herding-games` (builds `main`)              |
+| GitHub Pages (mirror) | https://ianlintner.github.io/nyan-noodle/  | `.github/workflows/pages.yml` (push to `main` / `workflow_dispatch`) |
 
-Pages builds with `VITE_BASE=/nyan-noodle/` so all URLs (including the runtime-loaded sprite atlas) resolve under the project subpath; SWA and local dev use the default `/` base. The Pages site requires repository Settings → Pages → Source = **GitHub Actions** (one-time setup). To preview that subpath locally:
+Both hosts serve the game under the `/nyan-noodle/` subpath, so it builds with `VITE_BASE=/nyan-noodle/` and must never use root-relative URLs (resolve them from `import.meta.env.BASE_URL`). To preview that subpath locally:
 
 ```sh
 VITE_BASE=/nyan-noodle/ npm run build
 npm run preview -- --base /nyan-noodle/   # http://127.0.0.1:4173/nyan-noodle/
-npm run e2e:subpath                     # Playwright: title → game → service, zero failed requests
+npm run e2e:subpath                       # Playwright: title → game → service, zero failed requests
+node scripts/verify-deployment.mjs https://games.cat-herding.net/nyan-noodle   # compare served files with the local subpath build
 ```
 
-### Deploy (Azure Static Web Apps, manual)
-
-`scripts/deploy.sh [review|production]` deploys the checked-in build via the SWA CLI, reading the deployment token from Azure at runtime (`az staticwebapp secrets list -n nyan-noodle -g nekoc`) and passing it only to the `swa` child process with `--no-use-keychain`. It requires `az` and a logged-in account, installs the pinned CLI from `npm ci` before reading any token, runs `npm run check` plus a clean-tree gate, and allows `production` only from local `main` aligned with `origin/main`. After upload it fetches the served `index.html`, every emitted JS chunk (including the separate Phaser bundle) and both atlas files, compares their sha256 hashes with `apps/game/dist`, and checks the SWA security headers — a stale CDN, stale art or partial upload fails loudly. It forces `VITE_BASE=/` for its build, so a Pages base left in the caller's environment cannot produce broken root-hosted SWA URLs.
-
-```sh
-scripts/deploy.sh review       # review environment (default)
-scripts/deploy.sh production   # main only
-```
-
-The GitHub Actions SWA workflow keeps its graceful skip when `AZURE_STATIC_WEB_APPS_API_TOKEN` is unset: the build still runs and PRs stay green, but no upload happens. Configure that secret (Settings → Secrets and variables → Actions) to enable CI deploys; `ci.yml` is unaffected either way. Rotate the token by resetting it in Azure and updating the secret.
+CI (`ci.yml`) also runs `e2e:subpath`, so a root-relative URL regression fails the PR.

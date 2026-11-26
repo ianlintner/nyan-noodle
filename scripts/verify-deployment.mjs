@@ -3,7 +3,10 @@
  * Verify a deployed build over HTTP: status, security headers and sha256
  * equality of every emitted file against the local dist/.
  *
- *   node scripts/verify-deployment.mjs https://<swa-host>
+ *   node scripts/verify-deployment.mjs https://games.cat-herding.net/nyan-noodle
+ *
+ * The URL is the hub subpath the game is served under; its pathname is mapped
+ * onto the root of dist/ (built with VITE_BASE=/nyan-noodle/).
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -14,15 +17,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'apps/game/dist');
 const base = (process.argv[2] ?? '').replace(/\/$/, '');
 if (!/^https?:\/\//.test(base)) {
-  console.error('usage: node scripts/verify-deployment.mjs <https://swa-host>');
+  console.error('usage: node scripts/verify-deployment.mjs <https://host/base-path>');
   process.exit(2);
 }
 
-// Matches apps/game/public/staticwebapp.config.json globalHeaders.
+// Headers the hub's shared SWA is expected to send (referrer-policy is set by
+// the hub config and may differ from this repo's own config).
 const HEADERS = {
   'x-content-type-options': 'nosniff',
-  'referrer-policy': 'no-referrer',
 };
+const basePath = new URL(base).pathname.replace(/\/$/, '');
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
 let failures = 0;
@@ -51,7 +55,10 @@ if (chunks.length === 0) {
 // its bytes must be hashed rather than merely checked for HTTP 200.
 const atlas = readdirSync(join(DIST, 'assets')).filter((f) => f.startsWith('nyan-atlas.'));
 if (atlas.length !== 2) fail(`expected atlas PNG+JSON in dist/assets, found ${atlas.length}`);
-const paths = ['/index.html', ...chunks, ...atlas.map((f) => `/assets/${f}`)];
+// index.html references chunks by absolute (base-prefixed) URL; normalise to
+// base-relative paths so they work for both '/' and '/nyan-noodle/' builds.
+const rel = (p) => (basePath && p.startsWith(`${basePath}/`) ? p.slice(basePath.length) : p);
+const paths = ['/index.html', ...chunks.map(rel), ...atlas.map((f) => `/assets/${f}`)];
 console.info(
   `verify-deployment: comparing ${paths.length} files (index + ${chunks.length} JS chunks + ${atlas.length} atlas files)`,
 );
