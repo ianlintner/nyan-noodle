@@ -26,6 +26,7 @@ import { ShopDirector } from './director';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
 import { startSteam } from './steam';
+import { cellScreenPoint } from './screen';
 import { WorldView } from './WorldView';
 import { session } from '../meta/session';
 import { SCENE_KEYS } from '../meta/ui';
@@ -350,17 +351,7 @@ export class ShopScene extends Phaser.Scene {
     });
   }
   private exposeDebugApi(): void {
-    const screen = (x: number, y: number): { x: number; y: number } => {
-      const cam = this.cameras.main;
-      const rect = this.game.canvas.getBoundingClientRect();
-      const k = rect.width / NATIVE_WIDTH;
-      const wx = (x + 1) * TILE_SIZE + TILE_SIZE / 2;
-      const wy = (y + 1) * TILE_SIZE + TILE_SIZE / 2;
-      return {
-        x: rect.left + (wx - cam.worldView.x) * cam.zoom * k,
-        y: rect.top + (wy - cam.worldView.y) * cam.zoom * k,
-      };
-    };
+    const screen = (x: number, y: number): { x: number; y: number } => cellScreenPoint(this, x, y);
     const api = {
       beat: () => this.beat,
       zoom: () => this.rig.zoom,
