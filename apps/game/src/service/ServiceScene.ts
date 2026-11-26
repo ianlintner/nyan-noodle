@@ -5,8 +5,6 @@ import {
   planService,
   settleBowl,
   type CookMeasurements,
-  type Doneness,
-  type Order,
   type ToppingId,
 } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
@@ -21,7 +19,7 @@ import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { ATLAS_KEY } from '../shop/CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
-import { seededServiceTickets } from './tickets';
+import { seededServiceTickets, type ServiceTicket } from './tickets';
 import {
   BROTH_HI,
   BROTH_LO,
@@ -32,22 +30,12 @@ import {
   drawTodayPanel,
   drawToppings,
 } from './stageView';
-
 export const SERVICE_SCENE_KEY = 'ServiceScene';
 
 /** The three cooking minigames, run in order for each selected ticket. */
 type Stage = 'broth' | 'noodles' | 'toppings' | 'serve';
 
 const RUSH_THRESHOLD_BEATS = 30;
-
-interface Ticket {
-  readonly order: Order;
-  readonly doneness: Doneness;
-  /** Customer coat for the rail portrait. */
-  readonly coat: string;
-  /** Static patience budget (ticks) shown as a rail indicator. */
-  readonly patience: number;
-}
 
 interface ServiceParams {
   seed: number;
@@ -64,7 +52,7 @@ interface ServiceParams {
 export class ServiceScene extends Phaser.Scene {
   private params: ServiceParams = { seed: 2026, count: 4 };
   private inSession = false;
-  private tickets: Ticket[] = [];
+  private tickets: ServiceTicket[] = [];
   private qualities: (number | null)[] = [];
   private todayLines: string[] = [];
   private activeIdx = -1;
