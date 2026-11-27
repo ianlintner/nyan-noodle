@@ -26,6 +26,12 @@ describe('safeVerticalPad', () => {
   it('never returns a negative pad for overlapping buttons', () => {
     expect(safeVerticalPad(button(124, 252), button(124, 252), 5)).toBe(0);
   });
+
+  it('uses the edge gap for unequal-height neighbours', () => {
+    const tall = { x: 4, y: 10, width: 20, height: 14 };
+    expect(safeVerticalPad(tall, { x: 4, y: 25, width: 20, height: 10 }, 5)).toBe(0);
+    expect(safeVerticalPad(tall, { x: 4, y: 30, width: 20, height: 10 }, 5)).toBe(3);
+  });
 });
 
 describe('safeHorizontalPad', () => {
@@ -36,6 +42,11 @@ describe('safeHorizontalPad', () => {
   it('clamps the pad for the 6px settings -/+ gap', () => {
     expect(safeHorizontalPad(button(62, 100, 24), button(92, 100, 24), 5)).toBe(3);
     expect(safeHorizontalPad(button(92, 100, 24), button(62, 100, 24), 5)).toBe(3);
+  });
+
+  it('uses the edge gap for unequal-width neighbours (shop toggle/speed)', () => {
+    expect(safeHorizontalPad(button(4, 252, 64), button(72, 252, 48), 5)).toBe(2);
+    expect(safeHorizontalPad(button(72, 252, 48), button(4, 252, 64), 5)).toBe(2);
   });
 
   it('allows a partial pad for a wider gap and never goes negative', () => {

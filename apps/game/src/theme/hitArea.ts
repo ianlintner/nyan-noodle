@@ -13,9 +13,9 @@ export function safeVerticalPad(box: ButtonBox, other: ButtonBox, desired: numbe
   if (desired <= 0) return 0;
   const overlapsX = box.x < other.x + other.width && other.x < box.x + box.width;
   if (!overlapsX) return desired;
-  const gap = Math.abs(box.y - other.y);
-  const halfSum = (box.height + other.height) / 2;
-  return Math.max(0, Math.min(desired, Math.floor((gap - halfSum) / 2)));
+  // ButtonBox x/y are top-left corners: measure the free space between edges.
+  const gap = Math.max(other.y - (box.y + box.height), box.y - (other.y + other.height));
+  return Math.max(0, Math.min(desired, Math.floor(gap / 2)));
 }
 
 /**
@@ -26,7 +26,7 @@ export function safeHorizontalPad(box: ButtonBox, other: ButtonBox, desired: num
   if (desired <= 0) return 0;
   const overlapsY = box.y < other.y + other.height && other.y < box.y + box.height;
   if (!overlapsY) return desired;
-  const gap = Math.abs(box.x - other.x);
-  const halfSum = (box.width + other.width) / 2;
-  return Math.max(0, Math.min(desired, Math.floor((gap - halfSum) / 2)));
+  // ButtonBox x/y are top-left corners: measure the free space between edges.
+  const gap = Math.max(other.x - (box.x + box.width), box.x - (other.x + other.width));
+  return Math.max(0, Math.min(desired, Math.floor(gap / 2)));
 }

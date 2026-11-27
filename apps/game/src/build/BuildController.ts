@@ -181,14 +181,17 @@ export class BuildController {
 
   private onDown(p: Phaser.Input.Pointer): void {
     if (!this.active) return;
+    const overUi = this.host.overUi(p.x, p.y);
     if (p.wasTouch) {
       // Track every finger, even one that lands on HUD chrome: a second finger
       // must invalidate a pending floor tap regardless of where it landed.
       if (this.activeTouches.size > 0) this.pendingTouch = null;
-      else this.pendingTouch = { id: p.id, x: p.x, y: p.y };
+      // Only a press that starts on the floor may commit a build action. A
+      // short slide out of the HUD must not turn into a furniture edit.
+      else if (!overUi) this.pendingTouch = { id: p.id, x: p.x, y: p.y };
       this.activeTouches.add(p.id);
     }
-    if (this.host.overUi(p.x, p.y)) return;
+    if (overUi) return;
     if (p.rightButtonDown()) return this.cancel();
     if (!p.wasTouch) {
       const cell = this.cellAt(p);
