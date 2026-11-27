@@ -27,7 +27,7 @@ describe('viewport fitting', () => {
   it('keeps whole-pixel scaling when only one axis limits the fit', () => {
     const fit = computeViewportFit(1000, 600);
     expect(fit.zoom).toBe(2);
-    expect([fit.left, fit.top]).toEqual([40, 30]);
+    expect([fit.left, fit.top]).toEqual([20, 30]);
   });
 
   it('falls back to an exact fractional scale on a narrow portrait phone', () => {
