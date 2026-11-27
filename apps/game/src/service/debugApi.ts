@@ -79,7 +79,10 @@ export function exposeServiceDebugApi(host: Phaser.Scene, s: ServiceDebugView): 
     broth: () => ({ ...s.brothHold, heat: s.brothHeat }),
     noodleSweep: () => s.noodleSweep,
     select: (i: number) => s.select(i),
-    ticketScreen: (i: number) => nativeScreenPoint(host, s.railButtons[i]!.x, s.railButtons[i]!.y),
+    ticketScreen: (i: number) => {
+      const b = s.railButtons[i]!;
+      return nativeScreenPoint(host, b.x + b.width / 2, b.y + b.height / 2);
+    },
     addTopping: (t: ToppingId) => s.addTopping(t),
     addToppingByIndex: (i: number) => s.addToppingByIndex(i),
     stopNoodles: () => s.stopNoodles(),

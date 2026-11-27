@@ -42,7 +42,10 @@ export function createPauseOverlay(
     const before = new Set(scene.children.list);
     scene.scene.pause();
 
-    scene.add.rectangle(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, 0x1a1426, 0.82).setOrigin(0, 0);
+    scene.add
+      .rectangle(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT, 0x1a1426, 0.82)
+      .setOrigin(0, 0)
+      .setInteractive();
     drawPanel(scene, 96, 48, 288, 164, { title: 'Paused' });
     pixelText(scene, NATIVE_WIDTH / 2, 202, 'ESC to resume', {
       token: 'cream',

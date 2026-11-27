@@ -81,7 +81,14 @@ function boot(): void {
     scene: sceneList(first),
   });
 
-  let lastPortrait = computeViewportFit(window.innerWidth, window.innerHeight).portrait;
+  const viewportSize = (): { width: number; height: number } => {
+    const vv = window.visualViewport;
+    return {
+      width: Math.round(vv?.width ?? window.innerWidth),
+      height: Math.round(vv?.height ?? window.innerHeight),
+    };
+  };
+  let lastPortrait = computeViewportFit(viewportSize().width, viewportSize().height).portrait;
 
   /**
    * Integer zoom when the viewport can hold a whole native frame; on a narrow
@@ -90,7 +97,8 @@ function boot(): void {
    * letterbox rather than a stretched frame.
    */
   function applyFit(): void {
-    const fit = computeViewportFit(window.innerWidth, window.innerHeight);
+    const { width, height } = viewportSize();
+    const fit = computeViewportFit(width, height);
     game.scale.setZoom(fit.zoom);
     const canvas = game.canvas;
     canvas.style.position = 'absolute';
@@ -98,6 +106,10 @@ function boot(): void {
     canvas.style.top = `${fit.top}px`;
     canvas.style.width = `${fit.width}px`;
     canvas.style.height = `${fit.height}px`;
+    // setZoom() refreshes canvasBounds before CSS left/top change; sync after positioning
+    // so pointer coordinates stay aligned after rotation or iOS Safari toolbar resizes.
+    game.scale.updateBounds();
+    requestAnimationFrame(() => game.scale.updateBounds());
     (window as unknown as { __nyanFit: typeof fit }).__nyanFit = fit;
     if (fit.portrait !== lastPortrait) {
       lastPortrait = fit.portrait;
@@ -107,6 +119,8 @@ function boot(): void {
   applyFit();
   window.addEventListener('resize', applyFit);
   window.addEventListener('orientationchange', applyFit);
+  window.visualViewport?.addEventListener('resize', applyFit);
+  window.visualViewport?.addEventListener('scroll', () => game.scale.updateBounds());
 
   // Test hook for e2e / debugging only.
   (window as unknown as { __nyan: Phaser.Game }).__nyan = game;

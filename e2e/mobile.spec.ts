@@ -163,6 +163,14 @@ test('mobile touch: fit, one full service, and portrait/landscape screenshots', 
   const layout = await call<{ portrait: boolean; railRows: number }>(page, 'a.layout()', 'service');
   expect(layout.portrait).toBe(false);
   expect(layout.railRows).toBe(1);
+  // Tapping a ticket AFTER rotation proves canvasBounds and ticket hit areas stayed aligned.
+  const landscapeTicket = await call<{ x: number; y: number }>(
+    page,
+    'a.ticketScreen(1)',
+    'service',
+  );
+  await page.touchscreen.tap(landscapeTicket.x, landscapeTicket.y);
+  expect(await call<number>(page, 'a.activeIdx()', 'service')).toBe(1);
   await shot('landscape');
   expect(errors).toEqual([]);
 });
@@ -209,10 +217,11 @@ test('mobile touch: shop pinch-zoom and build rotate/cancel', async ({ page }) =
     await page.evaluate(() => (window as unknown as MobileWindow).__nyanShopTouch !== undefined),
   ).toBe(true);
 
-  // A single-finger tap still places furniture; a pinch must never commit a build action.
+  // A single-finger tap still places furniture (Plant, index 5 — cart already has 2/2 seats);
+  // a pinch must never commit a build action.
   const beforeItems = await call<{ items: unknown[] }>(page, 'a.state()', 'shop');
-  const stoolTool = await call<{ x: number; y: number }>(page, 'a.toolScreen(0)', 'shop');
-  await page.touchscreen.tap(stoolTool.x, stoolTool.y);
+  const plantTool = await call<{ x: number; y: number }>(page, 'a.toolScreen(5)', 'shop');
+  await page.touchscreen.tap(plantTool.x, plantTool.y);
   const emptyCell = await call<{ x: number; y: number }>(page, 'a.cellScreen(4, 2)', 'shop');
   await page.touchscreen.tap(emptyCell.x, emptyCell.y);
   const afterTap = await call<{ items: unknown[] }>(page, 'a.state()', 'shop');
@@ -240,5 +249,120 @@ test('mobile touch: shop pinch-zoom and build rotate/cancel', async ({ page }) =
   await pinch.detach();
   const afterPinch = await call<{ items: unknown[] }>(page, 'a.state()', 'shop');
   expect(afterPinch.items.length).toBe(afterTap.items.length);
+  expect(errors).toEqual([]);
+});
+
+test('mobile touch: button hit areas cover full visual face and survive rotation/resize', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto('/');
+  await page.waitForFunction(
+    () =>
+      (
+        window as unknown as { __nyan?: { scene: { isActive(k: string): boolean } } }
+      ).__nyan?.scene.isActive('TitleScene') === true,
+  );
+
+  const check = await page.evaluate(() => {
+    const g = (
+      window as unknown as {
+        __nyan: {
+          canvas: HTMLCanvasElement;
+          scale: { canvasBounds: { x: number; y: number; width: number; height: number } };
+          scene: {
+            getScenes(active: boolean): {
+              cameras: { main: unknown };
+              input: {
+                _list: {
+                  type: string;
+                  x: number;
+                  y: number;
+                  width: number;
+                  height: number;
+                  list?: { type: string; text?: string }[];
+                }[];
+                manager: { hitTest(p: unknown, objs: unknown[], cam: unknown): unknown[] };
+              };
+            }[];
+          };
+        };
+      }
+    ).__nyan;
+    const scene = g.scene.getScenes(true)[0]!;
+    const cam = scene.cameras.main;
+    const probe = (obj: unknown, gx: number, gy: number) =>
+      scene.input.manager.hitTest({ x: gx, y: gy, worldX: gx, worldY: gy, camera: cam }, [obj], cam)
+        .length > 0;
+    return scene.input._list.map((obj) => ({
+      label: obj.list?.find((ch) => ch.type === 'Text')?.text ?? obj.type,
+      center: probe(obj, obj.x + obj.width / 2, obj.y + obj.height / 2),
+      rightBottom: probe(obj, obj.x + obj.width * 0.85, obj.y + obj.height * 0.8),
+      farLeft: probe(obj, obj.x - obj.width * 0.25, obj.y + obj.height / 2),
+    }));
+  });
+  expect(check.length).toBeGreaterThanOrEqual(4);
+  for (const b of check) {
+    expect(b.center, `${b.label} center`).toBe(true);
+    expect(b.rightBottom, `${b.label} right-bottom`).toBe(true);
+    expect(b.farLeft, `${b.label} far-left outside`).toBe(false);
+  }
+
+  // Rotate to landscape, then resize portrait height (iOS Safari toolbar shift), and tap the
+  // right-bottom quarter of "New game".
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForFunction(
+    () => (window as unknown as MobileWindow).__nyanFit?.portrait === false,
+  );
+  await page.setViewportSize({ width: 390, height: 720 });
+  await page.waitForFunction(
+    () => (window as unknown as MobileWindow).__nyanFit?.portrait === true,
+  );
+  const target = await page.evaluate(() => {
+    const g = (
+      window as unknown as {
+        __nyan: {
+          canvas: HTMLCanvasElement;
+          scale: { canvasBounds: { x: number; y: number; width: number; height: number } };
+          scene: {
+            getScenes(active: boolean): {
+              input: {
+                _list: {
+                  x: number;
+                  y: number;
+                  width: number;
+                  height: number;
+                  list?: { type: string; text?: string }[];
+                }[];
+              };
+            }[];
+          };
+        };
+      }
+    ).__nyan;
+    const rect = g.canvas.getBoundingClientRect();
+    const cb = g.scale.canvasBounds;
+    const btn = g.scene
+      .getScenes(true)[0]!
+      .input._list.find((o) => o.list?.some((ch) => ch.text === 'New game'))!;
+    const k = rect.width / 480;
+    return {
+      dx: Math.abs(rect.x - cb.x),
+      dy: Math.abs(rect.y - cb.y),
+      x: rect.left + (btn.x + btn.width * 0.8) * k,
+      y: rect.top + (btn.y + btn.height * 0.75) * k,
+    };
+  });
+  expect(target.dx).toBeLessThanOrEqual(1);
+  expect(target.dy).toBeLessThanOrEqual(1);
+  await page.touchscreen.tap(target.x, target.y);
+  await page.waitForFunction(
+    () =>
+      (
+        window as unknown as { __nyan?: { scene: { isActive(k: string): boolean } } }
+      ).__nyan?.scene.isActive('PrepScene') === true,
+  );
   expect(errors).toEqual([]);
 });

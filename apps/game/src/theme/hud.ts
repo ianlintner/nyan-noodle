@@ -176,9 +176,13 @@ export function createButton(
     setPosition(x: number, y: number): void;
     setSize(width: number, height: number): void;
   };
-  /** Resize the existing rectangle in place; re-calling setInteractive after a scene restart crashes Phaser. */
+  /**
+   * Resize the existing rectangle in place; re-calling setInteractive after a scene restart crashes Phaser.
+   * Container.setSize() sets displayOrigin to (width/2, height/2), so local (0, 0) in hit-test space is
+   * shifted by (-width/2, -height/2) relative to the children drawn at [0..width, 0..height].
+   */
   const setHitArea = (nextX: number, nextY: number): void => {
-    hitArea.setPosition(-nextX, -nextY);
+    hitArea.setPosition(width / 2 - nextX, height / 2 - nextY);
     hitArea.setSize(width + nextX * 2, height + nextY * 2);
   };
   let padX = desiredPad;
@@ -216,6 +220,7 @@ export function createButton(
     draw();
   });
   container.on('pointerup', () => {
+    if (!pressed) return;
     pressed = false;
     draw();
     onClick();
