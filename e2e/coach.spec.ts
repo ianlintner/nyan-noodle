@@ -25,11 +25,9 @@ interface W {
 test.use({ viewport: { width: 1280, height: 720 } });
 
 const flag = (page: Page, key: string) =>
-  page.waitForFunction(
-    (k) => (window as unknown as W).__nyan?.registry.get(k) === true,
-    key,
-    { timeout: 40_000 },
-  );
+  page.waitForFunction((k) => (window as unknown as W).__nyan?.registry.get(k) === true, key, {
+    timeout: 40_000,
+  });
 const snapshot = (page: Page): Promise<Snapshot> =>
   page.evaluate(() => (window as unknown as W).__nyanCoach!.snapshot());
 
