@@ -1,3 +1,5 @@
+import type { BreedId, TraitId } from './breeds';
+import { traitPatienceModifier } from './breeds';
 import type { RecipeId, ToppingId } from './recipes';
 
 export type CoatId = 'tabby' | 'grey' | 'black' | 'white' | 'sakura';
@@ -16,6 +18,12 @@ export interface CatCustomer {
   /** Total patience budget in ticks; decreases while waiting to be served. */
   readonly patience: number;
   readonly preferences: CustomerPreferences;
+  /** Title the customer answers to (regulars get a generated name; walk-ins are blank). */
+  readonly name: string;
+  /** Body/personality type; distinct from the paint `coat`. */
+  readonly breed: BreedId;
+  /** Personality trait this customer carries; drives ordering, patience and payment. */
+  readonly trait: TraitId;
   /** True once the customer has been served at least once (becomes a regular). */
   readonly isRegular: boolean;
   /** Number of visits, mirrors regular progression. */
@@ -38,20 +46,38 @@ export const COATS: Readonly<Record<CoatId, Coat>> = {
 
 export const COAT_IDS: readonly CoatId[] = ['tabby', 'grey', 'black', 'white', 'sakura'];
 
+export interface CustomerOptions {
+  readonly name?: string;
+  readonly breed?: BreedId;
+  readonly trait?: TraitId;
+}
+
 export function createCustomer(
   id: number,
   coat: CoatId,
   preferences: CustomerPreferences,
   basePatience: number,
   visits = 0,
+  options: CustomerOptions = {},
 ): CatCustomer {
-  const patience = Math.max(1, Math.round(basePatience * (COATS[coat]?.patienceModifier ?? 1)));
+  const coatModifier = COATS[coat]?.patienceModifier ?? 1;
+  // Assign a trait (and its patience modifier) only when the caller hasn't already
+  // pinned them. Trait patience is a returning-regular economics effect: a first-time
+  // walk-in carries its trait for flavour/order generation but keeps the baseline
+  // patience so the pinned balance curve is unchanged by random walk-in traits.
+  const trait = options.trait ?? 'neutral';
+  const isRegular = visits > 0;
+  const traitModifier = isRegular ? traitPatienceModifier(trait) : 1;
+  const patience = Math.max(1, Math.round(basePatience * coatModifier * traitModifier));
   return {
     id,
     coat,
     patience,
     preferences,
-    isRegular: visits > 0,
+    name: options.name ?? '',
+    breed: options.breed ?? 'calico',
+    trait,
+    isRegular,
     visits,
   };
 }

@@ -5,6 +5,8 @@ import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY } from './CatActor';
 import type { Accessory, CoatFrame } from './CatActor';
 import type { Cell, ShopLayout } from './layout';
 import { findPath } from './pathfinding';
+import { drawTraitGlyph } from '../theme/traits';
+import { FONT_FAMILY } from '../theme/hud';
 
 export type CustomerPhase = 'arriving' | 'queued' | 'toSeat' | 'seated' | 'leaving' | 'gone';
 
@@ -22,6 +24,8 @@ interface Runtime {
   slot: number;
   entered: boolean;
   bowl: Phaser.GameObjects.Image | null;
+  /** Floating name + trait glyph above a seated cat (null while walking/queuing). */
+  label: Phaser.GameObjects.Container | null;
 }
 
 /** Sim coats beyond the atlas get a base coat plus a bow overlay. */
@@ -102,6 +106,7 @@ export class ShopDirector {
   destroy(): void {
     for (const r of this.runtimes.values()) {
       r.bowl?.destroy();
+      r.label?.destroy();
       if (r.phase !== 'gone') r.actor.destroy();
     }
     this.runtimes.clear();
@@ -134,6 +139,7 @@ export class ShopDirector {
       slot: -1,
       entered: false,
       bowl: null,
+      label: null,
     });
     this.log(beat, visit.customerId, 'spawn');
   }
@@ -176,6 +182,7 @@ export class ShopDirector {
         this.send(r, seat, () => {
           actor.sit(seat, seat.face);
           r.phase = 'seated';
+          r.label = this.makeLabel(r);
           this.log(this.now, visit.customerId, 'sit');
         });
       } else if (visit.seatBeat === null && beat >= visit.leaveBeat) {
@@ -190,6 +197,39 @@ export class ShopDirector {
       if (!r.bowl && beat >= visit.seatBeat! + 14) this.serveBowl(r);
       if (beat >= visit.leaveBeat) this.leave(r, beat);
     }
+  }
+
+  private makeLabel(r: Runtime): Phaser.GameObjects.Container {
+    const { visit, actor } = r;
+    const c = this.scene.add.container(0, 0);
+    // Name (forename) in the pixel font, plus the trait glyph and affection hearts.
+    const forename = (visit.name.split(' ')[0] || 'cat').slice(0, 10);
+    const name = this.scene.add.text(0, 0, forename, {
+      fontFamily: FONT_FAMILY,
+      fontStyle: 'bold',
+      fontSize: '8px',
+      color: '#2b1d2e',
+    });
+    name.setOrigin(0.5, 1);
+    const glyphG = this.scene.add.graphics();
+    drawTraitGlyph(glyphG, -3, -10, visit.trait, 'ink');
+    const items: Phaser.GameObjects.GameObject[] = [name, glyphG];
+    if (visit.affection > 0) {
+      const hearts = this.scene.add.text(5, -10, '♥'.repeat(Math.min(visit.affection, 5)), {
+        fontFamily: FONT_FAMILY,
+        fontSize: '7px',
+        color: '#c33a3a',
+      });
+      hearts.setOrigin(0, 0.5);
+      items.push(hearts);
+    }
+    c.add(items);
+    // Float a tile-and-a-half above the seated cat's feet, centred on it.
+    const feetY = cellFeetY(this.layout.seats[visit.seatIndex!]!.ty);
+    c.setPosition(actor.x, feetY - TILE_SIZE * 1.6);
+    c.setDepth(feetY + TILE_SIZE);
+    this.register(c);
+    return c;
   }
 
   private serveBowl(r: Runtime): void {
@@ -215,6 +255,8 @@ export class ShopDirector {
     r.phase = 'leaving';
     r.bowl?.destroy();
     r.bowl = null;
+    r.label?.destroy();
+    r.label = null;
     this.log(beat, r.visit.customerId, 'leave');
     const exit = this.layout.spawns[r.visit.customerId % 2]!;
     const path = findPath(this.layout.blocked, r.actor.cell, exit);

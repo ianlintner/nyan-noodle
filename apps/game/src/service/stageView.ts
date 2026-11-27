@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
-import type { Doneness } from '@nyan-noodle/sim';
+import type { Doneness, TraitId } from '@nyan-noodle/sim';
+import { NATIVE_WIDTH } from '../config';
 import { color } from '../theme/palette';
-import { drawPanel, pixelText } from '../theme/hud';
+import { drawPanel, FONT_FAMILY, pixelText } from '../theme/hud';
 import { ATLAS_KEY } from '../shop/CatActor';
+import { drawTraitGlyph } from '../theme/traits';
 
 /** Broth band the needle has to stay inside, as a 0..1 fraction of the bar. */
 export const BROTH_LO = 0.4;
@@ -68,6 +70,12 @@ export interface RailTicket {
   recipeId: string;
   coat: string;
   patience: number;
+  /** Customer name (a regular's name, or a seeded walk-in name). */
+  name: string;
+  /** Personality trait this ticket carries (null hides the glyph). */
+  trait: TraitId;
+  /** Affection of a returning regular (0 for walk-ins, hides the hearts). */
+  affection: number;
   /** Sim coats beyond the atlas get a base coat (sakura -> white + bow). */
   resolveCoat: (coat: string) => string;
   /** Called on tap, with the ticket's index. */
@@ -87,15 +95,22 @@ export function drawTicketRail(
 ): { buttons: Phaser.GameObjects.Container[]; rings: Phaser.GameObjects.Rectangle[] } {
   const buttons: Phaser.GameObjects.Container[] = [];
   const rings: Phaser.GameObjects.Rectangle[] = [];
+  // Shrink cards to fit when the rail holds more than the fixed 70px stride can carry.
+  const gap = 4;
+  const avail = NATIVE_WIDTH - 16; // 8px margins on each side of the rail band.
+  const w = Math.min(
+    66,
+    Math.floor((avail - gap * (tickets.length - 1)) / Math.max(1, tickets.length)),
+  );
   tickets.forEach((t, i) => {
     const done = completed.has(i);
     const active = i === activeIdx;
-    const x = 8 + i * 58;
-    const w = 54;
-    const h = 22;
-    const c = scene.add.container(x, 6);
+    const x = 8 + i * (w + gap);
+    const h = 24;
+    const c = scene.add.container(x, 4);
 
     // Ticket tile background: a small card with a 1px outline and 3-tone face.
+    // Added first so the affection hearts and labels drawn later sit above it.
     const g = scene.add.graphics();
     g.fillStyle(color('outline'), 1);
     g.fillRect(0, 0, w, h);
@@ -103,18 +118,39 @@ export function drawTicketRail(
     g.fillRect(1, 1, w - 2, h - 2);
     g.fillStyle(color(done ? 'tatami' : 'steamWhite'), 1);
     g.fillRect(1, 1, w - 2, 1);
+    c.add(g);
 
     // Cat portrait: head crop of the down/idle frame.
     const coat = t.resolveCoat(t.coat);
-    const portrait = scene.add.image(9, 12, ATLAS_KEY, `cat/${coat}/down/idle_0`);
+    const portrait = scene.add.image(9, 20, ATLAS_KEY, `cat/${coat}/down/idle_0`);
     portrait.setOrigin(0.5, 1);
     portrait.setCrop(0, 0, 16, 12); // head + ears only
     portrait.setScale(0.75);
 
     // Dish icon: the broth's bowl.
-    const bowl = scene.add.image(w - 9, 12, ATLAS_KEY, `food/bowl_${t.recipeId}`);
+    const bowl = scene.add.image(w - 9, 20, ATLAS_KEY, `food/bowl_${t.recipeId}`);
     bowl.setOrigin(0.5, 1);
     bowl.setScale(0.7);
+
+    // Name (forename) + trait glyph + affection hearts fill the top row, above the bowl.
+    const forename = t.name.split(' ')[0] ?? '';
+    const label = scene.add.text(24, 1, forename, {
+      fontFamily: FONT_FAMILY,
+      fontStyle: 'bold',
+      fontSize: '8px',
+      color: '#2b1d2e',
+    });
+    if (t.affection > 0) {
+      const hearts = scene.add.text(w - 11, 2, '♥'.repeat(Math.min(t.affection, 5)), {
+        fontFamily: FONT_FAMILY,
+        fontSize: '7px',
+        color: '#c33a3a',
+      });
+      hearts.setOrigin(1, 0);
+      c.add(hearts);
+    }
+    const glyphG = scene.add.graphics();
+    drawTraitGlyph(glyphG, 16, 10, t.trait, 'ink');
 
     // Patience bar: calm coats wait longer. Normalised over the coat patience range.
     const patienceG = scene.add.graphics();
@@ -128,7 +164,7 @@ export function drawTicketRail(
     );
     patienceG.fillRect(3, h - 4, full, 2);
 
-    c.add([g, portrait, bowl, patienceG]);
+    c.add([portrait, bowl, label, glyphG, patienceG]);
     c.setSize(w, h);
     c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
     c.on('pointerup', () => t.onSelect(i));

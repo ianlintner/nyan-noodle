@@ -220,9 +220,11 @@ export function settleBowl(
   streak: number,
   completedBeats: number,
   rushThresholdBeats: number,
+  /** Minimum quality the customer accepts (a picky regular raises this bar). */
+  acceptBar: number = MIN_ACCEPT_QUALITY,
 ): BowlPayout {
   const score = scoreBowl(recipeId, orderExtras, m);
-  const failed = isFailedOrder(score.quality);
+  const failed = score.quality < acceptBar;
   const tip = failed ? 0 : tipForQuality(score.quality, basePrice);
   const rush = failed ? 0 : rushBonus(score.quality, completedBeats, rushThresholdBeats);
   const mult = failed ? 0 : comboMultiplier(streak);

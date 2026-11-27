@@ -13,6 +13,34 @@ export type { DayClock, PhaseId, PhaseSpec } from './clock';
 export { COATS, COAT_IDS, createCustomer, regularPatienceBonus } from './customers';
 export type { CatCustomer, Coat, CoatId, CustomerPreferences } from './customers';
 
+export {
+  BREEDS,
+  TRAITS,
+  BREED_IDS,
+  TRAIT_IDS,
+  breedTrait,
+  randomBreed,
+  randomTrait,
+  traitArrivalOffset,
+  traitPatienceModifier,
+  traitQualityBar,
+  traitTipBonus,
+  traitToppingBias,
+} from './breeds';
+export type { Breed, BreedId, Trait, TraitId } from './breeds';
+
+export {
+  AFFECTION_PERKS,
+  MAX_AFFECTION,
+  MAX_WORD_OF_MOUTH,
+  clampAffection,
+  generateName,
+  registerVisit,
+  regularPerks,
+  whoReturns,
+} from './regulars';
+export type { AffectionPerk, Regular } from './regulars';
+
 export { createStaff, createStaffModel, dailyWages, stationCapacity } from './staff';
 export type { StaffMember, StaffModel, StaffRoster } from './staff';
 

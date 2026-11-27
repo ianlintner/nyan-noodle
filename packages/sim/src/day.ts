@@ -14,6 +14,9 @@ import {
 import { MAX_REPUTATION } from './economy';
 import { planService } from './service';
 import type { ServicePlan } from './service';
+import { registerVisit, regularPerks } from './regulars';
+import type { Regular } from './regulars';
+import { traitQualityBar, traitTipBonus } from './breeds';
 import type { ComplaintKind, DayReport, SimState } from './state';
 
 /** Bowls the owner cooks alone each day, before equipment and staff. */
@@ -124,6 +127,12 @@ export function settleDay(
   let repGain = 0;
   let streak = 0;
 
+  // Build the next roster of regulars: returning ones advance, first-time walk-ins
+  // who got a good bowl convert into new regulars (their first dish becomes their favourite).
+  const regularMap = new Map(state.regulars.map((reg) => [reg.id, reg]));
+  // Never reuse an id just because the roster has a gap; advance from the highest id.
+  let nextRegularId = state.regulars.reduce((max, r) => Math.max(max, r.id), -1) + 1;
+
   for (const visit of plan.visits) {
     if (visit.outcome === 'lost') {
       complaintKinds.queue += 1;
@@ -151,11 +160,42 @@ export function settleDay(
     cooked += 1;
     served += 1;
     revenue += price;
-    const failed = quality < MIN_ACCEPT_QUALITY;
+    // Picky regulars hold the bowl to a higher bar before accepting it.
+    const acceptBar = visit.isRegular
+      ? MIN_ACCEPT_QUALITY + traitQualityBar(visit.trait)
+      : MIN_ACCEPT_QUALITY;
+    const failed = quality < acceptBar;
     streak = failed ? 0 : streak + 1;
     if (!failed) {
       tips += Math.round(tipForQuality(quality, price) * comboMultiplier(streak));
+      // Generous/picky regulars tip a flat bonus on top of the quality tip.
+      if (visit.isRegular) tips += traitTipBonus(visit.trait);
       repGain += reputationDeltaForQuality(quality) * REPUTATION_SCALE;
+    }
+
+    // Regulars: a served regular advances affection and grants its tip perk; a
+    // served walk-in whose bowl wasn't failed becomes a brand-new regular.
+    if (visit.isRegular && visit.regularId !== null) {
+      const existing = regularMap.get(visit.regularId);
+      if (existing && !failed) {
+        const advanced = registerVisit(existing, state.clock.day);
+        regularMap.set(existing.id, advanced);
+        tips += regularPerks(advanced).tipBonus;
+      }
+    } else if (!failed && visit.name !== '') {
+      const newcomer: Regular = {
+        id: nextRegularId,
+        name: visit.name,
+        coat: visit.coat,
+        breed: visit.breed,
+        trait: visit.trait,
+        favoriteRecipe: visit.recipeId,
+        visits: 1,
+        affection: 1,
+        lastSeenDay: state.clock.day,
+      };
+      regularMap.set(nextRegularId, newcomer);
+      nextRegularId += 1;
     }
     const adjust = state.priceAdjust[id];
     if (adjust > 0 && r.next() < adjust * PRICEY_COMPLAINT_CHANCE) complaintKinds.pricey += 1;
@@ -182,6 +222,7 @@ export function settleDay(
     stockSpent: 0,
     clock: nextPrepClock(state.clock),
     revenueHistory: [...state.revenueHistory, revenue + tips],
+    regulars: [...regularMap.values()].sort((a, b) => a.id - b.id),
     activeOrders: [],
   };
   const report: DayReport = {

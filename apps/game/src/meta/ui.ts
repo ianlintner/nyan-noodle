@@ -10,6 +10,7 @@ export const SCENE_KEYS = {
   prep: 'PrepScene',
   report: 'ReportScene',
   upgrades: 'UpgradeScene',
+  regulars: 'RegularsScene',
 } as const;
 
 /** Queue the shared sprite atlas (cached after the first scene loads it). */

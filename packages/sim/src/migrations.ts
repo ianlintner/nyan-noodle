@@ -4,6 +4,7 @@ import { STARTING_RECIPES } from './recipes';
 import { SIM_VERSION, STARTING_STOCK, zeroByRecipe, zeroEquipment } from './state';
 import type { ShopTierId } from './shop';
 import type { SimState } from './state';
+import { MAX_AFFECTION } from './regulars';
 
 /** A loosely-typed state at some older version. */
 type Raw = Record<string, unknown>;
@@ -51,6 +52,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
         : null,
     };
   },
+  // v3 -> v4: persistent regular customers.
+  3: (raw) => ({ ...raw, version: 4, regulars: [] }),
 };
 
 export class MigrationError extends Error {}
@@ -114,5 +117,24 @@ export function validateState(raw: Raw): SimState {
   need(typeof raw.stock === 'number', 'stock');
   need(isRecord(raw.staff) && Array.isArray(raw.staff.roster), 'staff');
   need(Array.isArray(raw.revenueHistory), 'revenueHistory');
+  need(Array.isArray(raw.regulars), 'regulars');
+  (raw.regulars as unknown[]).forEach((reg, i) => {
+    need(
+      isRecord(reg) &&
+        typeof reg.id === 'number' &&
+        typeof reg.name === 'string' &&
+        typeof reg.breed === 'string' &&
+        typeof reg.trait === 'string' &&
+        typeof reg.coat === 'string' &&
+        typeof reg.favoriteRecipe === 'string' &&
+        typeof reg.visits === 'number' &&
+        typeof reg.affection === 'number' &&
+        Number.isInteger(reg.affection) &&
+        reg.affection >= 0 &&
+        reg.affection <= MAX_AFFECTION &&
+        typeof reg.lastSeenDay === 'number',
+      `regulars[${i}]`,
+    );
+  });
   return raw as unknown as SimState;
 }

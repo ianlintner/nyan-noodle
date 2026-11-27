@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import {
   CHEF_TICKETS,
+  MIN_ACCEPT_QUALITY,
   chefTickets,
   planService,
   settleBowl,
+  traitQualityBar,
   type CookMeasurements,
   type ToppingId,
 } from '@nyan-noodle/sim';
@@ -132,6 +134,11 @@ export class ServiceScene extends Phaser.Scene {
         order: t.order,
         doneness: t.doneness,
         coat: t.coat,
+        name: t.name,
+        breed: t.breed,
+        trait: t.trait,
+        isRegular: t.isRegular,
+        affection: t.affection,
         patience: t.patience,
       }));
       const coming = plan.visits.filter((v) => v.outcome === 'served').length;
@@ -190,6 +197,9 @@ export class ServiceScene extends Phaser.Scene {
         recipeId: t.order.recipeId,
         coat: t.coat,
         patience: t.patience,
+        name: t.name,
+        trait: t.trait,
+        affection: t.affection,
         resolveCoat: (coat) => (coat === 'sakura' ? 'white' : coat),
         onSelect: (i) => this.select(i),
       })),
@@ -315,6 +325,7 @@ export class ServiceScene extends Phaser.Scene {
       this.streak,
       Math.floor(this.beats),
       RUSH_THRESHOLD_BEATS,
+      MIN_ACCEPT_QUALITY + (ticket.isRegular ? traitQualityBar(ticket.trait) : 0),
     );
     this.qualities[this.activeIdx] = payout.quality;
     if (payout.failed) {
