@@ -46,10 +46,14 @@ for (const [id] of tiers) {
   await shot(`build-${id}`);
 }
 
-// Grand-hall service mode with a live day (seated cats).
+// Grand-hall service mode with a live day (seated cats). Wait for a cat to
+// actually reach its stool (walk time varies with the larger grid) rather than
+// relying on a fixed delay that can capture the arrivals walk instead.
 await page.goto(`${BASE}/?scene=shop&seed=2026&tier=grand-hall&coins=99999&rep=5`);
 await waitReady('shopReady');
-await page.waitForTimeout(1500);
+await page.waitForFunction(() => globalThis.__nyanShop?.counts().seated > 0, undefined, {
+  timeout: 15000,
+});
 await shot('service-grand-hall');
 
 await browser.close();
