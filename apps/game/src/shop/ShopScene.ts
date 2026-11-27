@@ -11,16 +11,16 @@ import {
   settleDay,
   upgradeInfo,
   upgradeTier,
+  type BuildError,
+  type ServicePlan,
+  type ShopTierId,
+  type SimState,
 } from '@nyan-noodle/sim';
-import type { BuildError, ServicePlan, ShopTierId, SimState } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, TILE_SIZE } from '../config';
 import { PALETTE } from '../theme/palette';
-import { createButton, drawPanel, pixelText } from '../theme/hud';
-import type { ButtonHandle } from '../theme/hud';
-import { BuildController } from '../build/BuildController';
-import type { BuildTool } from '../build/BuildController';
-import { BuildPanel } from '../build/BuildPanel';
-import { BTN_STEP } from '../build/BuildPanel';
+import { createButton, drawPanel, pixelText, type ButtonHandle } from '../theme/hud';
+import { BuildController, type BuildTool } from '../build/BuildController';
+import { BuildPanel, BTN_STEP } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { CameraRig } from './CameraRig';
@@ -28,7 +28,8 @@ import { ShopDirector } from './director';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
 import { startSteam } from './steam';
-import { cellScreenPoint } from './screen';
+import { installShopTouch, overBuildTouch, type ShopTouchUi } from './touch';
+import { cellScreenPoint, nativeScreenPoint } from './screen';
 import { WorldView } from './WorldView';
 import { session } from '../meta/session';
 import { SCENE_KEYS } from '../meta/ui';
@@ -76,6 +77,7 @@ export class ShopScene extends Phaser.Scene {
   private uiCam!: Phaser.Cameras.Scene2D.Camera;
   private build!: BuildController;
   private buildPanel!: BuildPanel;
+  private touchUi!: ShopTouchUi;
   private toggle!: ButtonHandle;
   private beat = 0;
   private hudText!: Phaser.GameObjects.Text;
@@ -175,6 +177,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   override update(_time: number, deltaMs: number): void {
+    this.touchUi.setVisible(this.mode === 'build');
     if (this.mode === 'build') {
       this.hudText.setText(this.buildSummary());
       const problem = this.build.hoverProblem;
@@ -286,8 +289,9 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private overUi(x: number, y: number): boolean {
-    if (this.mode === 'build' && this.buildPanel.contains(x, y)) return true;
-    return x < 136 && y < 58 ? true : x < 72 && y > NATIVE_HEIGHT - 20;
+    if (this.mode === 'build' && (this.buildPanel.contains(x, y) || overBuildTouch(x, y)))
+      return true;
+    return (x < 136 && y < 58) || (x < 72 && y > NATIVE_HEIGHT - 20);
   }
 
   private buildSummary(): string {
@@ -346,6 +350,11 @@ export class ShopScene extends Phaser.Scene {
       },
       this.state.tierId,
     );
+    this.touchUi = installShopTouch(this, {
+      rig: this.rig,
+      build: this.build,
+      isBuild: () => this.mode === 'build',
+    });
     pixelText(this, NATIVE_WIDTH - 4, NATIVE_HEIGHT - 3, '+/- zoom  arrows pan', {
       token: 'cream',
       originX: 1,
@@ -372,17 +381,13 @@ export class ShopScene extends Phaser.Scene {
       message: () => this.message,
       cellScreen: screen,
       /** Catalog / tool buttons by key: panel centre in page coordinates. */
-      toolScreen: (index: number) => {
-        const rect = this.game.canvas.getBoundingClientRect();
-        const k = rect.width / NATIVE_WIDTH;
-        const r = this.buildPanel.rect;
-        return { x: rect.left + (r.x + 52) * k, y: rect.top + (r.y + 27 + index * BTN_STEP) * k };
-      },
-      toggleScreen: () => {
-        const rect = this.game.canvas.getBoundingClientRect();
-        const k = rect.width / NATIVE_WIDTH;
-        return { x: rect.left + 36 * k, y: rect.top + (NATIVE_HEIGHT - 11) * k };
-      },
+      toolScreen: (i: number) =>
+        nativeScreenPoint(
+          this,
+          this.buildPanel.rect.x + 52,
+          this.buildPanel.rect.y + 27 + i * BTN_STEP,
+        ),
+      toggleScreen: () => nativeScreenPoint(this, 36, NATIVE_HEIGHT - 11),
       startService: () => this.startService(),
       finishDay: () => this.finishDay(),
       setSpeed: (n: number) => (this.params = { ...this.params, speed: n }),

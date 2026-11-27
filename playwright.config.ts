@@ -25,6 +25,17 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: /mobile\.spec\.ts/,
+    },
+    {
+      name: 'iphone-touch',
+      use: { ...devices['iPhone 13'], browserName: 'chromium', defaultBrowserType: 'chromium' },
+      testMatch: /mobile\.spec\.ts/,
+    },
+    {
+      name: 'pixel-touch',
+      use: { ...devices['Pixel 7'], browserName: 'chromium', defaultBrowserType: 'chromium' },
+      testMatch: /mobile\.spec\.ts/,
     },
   ],
   webServer: {

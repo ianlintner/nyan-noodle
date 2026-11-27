@@ -49,6 +49,9 @@ export class BuildController {
   private markers: Phaser.GameObjects.Text[] = [];
   /** Result of the last validity check for the hovered cell (null means valid). */
   hoverProblem: string | null = null;
+  /** Touch build actions commit on release, never on pinch start. */
+  private readonly activeTouches = new Set<number>();
+  private pendingTouch: { id: number; x: number; y: number } | null = null;
 
   constructor(private readonly host: BuildHost) {
     const { scene } = host;
@@ -66,6 +69,8 @@ export class BuildController {
 
     scene.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onMove(p));
     scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
+    scene.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onUpTouch(p));
+    scene.input.on('pointerupoutside', (p: Phaser.Input.Pointer) => this.onUpTouch(p));
     scene.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
       if (!this.active) return;
       if (e.key === 'r' || e.key === 'R') this.rotate();
@@ -164,13 +169,44 @@ export class BuildController {
 
   private onMove(p: Phaser.Input.Pointer): void {
     if (!this.active) return;
+    if (
+      this.pendingTouch?.id === p.id &&
+      Math.hypot(p.x - this.pendingTouch.x, p.y - this.pendingTouch.y) > 8
+    ) {
+      this.pendingTouch = null;
+    }
     this.hover = this.host.overUi(p.x, p.y) ? null : this.cellAt(p);
     this.drawGhost();
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
-    if (!this.active || this.host.overUi(p.x, p.y)) return;
+    if (!this.active) return;
+    const overUi = this.host.overUi(p.x, p.y);
+    if (p.wasTouch) {
+      // Track every finger, even one that lands on HUD chrome: a second finger
+      // must invalidate a pending floor tap regardless of where it landed.
+      if (this.activeTouches.size > 0) this.pendingTouch = null;
+      // Only a press that starts on the floor may commit a build action. A
+      // short slide out of the HUD must not turn into a furniture edit.
+      else if (!overUi) this.pendingTouch = { id: p.id, x: p.x, y: p.y };
+      this.activeTouches.add(p.id);
+    }
+    if (overUi) return;
     if (p.rightButtonDown()) return this.cancel();
+    if (!p.wasTouch) {
+      const cell = this.cellAt(p);
+      if (cell) this.clickCell(cell.x, cell.y);
+    }
+  }
+
+  /** Touch taps commit only on a confirmed single-finger release. */
+  private onUpTouch(p: Phaser.Input.Pointer): void {
+    if (!p.wasTouch) return;
+    this.activeTouches.delete(p.id);
+    const pending = this.pendingTouch;
+    this.pendingTouch = null;
+    if (!pending || pending.id !== p.id || this.activeTouches.size > 0) return;
+    if (this.host.overUi(p.x, p.y)) return;
     const cell = this.cellAt(p);
     if (cell) this.clickCell(cell.x, cell.y);
   }

@@ -1,6 +1,17 @@
 import type Phaser from 'phaser';
 import { NATIVE_WIDTH, TILE_SIZE } from '../config';
 
+/** Map a native HUD point to page coordinates for touch/e2e targeting. */
+export function nativeScreenPoint(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+): { x: number; y: number } {
+  const rect = scene.game.canvas.getBoundingClientRect();
+  const k = rect.width / NATIVE_WIDTH;
+  return { x: rect.left + x * k, y: rect.top + y * k };
+}
+
 /** Map a shop grid cell to page coordinates for pointer/e2e targeting. */
 export function cellScreenPoint(
   scene: Phaser.Scene,
