@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { NATIVE_HEIGHT, NATIVE_WIDTH, computeIntegerZoom } from './config';
+import { NATIVE_HEIGHT, NATIVE_WIDTH, computeViewportFit } from './config';
 import { PALETTE } from './theme/palette';
 import { BootScene } from './scenes/BootScene';
 import { ShopScene } from './shop/ShopScene';
@@ -70,14 +70,31 @@ function boot(): void {
     antialias: false,
     scale: {
       mode: Phaser.Scale.NONE,
-      zoom: computeIntegerZoom(window.innerWidth, window.innerHeight),
+      zoom: computeViewportFit(window.innerWidth, window.innerHeight).zoom,
     },
     scene: sceneList(first),
   });
 
-  window.addEventListener('resize', () => {
-    game.scale.setZoom(computeIntegerZoom(window.innerWidth, window.innerHeight));
-  });
+  /**
+   * Integer zoom when the viewport can hold a whole native frame; on a narrow
+   * portrait phone the exact fractional fit keeps every HUD pixel reachable.
+   * The canvas is absolutely positioned so the remaining space is a true
+   * letterbox rather than a stretched frame.
+   */
+  function applyFit(): void {
+    const fit = computeViewportFit(window.innerWidth, window.innerHeight);
+    game.scale.setZoom(fit.zoom);
+    const canvas = game.canvas;
+    canvas.style.position = 'absolute';
+    canvas.style.left = `${fit.left}px`;
+    canvas.style.top = `${fit.top}px`;
+    canvas.style.width = `${fit.width}px`;
+    canvas.style.height = `${fit.height}px`;
+    (window as unknown as { __nyanFit: typeof fit }).__nyanFit = fit;
+  }
+  applyFit();
+  window.addEventListener('resize', applyFit);
+  window.addEventListener('orientationchange', applyFit);
 
   // Test hook for e2e / debugging only.
   (window as unknown as { __nyan: Phaser.Game }).__nyan = game;

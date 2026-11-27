@@ -1,7 +1,9 @@
 import {
+  CHEF_TICKETS,
   COAT_IDS,
   DONENESS_OPTIONS,
   bowlPrice,
+  chefTickets,
   createRng,
   createSimState,
   createCustomer,
@@ -9,12 +11,14 @@ import {
   breedTrait,
   generateOrder,
   generateName,
+  planService,
   type BreedId,
   type Doneness,
   type Order,
   type TraitId,
 } from '@nyan-noodle/sim';
 import type { SimState } from '@nyan-noodle/sim';
+import { session } from '../meta/session';
 
 /** A rail ticket: the order plus the render-only coat, persona and patience fields. */
 export interface ServiceTicket {
@@ -72,4 +76,40 @@ export function seededServiceTickets(seed: number, count: number): ServiceTicket
     });
   }
   return tickets;
+}
+
+/**
+ * Build the rail for the current day (session) or its seeded sandbox. Kept out of
+ * the scene so the 400-line ceiling leaves room for the touch UI wiring.
+ */
+export function serviceRail(
+  inSession: boolean,
+  seed: number,
+  count: number,
+): { tickets: ServiceTicket[]; todayLines: string[] } {
+  if (!inSession) return { tickets: seededServiceTickets(seed, count), todayLines: [] };
+  const state = session.state;
+  const plan = planService(state);
+  const tickets: ServiceTicket[] = chefTickets(state, plan, CHEF_TICKETS).map((t) => ({
+    order: t.order,
+    doneness: t.doneness,
+    coat: t.coat,
+    name: t.name,
+    breed: t.breed,
+    trait: t.trait,
+    isRegular: t.isRegular,
+    affection: t.affection,
+    patience: t.patience,
+  }));
+  const coming = plan.visits.filter((v) => v.outcome === 'served').length;
+  return {
+    tickets,
+    todayLines: [
+      `${coming} cats will get a seat (${plan.seats} seats)`,
+      `Stock: ${state.stock} bowls`,
+      `Hand-cook up to ${tickets.length} bowls first.`,
+      'Better bowls = bigger tips + more stars.',
+      'Skipped tickets cook at your usual quality.',
+    ],
+  };
 }

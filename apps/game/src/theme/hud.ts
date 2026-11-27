@@ -102,6 +102,14 @@ export interface ButtonHandle {
   setDim(dim: boolean): void;
 }
 
+/** Touch-capable devices get an invisible margin around every small HUD button. */
+export function isTouchDevice(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    (window.navigator.maxTouchPoints > 0 || 'ontouchstart' in window)
+  );
+}
+
 /** Button with outline, 3-tone face and a pressed state that shifts the face 1px. */
 export function createButton(
   scene: Phaser.Scene,
@@ -134,8 +142,9 @@ export function createButton(
   draw(false);
 
   container.setSize(width, height);
+  const pad = isTouchDevice() ? 5 : 0;
   container.setInteractive(
-    new Phaser.Geom.Rectangle(0, 0, width, height),
+    new Phaser.Geom.Rectangle(-pad, -pad, width + pad * 2, height + pad * 2),
     Phaser.Geom.Rectangle.Contains,
   );
   container.on('pointerdown', () => draw(true));

@@ -1,15 +1,12 @@
 import Phaser from 'phaser';
 import {
-  CHEF_TICKETS,
   MIN_ACCEPT_QUALITY,
-  chefTickets,
-  planService,
   settleBowl,
   traitQualityBar,
   type CookMeasurements,
   type ToppingId,
 } from '@nyan-noodle/sim';
-import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
+import { isPortrait } from '../config';
 import { PALETTE } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from '../meta/session';
@@ -21,7 +18,9 @@ import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { ATLAS_KEY } from '../shop/CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
-import { seededServiceTickets, type ServiceTicket } from './tickets';
+import { serviceRail, type ServiceTicket } from './tickets';
+import { serviceLayout, type ServiceLayout } from './layout';
+import { ServiceTouchControls, type CookStage } from './touch';
 import {
   BROTH_HI,
   BROTH_LO,
@@ -35,7 +34,7 @@ import {
 export const SERVICE_SCENE_KEY = 'ServiceScene';
 
 /** The three cooking minigames, run in order for each selected ticket. */
-type Stage = 'broth' | 'noodles' | 'toppings' | 'serve';
+type Stage = CookStage;
 
 const RUSH_THRESHOLD_BEATS = 30;
 
@@ -60,6 +59,9 @@ export class ServiceScene extends Phaser.Scene {
   private activeIdx = -1;
   private completed = new Set<number>();
   private stage: Stage = 'broth';
+  private layout!: ServiceLayout;
+  private touch?: ServiceTouchControls;
+  private touchHolding = false;
 
   private brothHold = emptyBrothHold;
   private brothHeat = 0.5;
@@ -127,63 +129,50 @@ export class ServiceScene extends Phaser.Scene {
   // --- setup ---------------------------------------------------------------
 
   private buildTickets(): void {
-    if (this.inSession) {
-      const state = session.state;
-      const plan = planService(state);
-      this.tickets = chefTickets(state, plan, CHEF_TICKETS).map((t) => ({
-        order: t.order,
-        doneness: t.doneness,
-        coat: t.coat,
-        name: t.name,
-        breed: t.breed,
-        trait: t.trait,
-        isRegular: t.isRegular,
-        affection: t.affection,
-        patience: t.patience,
-      }));
-      const coming = plan.visits.filter((v) => v.outcome === 'served').length;
-      this.todayLines = [
-        `${coming} cats will get a seat (${plan.seats} seats)`,
-        `Stock: ${state.stock} bowls`,
-        `Hand-cook up to ${this.tickets.length} bowls first.`,
-        'Better bowls = bigger tips + more stars.',
-        'Skipped tickets cook at your usual quality.',
-      ];
-    } else {
-      // Sandbox (`?scene=service&seed=...`): seeded tickets from a fresh sim state.
-      this.tickets = seededServiceTickets(this.params.seed, this.params.count);
-    }
+    const rail = serviceRail(this.inSession, this.params.seed, this.params.count);
+    this.tickets = rail.tickets;
+    this.todayLines = rail.todayLines;
     this.qualities = this.tickets.map(() => null);
   }
 
   private buildUi(): void {
-    // Ticket rail: one row of ticket cards (portrait + bowl + patience) in a thin band.
-    drawPanel(this, 4, 4, NATIVE_WIDTH - 8, 26);
-    const { content } = drawPanel(this, 4, 34, 156, 186, { title: 'Cooking' });
+    this.layout = serviceLayout(isPortrait());
+    const { rail, cooking, today, touch: pad, openDoors, hintY } = this.layout;
+    drawPanel(this, rail.x, rail.y, rail.w, rail.h);
+    const { content } = drawPanel(this, cooking.x, cooking.y, cooking.w, cooking.h, {
+      title: 'Cooking',
+    });
     this.stageG = this.add.graphics();
     const intro = this.inSession
       ? `Day ${session.state.clock.day}: cook the first cats'\nbowls by hand, or just\nopen the doors.`
       : 'Click a ticket on the rail.';
     this.stageText = pixelText(this, content.x + 2, content.y + 4, intro);
-    this.statusText = pixelText(this, content.x + 2, content.y + 134, '', {
+    this.statusText = pixelText(this, content.x + 2, content.y + Math.min(134, cooking.h - 24), '', {
       token: 'lanternYellow',
     });
     this.drawRail();
     if (this.inSession) {
-      drawTodayPanel(this, this.todayLines);
-      createButton(this, NATIVE_WIDTH - 126, NATIVE_HEIGHT - 48, 120, 18, 'Open doors!', () =>
+      drawTodayPanel(this, this.todayLines, today);
+      createButton(this, openDoors.x, openDoors.y, openDoors.w, openDoors.h, 'Open doors!', () =>
         this.openDoors(),
       );
     }
     pixelText(
       this,
       4,
-      NATIVE_HEIGHT - 22,
-      'click tickets   SPACE advance   W heat   1-6 toppings',
-      {
-        token: 'steamWhite',
-      },
+      hintY,
+      this.layout.railRows > 1
+        ? 'tap tickets   HOLD  STOP  1-6 toppings'
+        : 'click tickets   SPACE advance   W heat   1-6 toppings',
+      { token: 'steamWhite' },
     );
+    this.touch = new ServiceTouchControls(this, pad, this.layout.railRows > 1, {
+      hold: (on) => (this.touchHolding = on),
+      stop: () => this.stopNoodles(),
+      topping: (i) => this.addToppingByIndex(i),
+      serve: () => this.serve(),
+      openDoors: () => this.openDoors(),
+    });
   }
 
   private drawRail(): void {
@@ -205,6 +194,7 @@ export class ServiceScene extends Phaser.Scene {
       })),
       this.activeIdx,
       this.completed,
+      this.layout.railRows,
     );
     this.railButtons = buttons;
     this.railRings = rings;
@@ -242,6 +232,11 @@ export class ServiceScene extends Phaser.Scene {
   // --- per-frame update ----------------------------------------------------
 
   override update(_time: number, deltaMs: number): void {
+    this.touch?.update(
+      this.stage,
+      this.required.length,
+      this.activeIdx >= 0 && !this.completed.has(this.activeIdx),
+    );
     if (this.activeIdx < 0) return;
     this.beats += deltaMs / 250;
     const k = this.keys;
@@ -257,7 +252,7 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   private updateBroth(deltaMs: number): void {
-    const heating = this.keys.SPACE.isDown || this.keys.W.isDown;
+    const heating = this.keys.SPACE.isDown || this.keys.W.isDown || this.touchHolding;
     const dt = deltaMs / 16;
     const drift = (Math.sin(this.beats * 0.6) * 0.3 + 0.5 - this.brothHeat) * 0.02 * dt;
     const push = (heating ? 0.02 : -0.012) * dt;

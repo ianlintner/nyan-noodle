@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Doneness, TraitId } from '@nyan-noodle/sim';
 import { NATIVE_WIDTH } from '../config';
+import type { Rect } from './layout';
 import { color } from '../theme/palette';
 import { drawPanel, FONT_FAMILY, pixelText } from '../theme/hud';
 import { ATLAS_KEY } from '../shop/CatActor';
@@ -49,9 +50,17 @@ export function drawNoodles(
 }
 
 /** Session-mode side panel: what today's service looks like before the doors open. */
-export function drawTodayPanel(scene: Phaser.Scene, lines: readonly string[]): void {
-  const { content } = drawPanel(scene, 166, 34, 310, 120, { title: 'Today' });
-  lines.forEach((line, i) => pixelText(scene, content.x + 2, content.y + 4 + i * 12, line));
+export function drawTodayPanel(
+  scene: Phaser.Scene,
+  lines: readonly string[],
+  rect: Rect = { x: 166, y: 34, w: 310, h: 120 },
+): void {
+  const { content } = drawPanel(scene, rect.x, rect.y, rect.w, rect.h, { title: 'Today' });
+  lines.forEach((line, i) => {
+    if (content.y + 4 + i * 12 < rect.y + rect.h - 8) {
+      pixelText(scene, content.x + 2, content.y + 4 + i * 12, line);
+    }
+  });
 }
 
 /** Topping assembly: one square per required topping, green once applied. */
@@ -92,22 +101,25 @@ export function drawTicketRail(
   tickets: readonly RailTicket[],
   activeIdx: number,
   completed: ReadonlySet<number>,
+  rows = 1,
 ): { buttons: Phaser.GameObjects.Container[]; rings: Phaser.GameObjects.Rectangle[] } {
   const buttons: Phaser.GameObjects.Container[] = [];
   const rings: Phaser.GameObjects.Rectangle[] = [];
-  // Shrink cards to fit when the rail holds more than the fixed 70px stride can carry.
+  // Shrink cards to fit when the rail holds more than the stride can carry.
   const gap = 4;
   const avail = NATIVE_WIDTH - 16; // 8px margins on each side of the rail band.
+  const perRow = Math.ceil(tickets.length / rows);
   const w = Math.min(
-    66,
-    Math.floor((avail - gap * (tickets.length - 1)) / Math.max(1, tickets.length)),
+    rows > 1 ? 150 : 66,
+    Math.floor((avail - gap * (perRow - 1)) / Math.max(1, perRow)),
   );
+  const h = rows > 1 ? 22 : 24;
   tickets.forEach((t, i) => {
     const done = completed.has(i);
     const active = i === activeIdx;
-    const x = 8 + i * (w + gap);
-    const h = 24;
-    const c = scene.add.container(x, 4);
+    const x = 8 + (i % perRow) * (w + gap);
+    const y = 4 + Math.floor(i / perRow) * (h + 2);
+    const c = scene.add.container(x, y);
 
     // Ticket tile background: a small card with a 1px outline and 3-tone face.
     // Added first so the affection hearts and labels drawn later sit above it.
@@ -170,7 +182,7 @@ export function drawTicketRail(
     c.on('pointerup', () => t.onSelect(i));
     if (active) {
       const ring = scene.add
-        .rectangle(x + w / 2, 6 + h / 2, w + 2, h + 2)
+        .rectangle(x + w / 2, y + 2 + h / 2, w + 2, h + 2)
         .setStrokeStyle(1, color('misoOrange'));
       rings.push(ring);
     }
