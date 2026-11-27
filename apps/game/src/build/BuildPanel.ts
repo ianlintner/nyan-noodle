@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { FURNITURE, getTier, nextTier } from '@nyan-noodle/sim';
 import type { ShopTierId } from '@nyan-noodle/sim';
-import { NATIVE_WIDTH } from '../config';
+import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { color } from '../theme/palette';
 import { createButton, drawPanel } from '../theme/hud';
 import type { ButtonHandle } from '../theme/hud';
@@ -11,7 +11,8 @@ export const PANEL_X = NATIVE_WIDTH - 108;
 const PANEL_W = 104;
 const BTN_W = PANEL_W - 12;
 const BTN_H = 14;
-const BTN_STEP = 16;
+/** Vertical step between buttons (14px button + 1px gap); 15 works with up to 16 rows. */
+export const BTN_STEP = 15;
 
 export interface PanelActions {
   pick(tool: BuildTool): void;
@@ -30,7 +31,9 @@ export class BuildPanel {
   constructor(scene: Phaser.Scene, actions: PanelActions, startTier: ShopTierId) {
     const before = new Set(scene.children.list);
     const rows = FURNITURE.length + 4;
-    const height = 18 + rows * BTN_STEP + 6;
+    // Cap the panel to the native HUD viewport so the pinned action buttons (move/sell/
+    // rotate/upgrade) never fall off screen as the catalog grows.
+    const height = Math.min(18 + rows * BTN_STEP + 6, NATIVE_HEIGHT - 6);
     this.rect = { x: PANEL_X, y: 4, w: PANEL_W, h: height };
     const { graphics, content } = drawPanel(scene, PANEL_X, 4, PANEL_W, height, { title: 'Build' });
     this.objects.push(graphics);

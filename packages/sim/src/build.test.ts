@@ -168,6 +168,17 @@ describe('capacity and appeal effects', () => {
     expect(appealScore(s.items)).toBe(base + 2 * getFurniture('plant').appeal);
   });
 
+  it('grand-hall decor multiplier lifts only extra decor, not the base demand', () => {
+    const fresh = createSimState(1, 'grand-hall');
+    expect(layoutDemandMultiplier('grand-hall', fresh.items)).toBe(
+      getTier('grand-hall').demandMultiplier,
+    );
+    const placed = ok(placeItem(withCoins(fresh, 2000), 'maneki-neko', 7, 8)).state;
+    expect(layoutDemandMultiplier('grand-hall', placed.items)).toBeGreaterThan(
+      layoutDemandMultiplier('grand-hall', fresh.items),
+    );
+  });
+
   it('a decorated shop draws at least as many visitors as a bare one on the same seed', () => {
     const bare = withCoins(createSimState(3, 'stall'), 2000);
     let fancy = bare;

@@ -152,7 +152,9 @@ export function appealScore(items: readonly BuildItem[]): number {
 export function layoutDemandMultiplier(tierId: ShopTierId, items: readonly BuildItem[]): number {
   const tier = getTier(tierId);
   const extra = Math.max(0, appealScore(items) - appealScore(defaultItems(tierId)));
-  return tier.demandMultiplier * (1 + APPEAL_DEMAND_PER_POINT * extra) * tier.decorMultiplier;
+  // Apply the tier's decor multiplier only to the *extra* appeal lift, so a venue's base
+  // demand stays at tier.demandMultiplier even with no additional decor.
+  return tier.demandMultiplier * (1 + tier.decorMultiplier * APPEAL_DEMAND_PER_POINT * extra);
 }
 
 export function isSolid(kind: FurnitureKind): boolean {

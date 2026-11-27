@@ -4,6 +4,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 const PORT = process.env.E2E_PORT ?? 4173;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -23,7 +24,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
 page.on('pageerror', (e) => console.warn('pageerror:', String(e)));
 
-const shot = (name) => page.locator('canvas').screenshot({ path: `${outDir}${name}.png` });
+const shot = (name) => page.locator('canvas').screenshot({ path: join(outDir, `${name}.png`) });
 
 const waitReady = (key) =>
   page.waitForFunction((k) => globalThis.__nyan?.registry.get(k) === true, key, {
