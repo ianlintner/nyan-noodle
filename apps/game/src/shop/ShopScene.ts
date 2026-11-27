@@ -5,6 +5,7 @@ import {
   createSimState,
   describeBuildError,
   getTier,
+  isTierId,
   layoutDemandMultiplier,
   planService,
   settleDay,
@@ -53,7 +54,7 @@ export function readShopParams(search: string): ShopParams {
   const num = (key: string): number | null => (q.has(key) ? Number(q.get(key)) : null);
   return {
     seed: Number(q.get('seed') ?? 2026) || 2026,
-    tier: tier === 'stall' || tier === 'small-shop' ? tier : 'cart',
+    tier: isTierId(tier) ? tier : 'cart',
     speed: Math.min(16, Math.max(1, Number(q.get('speed') ?? 1) || 1)),
     mode: q.get('mode') === 'build' ? 'build' : 'service',
     coins: num('coins'),

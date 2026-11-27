@@ -70,9 +70,9 @@ export const EQUIPMENT: readonly EquipmentDef[] = [
   },
 ];
 
-export const STAFF_MAX = 3;
+export const STAFF_MAX = 5;
 export const STAFF_HIRE_COST = 60;
-export const STAFF_HIRE_STARS: readonly number[] = [1, 2.5, 3.5];
+export const STAFF_HIRE_STARS: readonly number[] = [1, 2.5, 3.5, 4, 5];
 export const STAFF_LEVEL_MAX = 5;
 export const STAFF_NAMES: readonly string[] = ['Momo', 'Taro', 'Mochi', 'Kiki', 'Pudding'];
 export function staffLevelCost(level: number): number {

@@ -150,8 +150,9 @@ export function appealScore(items: readonly BuildItem[]): number {
  * starter furnishings (those are already priced into the tier's base demand).
  */
 export function layoutDemandMultiplier(tierId: ShopTierId, items: readonly BuildItem[]): number {
+  const tier = getTier(tierId);
   const extra = Math.max(0, appealScore(items) - appealScore(defaultItems(tierId)));
-  return getTier(tierId).demandMultiplier * (1 + APPEAL_DEMAND_PER_POINT * extra);
+  return tier.demandMultiplier * (1 + APPEAL_DEMAND_PER_POINT * extra) * tier.decorMultiplier;
 }
 
 export function isSolid(kind: FurnitureKind): boolean {
@@ -165,24 +166,52 @@ export function defaultItems(tierId: ShopTierId): BuildItem[] {
   const gh = tier.gridHeight;
   const raw: { kind: FurnitureKind; x: number; y: number; rot: Rotation }[] = [];
 
-  const stoveXs: number[] = [];
-  for (let k = 0; k < tier.stoves; k++) {
-    stoveXs.push(1 + 2 * k);
-    raw.push({ kind: 'stove', x: 1 + 2 * k, y: 0, rot: 0 });
+  // Big venues split the kitchen into two parallel stove lines (a "second stove line");
+  // smaller shops keep everything on the single back-wall line.
+  const twoLines = tier.stoves >= 4;
+  const lineACount = twoLines ? Math.ceil(tier.stoves / 2) : tier.stoves;
+  const lineBCount = twoLines ? tier.stoves - lineACount : 0;
+
+  // Top stove line (row 0) and its cook spots (row 1).
+  const lineAxs: number[] = [];
+  for (let k = 0; k < lineACount; k++) {
+    const x = 1 + 2 * k;
+    lineAxs.push(x);
+    raw.push({ kind: 'stove', x, y: 0, rot: 0 });
   }
   raw.push({ kind: 'lantern', x: 0, y: 0, rot: 0 });
   raw.push({ kind: 'plant', x: gw - 1, y: 0, rot: 0 });
   for (let x = 0; x < gw; x++) {
-    if (!stoveXs.includes(x)) raw.push({ kind: 'counter', x, y: 1, rot: 0 });
+    if (!lineAxs.includes(x)) raw.push({ kind: 'counter', x, y: 1, rot: 0 });
   }
 
+  // Second stove line (row 2) and its cook spots (row 3), only for the big shops.
+  const lineBxs: number[] = [];
+  if (twoLines) {
+    for (let k = 0; k < lineBCount; k++) {
+      const x = 1 + 2 * k;
+      lineBxs.push(x);
+      raw.push({ kind: 'stove', x, y: 2, rot: 0 });
+    }
+    for (let x = 0; x < gw; x++) {
+      if (!lineBxs.includes(x)) raw.push({ kind: 'counter', x, y: 3, rot: 0 });
+    }
+  }
+
+  // Counter seating: a row of stools in front of the (lowest) counter.
+  const stoolRow = twoLines ? 4 : 2;
   let seats = 0;
   for (let x = 0; x < gw && seats < tier.seats; x += 2, seats++) {
-    raw.push({ kind: 'stool', x, y: 2, rot: 0 });
+    raw.push({ kind: 'stool', x, y: stoolRow, rot: 0 });
   }
+
+  // Community tables fill the remaining seats; big halls get more tables to seat everyone.
   const tables: GridCell[] = [];
-  for (let y = 4; y < gh - 1 && tables.length < 4; y += 2) {
-    for (let x = 2; x < gw - 1 && tables.length < 4; x += 4) tables.push({ x, y });
+  const maxTables = twoLines ? 8 : 4;
+  // Leave one clear aisle row between the counter stools and the first table row so
+  // cats can walk from the door to every seat.
+  for (let y = stoolRow + 2; y < gh - 1 && tables.length < maxTables; y += 2) {
+    for (let x = 2; x < gw - 1 && tables.length < maxTables; x += 4) tables.push({ x, y });
   }
   for (const t of tables) {
     if (seats >= tier.seats) break;

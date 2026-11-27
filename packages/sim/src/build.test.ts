@@ -221,13 +221,20 @@ describe('shop tier upgrade', () => {
     expect(validateLayout('stall', up.state.items)).toEqual([]);
   });
 
-  it('walks cart -> stall -> small shop with valid layouts and stops at the top', () => {
+  it('walks cart -> stall -> small shop -> ramen-bar -> grand-hall with valid layouts and stops at the top', () => {
     let s = withCoins(createSimState(1, 'cart'), 9000, 5);
     s = ok(upgradeTier(s)).state;
+    expect(s.tierId).toBe('stall');
     expect(validateLayout('stall', s.items)).toEqual([]);
     s = ok(upgradeTier(s)).state;
     expect(s.tierId).toBe('small-shop');
     expect(validateLayout('small-shop', s.items)).toEqual([]);
+    s = ok(upgradeTier(s)).state;
+    expect(s.tierId).toBe('ramen-bar');
+    expect(validateLayout('ramen-bar', s.items)).toEqual([]);
+    s = ok(upgradeTier(s)).state;
+    expect(s.tierId).toBe('grand-hall');
+    expect(validateLayout('grand-hall', s.items)).toEqual([]);
     expect(upgradeTier(s)).toEqual({ ok: false, reason: 'max-tier' });
   });
 

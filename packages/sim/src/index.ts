@@ -4,7 +4,7 @@ export type { Rng } from './rng';
 export { INGREDIENTS, TOPPINGS, RECIPES, STARTING_RECIPES } from './recipes';
 export type { Ingredient, Topping, Recipe, IngredientId, ToppingId, RecipeId } from './recipes';
 
-export { SHOP_TIERS, getTier, nextTier } from './shop';
+export { SHOP_TIERS, getTier, isTierId, nextTier } from './shop';
 export type { ShopTier, ShopTierId } from './shop';
 
 export { PHASES, createClock, tickClock } from './clock';

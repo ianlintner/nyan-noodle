@@ -126,6 +126,130 @@ const sign = () =>
     c.bitmap(4, 6, ['..c..c..', '...c..c.', 'cccccccc', '.cccccc.', '..cccc..'], { c: 'cream' });
   });
 
+// Bar counter: a long low serving bar with a lacquered top and a foot rail,
+// the signature piece of the Ramen Bar.
+const barCounter = () =>
+  make(16, 24, (c) => {
+    c.box(1, 4, 14, 19, 6, 3, ['woodDark', 'norenIndigo', 'nightBlue']);
+    c.rect(1, 4, 14, 4, 'woodLight'); // lacquered top
+    c.rect(1, 4, 14, 1, 'steamWhite'); // lit top edge
+    c.rect(1, 20, 14, 2, 'woodLight'); // foot rail
+    c.rect(1, 22, 14, 1, 'woodMid');
+    // Two recessed front panels on the indigo body.
+    c.rect(3, 10, 4, 7, 'nightBlue');
+    c.rect(9, 10, 4, 7, 'nightBlue');
+    c.rect(4, 12, 2, 3, 'norenIndigo');
+    c.rect(10, 12, 2, 3, 'norenIndigo');
+  });
+
+// Booth: a padded two-seat bench with a high back and a table edge tucked in front.
+const booth = () =>
+  make(16, 24, (c) => {
+    layer(c, (l) => {
+      l.box(1, 1, 14, 20, 5, 3, ['woodLight', 'woodMid', 'woodDark']); // seat body
+      l.box(1, 1, 14, 16, 2, 2, ['paperPink', 'sakura', 'chiliRed']); // padded back/seat
+    });
+    layer(c, (l) => {
+      l.box(1, 3, 13, 4, 1, 1, ['woodLight', 'woodMid', 'woodDark']); // table edge
+      l.rect(1, 3, 13, 1, 'steamWhite');
+    });
+  });
+
+// Big pot: an oversized floor-standing ramen vat on a stone plinth.
+const bigPot = () =>
+  make(16, 24, (c) => {
+    layer(c, (l) => {
+      l.box(4, 3, 9, 13, 3, 2, ['catGrey', 'slate', 'nightBlue']); // the vat
+      l.ellipse(8, 3, 6, 2, 'brothGold'); // broth surface
+      l.rect(4, 4, 7, 3, 'brothGold');
+      l.set(6, 1, 'steamWhite');
+      l.set(9, 1, 'steamWhite');
+      l.set(12, 2, 'steamWhite');
+    });
+    layer(c, (l) => {
+      l.box(2, 16, 12, 7, 2, 2, ['stone', 'slate', 'nightBlue']); // plinth
+      l.rect(2, 17, 12, 1, 'stone');
+    });
+  });
+
+// Menu board: a standing chalkboard with a wooden A-frame and written specials.
+const menuBoard = () =>
+  make(16, 24, (c) => {
+    layer(c, (l) => {
+      l.box(1, 1, 14, 16, 3, 2, ['woodLight', 'woodMid', 'woodDark']); // frame
+      l.rect(2, 2, 12, 14, 'nightBlue'); // board surface
+      l.rect(3, 3, 10, 1, 'cream');
+      l.rect(3, 5, 8, 1, 'cream');
+      l.rect(3, 7, 10, 1, 'cream');
+      l.rect(3, 9, 6, 1, 'cream');
+      l.rect(3, 11, 9, 1, 'cream');
+      l.rect(3, 13, 5, 1, 'cream');
+      l.set(5, 3, 'chiliRed'); // a price slash
+    });
+    layer(c, (l) => {
+      l.rect(6, 17, 2, 6, 'woodDark'); // leg
+      l.rect(8, 17, 2, 6, 'woodMid');
+    });
+  });
+
+// Koi tank: a lit aquarium with three koi, a stone base and bubbles.
+const koiTank = () =>
+  make(16, 24, (c) => {
+    layer(c, (l) => {
+      l.box(1, 2, 14, 15, 3, 2, ['woodDark', 'norenIndigo', 'nightBlue']); // tank frame
+      l.rect(2, 3, 12, 13, 'nightBlue'); // water
+      l.rect(2, 3, 12, 1, 'lanternYellow'); // lit surface
+      // Koi (two oranges + one white).
+      l.ellipse(5, 8, 3, 2, 'misoOrange');
+      l.ellipse(6, 8, 1, 1, 'chiliRed');
+      l.ellipse(9, 12, 3, 2, 'catWhite');
+      l.ellipse(10, 12, 1, 1, 'chiliRed');
+      l.ellipse(5, 14, 3, 2, 'tabbyOrange');
+      l.ellipse(6, 14, 1, 1, 'chiliRed');
+      // Bubbles.
+      l.set(4, 5, 'steamWhite');
+      l.set(8, 4, 'steamWhite');
+      l.set(11, 6, 'steamWhite');
+    });
+    layer(c, (l) => {
+      l.box(2, 17, 12, 6, 2, 2, ['stone', 'slate', 'nightBlue']); // cabinet
+      l.rect(3, 18, 9, 1, 'slate');
+    });
+  });
+
+// Maneki-neko: the lucky cat on a small wooden stand, one paw raised.
+const manekiNeko = () =>
+  make(16, 24, (c) => {
+    layer(c, (l) => {
+      // Raised beckoning paw (right side).
+      l.rect(10, 7, 3, 3, 'catWhite');
+      l.rect(10, 6, 1, 1, 'paperPink');
+    });
+    layer(c, (l) => {
+      // Body.
+      l.shadedEllipse(8, 13, 5, 6, ['catWhite', 'catGrey', 'slate']);
+      // Head.
+      l.shadedEllipse(8, 6, 4, 4, ['catWhite', 'catGrey', 'slate']);
+      // Ears (simple triangles from two rects each).
+      l.bitmap(4, 1, ['.c.', 'cc.'], { c: 'catWhite' });
+      l.bitmap(11, 1, ['.c.', '.cc'], { c: 'catWhite' });
+      l.set(5, 2, 'paperPink'); // inner ear (left)
+      l.set(11, 2, 'paperPink'); // inner ear (right)
+      // Face.
+      l.set(6, 6, 'catBlack');
+      l.set(10, 6, 'catBlack');
+      l.set(8, 8, 'sakura'); // nose
+      l.bitmap(7, 8, ['.c.', '.c.'], { c: 'chiliRed' }); // mouth dots
+      // Collar + bell.
+      l.rect(5, 10, 6, 1, 'chiliRed');
+      l.set(8, 11, 'brothGold');
+    });
+    layer(c, (l) => {
+      l.box(3, 19, 10, 4, 2, 2, ['woodLight', 'woodMid', 'woodDark']); // stand
+      l.rect(4, 20, 8, 1, 'woodLight');
+    });
+  });
+
 // Wall menu: a wood board of menu plates (noren-indigo slip with a bowl, a price plate and
 // two nori strips), hung high on the back wall. Pure set dressing (never a sim item).
 const wallMenu = () =>
@@ -161,6 +285,12 @@ export function buildFurniture() {
     'furniture/lantern': lantern(),
     'furniture/plant': plant(),
     'furniture/sign': sign(),
+    'furniture/bar_counter': barCounter(),
+    'furniture/booth': booth(),
+    'furniture/big_pot': bigPot(),
+    'furniture/menu_board': menuBoard(),
+    'furniture/koi_tank': koiTank(),
+    'furniture/maneki_neko': manekiNeko(),
     'furniture/wall_menu': wallMenu(),
   };
 }
