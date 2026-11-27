@@ -17,7 +17,10 @@ export type ProgressionError =
   | 'already-owned'
   | 'not-owned'
   | 'roster-full'
-  | 'last-recipe';
+  | 'last-recipe'
+  | 'has-stock'
+  | 'pantry-used'
+  | 'can-afford';
 
 export const RECIPE_UNLOCKS: Readonly<Record<RecipeId, { stars: number; cost: number }>> = {
   shoyu: { stars: 0, cost: 0 },
@@ -187,6 +190,12 @@ export function describeProgressionError(reason: ProgressionError): string {
       return 'Kitchen is full';
     case 'last-recipe':
       return 'Keep at least one dish on the menu';
+    case 'has-stock':
+      return 'You still have stock in the pantry';
+    case 'pantry-used':
+      return "The neighbour's pantry is once a day";
+    case 'can-afford':
+      return 'You can afford to buy ingredients';
     default:
       return 'Cannot do that';
   }

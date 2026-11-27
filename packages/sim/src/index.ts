@@ -153,6 +153,7 @@ export {
 export type { ActionResult, EquipmentDef, ProgressionError } from './progression';
 
 export {
+  NEIGHBOUR_PANTRY_BOWLS,
   PRICE_ADJUST_MAX,
   PRICE_ADJUST_MIN,
   PRICE_STEP,
@@ -161,6 +162,8 @@ export {
   adjustPrice,
   buyStock,
   effectiveMenu,
+  neighbourPantry,
+  pantryOffer,
   salePrice,
   stockCap,
   toggleMenu,

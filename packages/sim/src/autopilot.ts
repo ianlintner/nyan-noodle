@@ -13,7 +13,7 @@ import {
 } from './progression';
 import { planService } from './service';
 import { upgradeInfo, upgradeTier } from './build';
-import { STOCK_BOWL_COST, stockCap } from './prep';
+import { STOCK_BOWL_COST, stockCap, neighbourPantry, pantryOffer } from './prep';
 import type { RecipeId } from './recipes';
 import type { EquipmentId, SimState } from './state';
 
@@ -96,7 +96,10 @@ export function autopilotPrep(start: SimState): SimState {
   // Stock what the kitchen can actually cook today (plus a small buffer).
   const wanted = Math.max(0, playerCapacity(s) + staffCapacity(s) + 2 - s.stock);
   const bowls = Math.min(wanted, Math.floor(s.economy.fishCoins / STOCK_BOWL_COST));
-  return bowls > 0 ? apply(s, buyStock(s, bowls)) : s;
+  const stocked = bowls > 0 ? apply(s, buyStock(s, bowls)) : s;
+  // A reference player with no coins and no stock would otherwise have no way to open.
+  // This never fires in the normal curve: the stock reserve keeps enough coins back.
+  return pantryOffer(stocked) ? apply(stocked, neighbourPantry(stocked)) : stocked;
 }
 
 /** Prep, play one auto-day and settle it. */
