@@ -23,11 +23,10 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
 page.on('pageerror', (e) => console.warn('pageerror:', String(e)));
 
-const shot = (name) =>
-  page.locator('canvas').screenshot({ path: `${outDir}${name}.png` });
+const shot = (name) => page.locator('canvas').screenshot({ path: `${outDir}${name}.png` });
 
 const waitReady = (key) =>
-  page.waitForFunction((k) => window.__nyan?.registry.get(k) === true, key, {
+  page.waitForFunction((k) => globalThis.__nyan?.registry.get(k) === true, key, {
     timeout: 15000,
   });
 
