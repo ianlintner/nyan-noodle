@@ -43,7 +43,7 @@ npm run dev
 6. **Upgrades** (stars + coins): recipes (Miso, Tonkotsu), mastery, knives / burner / signboard, staff cats. **Build** mode places stools, stoves, tables and decor, and buys the next shop tier.
 7. **Sound**: click _Sound_ at the title screen, or press `ESC` during the day, to open the audio panel. Adjust Master / Music / SFX and mute; settings persist in this browser independently of save import/export. Browsers require a first click or keypress before any sound plays.
 
-Expected pace: Stall around day 3, Small Shop day 6–8, Ramen Bar day 12–13, Grand Ramen Hall day 22–23. The pantry grows with the venue (40 bowls up to Small Shop, 60 at Ramen Bar, 90 at Grand Hall).
+Expected pace: Stall around day 3, Small Shop day 6–8, Ramen Bar day 12–13, Grand Ramen Hall day 21–23. The pantry grows with the venue (40 bowls up to Small Shop, 60 at Ramen Bar, 90 at Grand Hall).
 
 ## Develop
 

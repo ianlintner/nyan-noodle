@@ -59,7 +59,7 @@ MVP: **done** (#9, #10, #11).
 | Touch input and responsive layout | #18 | iPhone/Pixel e2e projects |
 | Integration: playtest, 5-tier balance, docs | this pass | per-tier pantry fixes the Grand Hall sell-out; report in `docs/playtest/` |
 
-30-day curve (8 seeds): Stall day 3, Small Shop 6-8, Ramen Bar 12-13, Grand Hall 22-23; every tier earns >=1.3x the last.
+30-day curve (8 seeds): Stall day 3, Small Shop 6-8, Ramen Bar 12-13, Grand Hall 21-23; every tier earns >=1.3x the last.
 
 ## Phase 3 — proposed
 Still no backend-dependent gameplay, accounts, ads or paid currency. Order is by player value.

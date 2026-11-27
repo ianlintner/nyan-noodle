@@ -31,24 +31,24 @@ First day served in each tier:
 
 | Seed | Cart | Stall | Small Shop | Ramen Bar | Grand Hall |
 | ---- | ---- | ----- | ---------- | --------- | ---------- |
-| 1    | 1    | 3     | 7          | 13        | 22         |
-| 2    | 1    | 3     | 6          | 12        | 22         |
-| 3    | 1    | 3     | 6          | 12        | 22         |
+| 1    | 1    | 3     | 7          | 12        | 22         |
+| 2    | 1    | 3     | 6          | 12        | 21         |
+| 3    | 1    | 3     | 6          | 12        | 21         |
 | 42   | 1    | 3     | 7          | 13        | 22         |
-| 99   | 1    | 3     | 8          | 13        | 22         |
+| 99   | 1    | 3     | 7          | 13        | 22         |
 | 1337 | 1    | 3     | 7          | 13        | 22         |
 | 2024 | 1    | 3     | 7          | 12        | 22         |
 | 7777 | 1    | 3     | 8          | 13        | 23         |
 
-Per-tier daily means (all seeds), before -> after this PR:
+Per-tier daily means (all seeds), `main` (8a31be0) -> this PR (measured at fcc34cf, after the per-purchase stock-reserve fix):
 
 | Tier       | Takings (rev + tips) | Served           | Lost            |
 | ---------- | -------------------- | ---------------- | --------------- |
 | Cart       | 62.1 -> 62.1         | 6.0 -> 6.0       | 0.1 -> 0.1      |
-| Stall      | 157.5 -> 159.5       | 10.1 -> 10.3     | 1.4 -> 1.4      |
-| Small Shop | 423.0 -> 435.0       | 22.5 -> 23.0     | 6.0 -> 6.1      |
-| Ramen Bar  | 819.9 -> 834.5       | 37.5 -> 37.9     | 2.3 -> 1.9      |
-| Grand Hall | **764.9 -> 1831.0**  | **22.8 -> 53.9** | **31.8 -> 4.0** |
+| Stall      | 157.5 -> 157.5       | 10.1 -> 10.1     | 1.4 -> 1.4      |
+| Small Shop | 423.0 -> 427.0       | 22.5 -> 22.8     | 6.0 -> 5.8      |
+| Ramen Bar  | 819.9 -> 828.3       | 37.5 -> 37.8     | 2.3 -> 2.1      |
+| Grand Hall | **764.9 -> 1831.6**  | **22.8 -> 54.2** | **31.8 -> 3.6** |
 
 Each tier now earns at least 1.3x the previous one; `balance.test.ts` pins that, the Ramen Bar (days 11-14) and Grand Hall (days 20-25) windows, and no sell-outs at the two big tiers. The Cart -> Small Shop curve is unchanged.
 
