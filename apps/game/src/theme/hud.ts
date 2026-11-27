@@ -1,11 +1,12 @@
 import type Phaser from 'phaser';
 import { PALETTE, color, type PaletteToken } from './palette';
-import { safeVerticalPad, type ButtonBox } from './hitArea';
+import { safeHorizontalPad, safeVerticalPad, type ButtonBox } from './hitArea';
 
 interface RegisteredButton {
   box: ButtonBox;
+  padX: number;
   padY: number;
-  setPadY(padY: number): void;
+  setPad(padX: number, padY: number): void;
 }
 
 /** Hit areas are tracked per scene so stacked buttons cannot cover each other's faces. */
@@ -152,7 +153,7 @@ export function createButton(
   draw(false);
 
   container.setSize(width, height);
-  const padX = isTouchDevice() ? 5 : 0;
+  const desiredPad = isTouchDevice() ? 5 : 0;
   const box: ButtonBox = { x, y, width, height };
   const registered = sceneButtons.get(scene) ?? [];
   sceneButtons.set(scene, registered);
@@ -162,29 +163,40 @@ export function createButton(
     setSize(width: number, height: number): void;
   };
   /** Resize the existing rectangle in place; re-calling setInteractive after a scene restart crashes Phaser. */
-  const setHitArea = (padY: number): void => {
-    hitArea.setPosition(-padX, -padY);
-    hitArea.setSize(width + padX * 2, height + padY * 2);
+  const setHitArea = (nextX: number, nextY: number): void => {
+    hitArea.setPosition(-nextX, -nextY);
+    hitArea.setSize(width + nextX * 2, height + nextY * 2);
   };
-  let padY = padX;
+  let padX = desiredPad;
+  let padY = desiredPad;
   for (const other of registered) {
-    padY = Math.min(padY, safeVerticalPad(box, other.box, padX));
-    other.setPadY(Math.min(other.padY, safeVerticalPad(other.box, box, padX)));
+    padX = Math.min(padX, safeHorizontalPad(box, other.box, desiredPad));
+    padY = Math.min(padY, safeVerticalPad(box, other.box, desiredPad));
+    other.setPad(
+      Math.min(other.padX, safeHorizontalPad(other.box, box, desiredPad)),
+      Math.min(other.padY, safeVerticalPad(other.box, box, desiredPad)),
+    );
   }
   const entry: RegisteredButton = {
     box,
+    padX,
     padY,
-    setPadY(next) {
-      this.padY = next;
-      setHitArea(next);
+    setPad(nextX, nextY) {
+      this.padX = nextX;
+      this.padY = nextY;
+      setHitArea(nextX, nextY);
     },
   };
   registered.push(entry);
-  scene.events.once('shutdown', () => {
+  const unregister = (): void => {
     const i = registered.indexOf(entry);
     if (i >= 0) registered.splice(i, 1);
-  });
-  setHitArea(padY);
+  };
+  // HUD rebuilds destroy buttons without shutting the scene down. Leaving their
+  // boxes registered would keep shrinking the replacements' hit areas.
+  container.once('destroy', unregister);
+  scene.events.once('shutdown', unregister);
+  setHitArea(padX, padY);
   container.on('pointerdown', () => draw(true));
   container.on('pointerup', () => {
     draw(false);

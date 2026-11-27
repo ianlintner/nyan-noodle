@@ -118,15 +118,27 @@ test('mobile touch: fit, one full service, and portrait/landscape screenshots', 
   const doneness = (await call<{ doneness: string }[]>(page, 'a.tickets()', 'service'))[0]!
     .doneness;
   const sweet = doneness === 'firm' ? 0.7 : doneness === 'soft' ? 0.55 : 0.62;
-  for (let i = 0; i < 200; i++) {
+  // Stop at the sweet spot with a LONG press: the finger stays down after STOP
+  // moves the stage to toppings, so releasing over a topping pad must not select
+  // one (the portrait action button sits over pad 2).
+  let stopped = false;
+  for (let i = 0; i < 200 && !stopped; i++) {
     const sweep = await call<number>(page, 'a.noodleSweep()', 'service');
     if (Math.abs(sweep - sweet) < 0.04 || (sweet < 0.05 && sweep > 0.96)) {
-      await page.touchscreen.tap(action.x, action.y);
-      break;
-    }
-    await page.waitForTimeout(8);
+      const stopCdp = await page.context().newCDPSession(page);
+      await stopCdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: Math.round(action.x), y: Math.round(action.y) }],
+      });
+      await page.waitForTimeout(180);
+      await stopCdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await stopCdp.detach();
+      stopped = true;
+    } else await page.waitForTimeout(8);
   }
+  expect(stopped).toBe(true);
   expect(await call<string>(page, 'a.stage()', 'service')).toBe('toppings');
+  expect(await call<string[]>(page, 'a.toppingSequence()', 'service')).toEqual([]);
 
   // Tap each required topping pad in order, then serve by touch.
   const required = await call<string[]>(page, 'a.required()', 'service');

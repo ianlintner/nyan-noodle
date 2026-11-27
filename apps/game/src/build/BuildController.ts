@@ -180,17 +180,20 @@ export class BuildController {
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
-    if (!this.active || this.host.overUi(p.x, p.y)) return;
-    if (p.rightButtonDown()) return this.cancel();
+    if (!this.active) return;
     if (p.wasTouch) {
-      // A second finger means a camera gesture: discard any pending build action.
+      // Track every finger, even one that lands on HUD chrome: a second finger
+      // must invalidate a pending floor tap regardless of where it landed.
       if (this.activeTouches.size > 0) this.pendingTouch = null;
       else this.pendingTouch = { id: p.id, x: p.x, y: p.y };
       this.activeTouches.add(p.id);
-      return;
     }
-    const cell = this.cellAt(p);
-    if (cell) this.clickCell(cell.x, cell.y);
+    if (this.host.overUi(p.x, p.y)) return;
+    if (p.rightButtonDown()) return this.cancel();
+    if (!p.wasTouch) {
+      const cell = this.cellAt(p);
+      if (cell) this.clickCell(cell.x, cell.y);
+    }
   }
 
   /** Touch taps commit only on a confirmed single-finger release. */

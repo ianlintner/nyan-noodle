@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeVerticalPad, type ButtonBox } from './hitArea';
+import { safeHorizontalPad, safeVerticalPad, type ButtonBox } from './hitArea';
 
 const button = (x: number, y: number, width = 56, height = 14): ButtonBox => ({
   x,
@@ -25,5 +25,21 @@ describe('safeVerticalPad', () => {
 
   it('never returns a negative pad for overlapping buttons', () => {
     expect(safeVerticalPad(button(124, 252), button(124, 252), 5)).toBe(0);
+  });
+});
+
+describe('safeHorizontalPad', () => {
+  it('keeps the full pad for buttons on different rows', () => {
+    expect(safeHorizontalPad(button(124, 252), button(184, 266), 5)).toBe(5);
+  });
+
+  it('clamps the pad for the 6px settings -/+ gap', () => {
+    expect(safeHorizontalPad(button(62, 100, 24), button(92, 100, 24), 5)).toBe(3);
+    expect(safeHorizontalPad(button(92, 100, 24), button(62, 100, 24), 5)).toBe(3);
+  });
+
+  it('allows a partial pad for a wider gap and never goes negative', () => {
+    expect(safeHorizontalPad(button(124, 252, 56), button(186, 252, 56), 5)).toBe(3);
+    expect(safeHorizontalPad(button(124, 252, 56), button(124, 252, 56), 5)).toBe(0);
   });
 });

@@ -74,8 +74,11 @@ export class ServiceTouchControls {
       );
     }
     this.action.zone.on('pointerdown', () => this.onActionDown());
+    // Toppings commit on press, not release. STOP advances the stage on its own
+    // pointerdown; if toppings waited for pointerup, a finger held through the
+    // stage change would select the pad it lifts over (portrait: pad 2).
     this.toppings.forEach((b, i) =>
-      b.zone.on('pointerup', () => {
+      b.zone.on('pointerdown', () => {
         if (this.active && this.stage === 'toppings' && i < this.required) {
           this.handlers.topping(i);
         }
