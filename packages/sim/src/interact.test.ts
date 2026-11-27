@@ -112,6 +112,29 @@ describe('collecting tips', () => {
   });
 });
 
+describe('tip eligibility after a greet', () => {
+  // Seed 344 on the cart: cat 5 walks out unserved at baseline, but one greet keeps it.
+  const st = createSimState(344, 'cart');
+  const id = 5;
+
+  it('a greet that saves a cat makes its visit tip-eligible in the greeted plan', () => {
+    const basePlan = planService(st);
+    expect(basePlan.visits.find((v) => v.customerId === id)?.outcome).toBe('lost');
+    const ledger = spendGreet(NO_GREETS, 'cart', id)!;
+    const greeted = planService(st, undefined, ledger.byCat);
+    expect(greeted.visits.find((v) => v.customerId === id)?.outcome).toBe('served');
+    expect(tipEligibleVisits(st, basePlan).has(id)).toBe(false);
+    expect(tipEligibleVisits(st, greeted).has(id)).toBe(true);
+    // Deterministic, and collecting that pop really pays a bonus in the greeted plan.
+    expect(tipEligibleVisits(st, planService(st, undefined, new Map([[id, 1]])))).toEqual(
+      tipEligibleVisits(st, greeted),
+    );
+    expect(settleDay(st, greeted, { collected: [id] }).report.tips).toBeGreaterThan(
+      settleDay(st, greeted).report.tips,
+    );
+  });
+});
+
 describe('hand-cook cap per tier', () => {
   it('starts at CHEF_TICKETS and never falls as tiers rise', () => {
     expect(chefTicketCap('cart')).toBe(CHEF_TICKETS);

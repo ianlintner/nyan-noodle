@@ -104,8 +104,9 @@ export interface SettleOptions {
   readonly chefQualities?: readonly (number | null)[];
   /**
    * Customer ids whose tip pop the owner tapped during service, IN TAP ORDER. Each collected
-   * pop on a paid bowl adds a bonus and builds a `collectStreak` combo that follows this tap
-   * order (not arrival order); duplicates and unknown ids are ignored. Omitted = autopilot.
+   * pop on a paid bowl adds a collect count bonus (the Nth distinct tap pays more, capped by
+   * `collectMultiplier`); skipped pops never reset it. Order follows taps, not arrival;
+   * duplicates and unknown ids are ignored. Omitted = autopilot.
    */
   readonly collected?: readonly number[];
 }
@@ -235,15 +236,15 @@ function settleInternal(
     if (adjust > 0 && r.next() < adjust * PRICEY_COMPLAINT_CHANCE) complaintKinds.pricey += 1;
   }
 
-  // Collect bonuses follow the owner's tap order; the seeded base tips above are untouched.
+  // Collect count bonuses (capped by collectMultiplier) follow the owner's tap order; the seeded base tips above are untouched.
   const counted = new Set<number>();
-  let collectStreak = 0;
+  let collectCount = 0;
   for (const id of options.collected ?? []) {
     const base = visitTips.get(id);
     if (base === undefined || counted.has(id)) continue;
     counted.add(id);
-    collectStreak += 1;
-    tips += collectBonus(base, collectStreak);
+    collectCount += 1;
+    tips += collectBonus(base, collectCount);
   }
 
   const complaints = Object.values(complaintKinds).reduce((a, b) => a + b, 0);

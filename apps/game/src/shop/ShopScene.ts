@@ -234,7 +234,7 @@ export class ShopScene extends Phaser.Scene {
       director: this.director,
       beat: () => this.beat,
       replan: (byCat) => (this.plan = planService(this.state, undefined, byCat)),
-      eligible: tipEligibleVisits(this.state, this.plan, this.chefQualities),
+      eligible: () => tipEligibleVisits(this.state, this.plan!, this.chefQualities),
       overUi: (x, y) => this.overUi(x, y),
       register: (o) => this.uiCam.ignore(o),
     });

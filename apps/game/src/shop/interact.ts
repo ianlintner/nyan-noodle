@@ -31,7 +31,7 @@ export interface InteractBindings {
   /** Replan with the greet ledger; returns the new plan. */
   replan(byCat: ReadonlyMap<number, number>): ServicePlan;
   /** Customer ids whose visit really earns a tip (coin pops spawn only for these). */
-  eligible: ReadonlySet<number>;
+  eligible(): ReadonlySet<number>;
   overUi(x: number, y: number): boolean;
   register(o: Phaser.GameObjects.GameObject): void;
 }
@@ -127,7 +127,12 @@ export class ShopInteraction {
     for (; this.seenEvents < events.length; this.seenEvents++) {
       const e = events[this.seenEvents]!;
       const v = e.type === 'leave' ? this.visitOf(e.customerId) : undefined;
-      if (v && v.outcome === 'served' && v.seatIndex !== null && this.b.eligible.has(v.customerId))
+      if (
+        v &&
+        v.outcome === 'served' &&
+        v.seatIndex !== null &&
+        this.b.eligible().has(v.customerId)
+      )
         this.spawnPop(v.customerId, v.seatIndex);
     }
     for (let i = this.pops.length - 1; i >= 0; i--) {
