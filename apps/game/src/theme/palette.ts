@@ -78,8 +78,3 @@ export function blendHex(fg: string, bg: string, alpha: number): string {
   });
   return `#${channels.join('')}`;
 }
-
-/** Alpha-blend one palette value over another; used to check dimmed button labels. */
-export function blendTokens(fg: PaletteToken, bg: PaletteToken, alpha: number): string {
-  return blendHex(PALETTE[fg], PALETTE[bg], alpha);
-}

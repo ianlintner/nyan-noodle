@@ -11,6 +11,8 @@ interface Box {
 interface UpgradeLayout {
   panels: Box[];
   titles: Box[];
+  /** Rendered title strings, so e2e can prove a seeded level is actually on screen. */
+  labels: string[];
   details: Box[];
   buttons: Box[];
   next?: Box;
@@ -27,6 +29,7 @@ interface ArtWindow {
   __nyanSession?: {
     state: Record<string, unknown> & {
       staff: { roster: unknown[] };
+      equipment: Record<string, number>;
       economy: Record<string, unknown>;
     };
     update(s: unknown): void;
@@ -122,6 +125,48 @@ test('upgrade rows keep detail text clear of buttons at both viewports', async (
   await page.setViewportSize({ width: 1280, height: 720 });
   await settle(page);
   await page.screenshot({ path: `${SHOT_DIR}/upgrades-icons.png` });
+});
+
+test('upgraded equipment titles stay inside their panel at both viewports', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await bypassCoach(page);
+  await page.goto('/');
+  await page.waitForFunction(
+    () => (window as unknown as ArtWindow).__nyan?.registry.get('titleReady') === true,
+  );
+  await page.evaluate(() => (window as unknown as ArtWindow).__nyanTitle!.newGame());
+  await page.waitForFunction(
+    () => (window as unknown as ArtWindow).__nyan?.registry.get('prepReady') === true,
+  );
+  // Seed before the scene starts so the longest title (Signboard L1) is actually rendered.
+  await page.evaluate(() => {
+    const session = (window as unknown as ArtWindow).__nyanSession!;
+    session.update({
+      ...session.state,
+      equipment: { knives: 1, burner: 2, signboard: 1 },
+      economy: { ...session.state.economy, fishCoins: 900, reputation: 5 },
+    });
+    (window as unknown as ArtWindow).__nyanPrep!.upgrades();
+  });
+  await page.waitForFunction(
+    () => (window as unknown as ArtWindow).__nyan?.registry.get('upgradesReady') === true,
+  );
+
+  for (const [width, height] of [
+    [1280, 720],
+    [390, 844],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await settle(page);
+    const layout = await page.evaluate(() =>
+      (window as unknown as ArtWindow).__nyanUpgrades!.layout(),
+    );
+    expect(layout.labels).toContain('Sharp Knives L1 ★1.5');
+    expect(layout.labels).toContain('Big Burner L2 ★3.5');
+    expect(layout.labels).toContain('Neon Signboard L1 ★2.5');
+    expectNoOverlap(layout);
+    expectInsidePanels(layout);
+  }
 });
 
 test('all five staff cats keep a Level button through pagination', async ({ page }) => {

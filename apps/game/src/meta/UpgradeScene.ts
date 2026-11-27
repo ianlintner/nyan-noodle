@@ -23,6 +23,7 @@ import {
 import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
+import { PANEL_TEXT } from '../theme/palette';
 import { catPortrait, EQUIPMENT_ICON, RECIPE_ICON, rowIcon } from './rowArt';
 import { audio } from '../audio/manager';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
@@ -107,7 +108,10 @@ export class UpgradeScene extends Phaser.Scene {
   ): void {
     rowIcon(this, x, y, frame, cropHeight);
     pixelText(this, x + 20, y, title).setData('nyanRowTitle', true);
-    pixelText(this, x + 20, y + 11, detail, { token: 'slate' }).setData('nyanRowDetail', true);
+    pixelText(this, x + 20, y + 11, detail, { token: PANEL_TEXT.muted }).setData(
+      'nyanRowDetail',
+      true,
+    );
     const b = createButton(this, x + 20, y + 23, BTN_W, 12, label, onClick);
     b.container.setData('nyanRowButton', true);
     b.setDim(gated);
@@ -171,10 +175,12 @@ export class UpgradeScene extends Phaser.Scene {
       const maxed = level >= def.maxLevel;
       const cost = def.costs[level] ?? 0;
       const need = def.stars[level] ?? 99;
+      // A compact star tag keeps long equipment names inside the 162px column.
+      const starsTag = maxed ? '' : ` ★${need}`;
       this.row(
         ep.content.x + 3,
         y,
-        `${def.name} L${level}${maxed ? '' : ` (${need} stars)`}`,
+        `${def.name} L${level}${starsTag}`,
         def.blurb,
         maxed ? 'Max' : `Buy ${cost}c`,
         !maxed && (rep < need || s.economy.fishCoins < cost),
@@ -221,7 +227,7 @@ export class UpgradeScene extends Phaser.Scene {
       rowIcon(this, sx, y, catPortrait(coat), 12);
       pixelText(this, sx + 20, y, `${member.name} L${member.level}`).setData('nyanRowTitle', true);
       pixelText(this, sx + 20, y + 11, `wage ${member.wage}c  q~${cookQuality(s, true, 'shoyu')}`, {
-        token: 'slate',
+        token: PANEL_TEXT.muted,
       }).setData('nyanRowDetail', true);
       const b = createButton(this, sx + 20, y + 23, 80, 12, maxed ? 'Max' : `Level ${cost}c`, () =>
         this.apply(levelStaff(session.state, member.id), `${member.name} levelled up!`),
@@ -237,10 +243,9 @@ export class UpgradeScene extends Phaser.Scene {
         const need = STAFF_HIRE_STARS[count] ?? 99;
         rowIcon(this, sx, y, 'icon/heart');
         pixelText(this, sx + 20, y, 'Hire a staff cat').setData('nyanRowTitle', true);
-        pixelText(this, sx + 20, y + 11, `Needs ${need} stars`, { token: 'slate' }).setData(
-          'nyanRowDetail',
-          true,
-        );
+        pixelText(this, sx + 20, y + 11, `Needs ${need} stars`, {
+          token: PANEL_TEXT.muted,
+        }).setData('nyanRowDetail', true);
         const b = createButton(this, sx + 20, y + 23, 80, 12, `Hire ${STAFF_HIRE_COST}c`, () => {
           this.staffPage = Math.floor(count / perPage); // the new cat lands on this page
           this.apply(hireStaff(session.state), 'A new cat joins the kitchen!');
@@ -248,7 +253,7 @@ export class UpgradeScene extends Phaser.Scene {
         b.container.setData('nyanRowButton', true);
         b.setDim(rep < need || s.economy.fishCoins < STAFF_HIRE_COST);
       } else {
-        pixelText(this, sx, y, 'Kitchen is full', { token: 'slate' });
+        pixelText(this, sx, y, 'Kitchen is full', { token: PANEL_TEXT.muted });
       }
       y += ROW_H + 2;
     }
@@ -302,10 +307,15 @@ export class UpgradeScene extends Phaser.Scene {
         };
         const tagged = (key: string): Rect[] =>
           this.children.list.filter((o) => o.getData(key) === true).map(box);
+        const taggedText = (key: string): string[] =>
+          this.children.list
+            .filter((o) => o.getData(key) === true)
+            .map((o) => (o as Phaser.GameObjects.Text).text);
         const next = this.children.list.find((o) => o.getData('nyanNextButton') === true);
         return {
           panels: this.panels.map((p) => ({ ...p })),
           titles: tagged('nyanRowTitle'),
+          labels: taggedText('nyanRowTitle'),
           details: tagged('nyanRowDetail'),
           buttons: tagged('nyanRowButton'),
           next: next ? box(next) : undefined,
