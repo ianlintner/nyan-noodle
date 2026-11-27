@@ -4,7 +4,6 @@ import {
   RECIPES,
   RECIPE_UNLOCKS,
   STOCK_BOWL_COST,
-  STOCK_CAP,
   adjustPrice,
   buyStock,
   describeProgressionError,
@@ -13,6 +12,7 @@ import {
   playerCapacity,
   salePrice,
   staffCapacity,
+  stockCap,
   toggleMenu,
 } from '@nyan-noodle/sim';
 import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
@@ -92,7 +92,8 @@ export class PrepScene extends Phaser.Scene {
     const stockPanel = drawPanel(this, 304, 26, 170, 128, { title: 'Stock & kitchen' });
     const cx = stockPanel.content.x + 4;
     let sy = stockPanel.content.y + 4;
-    pixelText(this, cx, sy, `Stock: ${s.stock}/${STOCK_CAP} bowls`);
+    const cap = stockCap(s.tierId);
+    pixelText(this, cx, sy, `Stock: ${s.stock}/${cap} bowls`);
     sy += 11;
     pixelText(this, cx, sy, `Ingredients ${STOCK_BOWL_COST}c per bowl`, { token: 'slate' });
     sy += 13;
@@ -101,7 +102,7 @@ export class PrepScene extends Phaser.Scene {
     };
     buy(5, 'Buy 5', cx);
     buy(10, 'Buy 10', cx + 52);
-    buy(STOCK_CAP, 'Fill', cx + 104);
+    buy(cap, 'Fill', cx + 104);
     sy += 24;
     const staffN = s.staff.roster.length;
     pixelText(this, cx, sy, `You cook ${playerCapacity(s)} bowls/day`);

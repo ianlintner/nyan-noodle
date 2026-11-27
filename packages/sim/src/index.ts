@@ -162,6 +162,7 @@ export {
   buyStock,
   effectiveMenu,
   salePrice,
+  stockCap,
   toggleMenu,
 } from './prep';
 

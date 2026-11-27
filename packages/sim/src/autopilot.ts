@@ -38,8 +38,10 @@ function apply(state: SimState, result: { ok: boolean; state?: SimState }): SimS
  */
 export function autopilotPrep(start: SimState): SimState {
   let s = start;
-  // Spend before buying stock so the shop never goes broke from upgrades.
-  const reserve = AUTOPILOT_RESERVE;
+  // Spend before buying stock, but always keep enough back to stock a full kitchen: a
+  // big venue that spends its stock money on upgrades sells out before lunch.
+  const stockBudget = (playerCapacity(s) + staffCapacity(s)) * STOCK_BOWL_COST;
+  const reserve = Math.max(AUTOPILOT_RESERVE, stockBudget);
 
   const up = upgradeInfo(s);
   if (up && s.economy.fishCoins >= up.cost + reserve && s.economy.reputation >= up.reputation) {

@@ -39,6 +39,36 @@ describe('balance: Cart -> Stall -> Small Shop pacing', () => {
   });
 });
 
+describe('balance: 30-day curve across all five tiers', () => {
+  const TIERS: readonly ShopTierId[] = ['cart', 'stall', 'small-shop', 'ramen-bar', 'grand-hall'];
+
+  it.each(SEEDS)('seed %i reaches Ramen Bar on days 11-14 and Grand Hall on days 20-25', (seed) => {
+    const history = autopilotRun(createSimState(seed, 'cart'), 30);
+    const bar = firstDayAt(history, 'ramen-bar');
+    const hall = firstDayAt(history, 'grand-hall');
+    expect(bar).toBeGreaterThanOrEqual(11);
+    expect(bar).toBeLessThanOrEqual(14);
+    expect(hall).toBeGreaterThanOrEqual(20);
+    expect(hall).toBeLessThanOrEqual(25);
+  });
+
+  it('every tier-up raises mean daily takings and the big tiers do not sell out', () => {
+    const history = SEEDS.flatMap((seed) => autopilotRun(createSimState(seed, 'cart'), 30));
+    const reports = (tier: ShopTierId) =>
+      history.filter((s) => s.tierId === tier && s.lastReport).map((s) => s.lastReport!);
+    const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const takings = TIERS.map((t) => mean(reports(t).map((r) => r.revenue + r.tips)));
+    for (let i = 1; i < takings.length; i++) {
+      expect(takings[i]!).toBeGreaterThan(takings[i - 1]! * 1.3);
+    }
+    for (const tier of ['ramen-bar', 'grand-hall'] as const) {
+      const soldOut = mean(reports(tier).map((r) => r.complaintKinds['sold-out'] ?? 0));
+      expect(soldOut).toBeLessThan(1);
+    }
+    for (const s of history) expect(s.economy.fishCoins).toBeGreaterThanOrEqual(0);
+  });
+});
+
 describe('furnishToCapacity', () => {
   const rich = (s: SimState): SimState => ({
     ...s,
