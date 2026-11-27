@@ -96,7 +96,14 @@ export function validateState(raw: Raw): SimState {
       typeof raw.economy.reputation === 'number',
     'economy',
   );
-  need(raw.tierId === 'cart' || raw.tierId === 'stall' || raw.tierId === 'small-shop', 'tierId');
+  need(
+    raw.tierId === 'cart' ||
+      raw.tierId === 'stall' ||
+      raw.tierId === 'small-shop' ||
+      raw.tierId === 'ramen-bar' ||
+      raw.tierId === 'grand-hall',
+    'tierId',
+  );
   need(Array.isArray(raw.items), 'items');
   const kinds = new Set<string>(FURNITURE.map((f) => f.kind));
   (raw.items as unknown[]).forEach((item, i) => {

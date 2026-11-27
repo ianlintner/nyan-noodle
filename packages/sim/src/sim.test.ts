@@ -32,19 +32,28 @@ describe('recipes', () => {
 });
 
 describe('shop tiers', () => {
-  it('orders Cart -> Stall -> Small Shop with growing capacity', () => {
-    const [cart, stall, small] = SHOP_TIERS;
-    expect([cart!.id, stall!.id, small!.id]).toEqual(['cart', 'stall', 'small-shop']);
-    expect(small!.seats).toBeGreaterThan(stall!.seats);
+  it('orders Cart -> Stall -> Small Shop -> Ramen Bar -> Grand Hall with growing capacity', () => {
+    const [cart, stall, small, bar, hall] = SHOP_TIERS;
+    expect([cart!.id, stall!.id, small!.id, bar!.id, hall!.id]).toEqual([
+      'cart',
+      'stall',
+      'small-shop',
+      'ramen-bar',
+      'grand-hall',
+    ]);
+    expect(hall!.seats).toBeGreaterThan(bar!.seats);
+    expect(bar!.seats).toBeGreaterThan(small!.seats);
     expect(stall!.seats).toBeGreaterThan(cart!.seats);
-    expect(small!.stoves).toBeGreaterThan(cart!.stoves);
+    expect(hall!.stoves).toBeGreaterThan(cart!.stoves);
     expect(getTier('cart').id).toBe('cart');
   });
 
   it('nextTier chains correctly and is null at the top', () => {
     expect(nextTier('cart')!.id).toBe('stall');
     expect(nextTier('stall')!.id).toBe('small-shop');
-    expect(nextTier('small-shop')).toBeNull();
+    expect(nextTier('small-shop')!.id).toBe('ramen-bar');
+    expect(nextTier('ramen-bar')!.id).toBe('grand-hall');
+    expect(nextTier('grand-hall')).toBeNull();
   });
 });
 

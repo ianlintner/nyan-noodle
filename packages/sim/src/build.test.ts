@@ -168,6 +168,17 @@ describe('capacity and appeal effects', () => {
     expect(appealScore(s.items)).toBe(base + 2 * getFurniture('plant').appeal);
   });
 
+  it('grand-hall decor multiplier lifts only extra decor, not the base demand', () => {
+    const fresh = createSimState(1, 'grand-hall');
+    expect(layoutDemandMultiplier('grand-hall', fresh.items)).toBe(
+      getTier('grand-hall').demandMultiplier,
+    );
+    const placed = ok(placeItem(withCoins(fresh, 2000), 'maneki-neko', 7, 8)).state;
+    expect(layoutDemandMultiplier('grand-hall', placed.items)).toBeGreaterThan(
+      layoutDemandMultiplier('grand-hall', fresh.items),
+    );
+  });
+
   it('a decorated shop draws at least as many visitors as a bare one on the same seed', () => {
     const bare = withCoins(createSimState(3, 'stall'), 2000);
     let fancy = bare;
@@ -221,13 +232,20 @@ describe('shop tier upgrade', () => {
     expect(validateLayout('stall', up.state.items)).toEqual([]);
   });
 
-  it('walks cart -> stall -> small shop with valid layouts and stops at the top', () => {
+  it('walks cart -> stall -> small shop -> ramen-bar -> grand-hall with valid layouts and stops at the top', () => {
     let s = withCoins(createSimState(1, 'cart'), 9000, 5);
     s = ok(upgradeTier(s)).state;
+    expect(s.tierId).toBe('stall');
     expect(validateLayout('stall', s.items)).toEqual([]);
     s = ok(upgradeTier(s)).state;
     expect(s.tierId).toBe('small-shop');
     expect(validateLayout('small-shop', s.items)).toEqual([]);
+    s = ok(upgradeTier(s)).state;
+    expect(s.tierId).toBe('ramen-bar');
+    expect(validateLayout('ramen-bar', s.items)).toEqual([]);
+    s = ok(upgradeTier(s)).state;
+    expect(s.tierId).toBe('grand-hall');
+    expect(validateLayout('grand-hall', s.items)).toEqual([]);
     expect(upgradeTier(s)).toEqual({ ok: false, reason: 'max-tier' });
   });
 

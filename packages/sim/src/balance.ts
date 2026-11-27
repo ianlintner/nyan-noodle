@@ -1,9 +1,11 @@
 /**
- * Early-game balance knobs (Cart -> Stall -> Small Shop), in one place.
+ * Early-game balance knobs (Cart -> Stall -> Small Shop -> Ramen Bar -> Grand Hall),
+ * in one place.
  *
  * Target curve, checked by `balance.test.ts` over 8 seeds with the reference autopilot
  * and reproduced by `npm run sim:headless`:
- *   - Stall by day 3-4, Small Shop on day 6-8, revenue rising every tier.
+ *   - Stall by day 3-4, Small Shop on day 6-8, Ramen Bar ~day 14,
+ *     Grand Hall ~day 25-30, revenue rising every tier.
  *
  * Levers, roughly in order of impact:
  *   - `PLAYER_BOWLS`: the owner's daily cook cap. This, not seats, is the early bottleneck.
@@ -23,10 +25,18 @@ export const TIER_UNLOCK = {
   cart: { cost: 0, reputation: 0 },
   stall: { cost: 80, reputation: 0.5 },
   'small-shop': { cost: 180, reputation: 2 },
+  'ramen-bar': { cost: 900, reputation: 3.5 },
+  'grand-hall': { cost: 5500, reputation: 5 },
 } as const;
 
 /** Bowl price multiplier per tier. */
-export const TIER_PRICE_PREMIUM = { cart: 1, stall: 1.25, 'small-shop': 1.5 } as const;
+export const TIER_PRICE_PREMIUM = {
+  cart: 1,
+  stall: 1.25,
+  'small-shop': 1.5,
+  'ramen-bar': 1.65,
+  'grand-hall': 2,
+} as const;
 
 /** Catalog price of one stove. */
 export const STOVE_COST = 60;

@@ -5,6 +5,7 @@ import {
   createSimState,
   describeBuildError,
   getTier,
+  isTierId,
   layoutDemandMultiplier,
   planService,
   settleDay,
@@ -19,6 +20,7 @@ import type { ButtonHandle } from '../theme/hud';
 import { BuildController } from '../build/BuildController';
 import type { BuildTool } from '../build/BuildController';
 import { BuildPanel } from '../build/BuildPanel';
+import { BTN_STEP } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { CameraRig } from './CameraRig';
@@ -53,7 +55,7 @@ export function readShopParams(search: string): ShopParams {
   const num = (key: string): number | null => (q.has(key) ? Number(q.get(key)) : null);
   return {
     seed: Number(q.get('seed') ?? 2026) || 2026,
-    tier: tier === 'stall' || tier === 'small-shop' ? tier : 'cart',
+    tier: isTierId(tier) ? tier : 'cart',
     speed: Math.min(16, Math.max(1, Number(q.get('speed') ?? 1) || 1)),
     mode: q.get('mode') === 'build' ? 'build' : 'service',
     coins: num('coins'),
@@ -374,7 +376,7 @@ export class ShopScene extends Phaser.Scene {
         const rect = this.game.canvas.getBoundingClientRect();
         const k = rect.width / NATIVE_WIDTH;
         const r = this.buildPanel.rect;
-        return { x: rect.left + (r.x + 52) * k, y: rect.top + (r.y + 27 + index * 16) * k };
+        return { x: rect.left + (r.x + 52) * k, y: rect.top + (r.y + 27 + index * BTN_STEP) * k };
       },
       toggleScreen: () => {
         const rect = this.game.canvas.getBoundingClientRect();

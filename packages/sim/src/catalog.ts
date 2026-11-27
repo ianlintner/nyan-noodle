@@ -1,5 +1,17 @@
 import { STOVE_COST } from './balance';
-export type FurnitureKind = 'stool' | 'table' | 'counter' | 'stove' | 'lantern' | 'plant';
+export type FurnitureKind =
+  | 'stool'
+  | 'table'
+  | 'counter'
+  | 'stove'
+  | 'lantern'
+  | 'plant'
+  | 'bar-counter'
+  | 'booth'
+  | 'big-pot'
+  | 'menu-board'
+  | 'koi-tank'
+  | 'maneki-neko';
 
 export interface FurnitureDef {
   readonly kind: FurnitureKind;
@@ -43,6 +55,47 @@ export const FURNITURE: readonly FurnitureDef[] = [
     appeal: 2,
   },
   { kind: 'plant', name: 'Plant', cost: 15, frame: 'furniture/plant', solid: true, appeal: 1 },
+  {
+    kind: 'bar-counter',
+    name: 'Bar Counter',
+    cost: 30,
+    frame: 'furniture/bar_counter',
+    solid: true,
+    appeal: 1,
+  },
+  { kind: 'booth', name: 'Booth', cost: 55, frame: 'furniture/booth', solid: true, appeal: 2 },
+  {
+    kind: 'big-pot',
+    name: 'Big Pot',
+    cost: 70,
+    frame: 'furniture/big_pot',
+    solid: true,
+    appeal: 2,
+  },
+  {
+    kind: 'menu-board',
+    name: 'Menu Board',
+    cost: 25,
+    frame: 'furniture/menu_board',
+    solid: true,
+    appeal: 1,
+  },
+  {
+    kind: 'koi-tank',
+    name: 'Koi Tank',
+    cost: 90,
+    frame: 'furniture/koi_tank',
+    solid: true,
+    appeal: 3,
+  },
+  {
+    kind: 'maneki-neko',
+    name: 'Maneki-Neko',
+    cost: 60,
+    frame: 'furniture/maneki_neko',
+    solid: true,
+    appeal: 2,
+  },
 ];
 
 export function getFurniture(kind: FurnitureKind): FurnitureDef {

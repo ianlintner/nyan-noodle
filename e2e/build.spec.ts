@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { getTier } from '../packages/sim/src/shop';
+import { FURNITURE } from '../packages/sim/src/catalog';
 
 interface Pt {
   x: number;
@@ -41,8 +42,19 @@ interface ShopApi {
 type ShopWindow = { __nyanShop?: ShopApi; __nyan?: { registry: { get(k: string): unknown } } };
 
 /** Catalog button order in the build panel. */
-const TOOL = { stool: 0, table: 1, counter: 2, stove: 3, lantern: 4, plant: 5, move: 6, sell: 7 };
-const UPGRADE = 9;
+const TOOL = {
+  stool: 0,
+  table: 1,
+  counter: 2,
+  stove: 3,
+  lantern: 4,
+  plant: 5,
+  // Action buttons follow the furniture catalog (order is FURNITURE, then move/sell/rotate/upgrade).
+  move: FURNITURE.length,
+  sell: FURNITURE.length + 1,
+  rotate: FURNITURE.length + 2,
+};
+const UPGRADE = FURNITURE.length + 3;
 
 async function open(page: Page, query: string): Promise<void> {
   await page.goto(`/?scene=shop&${query}`);

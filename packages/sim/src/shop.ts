@@ -1,6 +1,6 @@
 import { TIER_PRICE_PREMIUM, TIER_UNLOCK } from './balance';
 
-export type ShopTierId = 'cart' | 'stall' | 'small-shop';
+export type ShopTierId = 'cart' | 'stall' | 'small-shop' | 'ramen-bar' | 'grand-hall';
 
 export interface ShopTier {
   readonly id: ShopTierId;
@@ -20,6 +20,8 @@ export interface ShopTier {
   readonly demandMultiplier: number;
   /** Bowl price multiplier: a bigger venue charges more for the same dish. */
   readonly pricePremium: number;
+  /** Extra multiplier applied to decor appeal *above* the tier's starter decor. */
+  readonly decorMultiplier: number;
 }
 
 export const SHOP_TIERS: readonly ShopTier[] = [
@@ -34,6 +36,7 @@ export const SHOP_TIERS: readonly ShopTier[] = [
     unlockReputation: TIER_UNLOCK.cart.reputation,
     demandMultiplier: 1,
     pricePremium: TIER_PRICE_PREMIUM.cart,
+    decorMultiplier: 1,
   },
   {
     id: 'stall',
@@ -46,6 +49,7 @@ export const SHOP_TIERS: readonly ShopTier[] = [
     unlockReputation: TIER_UNLOCK.stall.reputation,
     demandMultiplier: 1.5,
     pricePremium: TIER_PRICE_PREMIUM.stall,
+    decorMultiplier: 1,
   },
   {
     id: 'small-shop',
@@ -58,6 +62,33 @@ export const SHOP_TIERS: readonly ShopTier[] = [
     unlockReputation: TIER_UNLOCK['small-shop'].reputation,
     demandMultiplier: 2.2,
     pricePremium: TIER_PRICE_PREMIUM['small-shop'],
+    decorMultiplier: 1,
+  },
+  {
+    id: 'ramen-bar',
+    name: 'Ramen Bar',
+    gridWidth: 13,
+    gridHeight: 8,
+    seats: 12,
+    stoves: 4,
+    unlockCost: TIER_UNLOCK['ramen-bar'].cost,
+    unlockReputation: TIER_UNLOCK['ramen-bar'].reputation,
+    demandMultiplier: 2.5,
+    pricePremium: TIER_PRICE_PREMIUM['ramen-bar'],
+    decorMultiplier: 1,
+  },
+  {
+    id: 'grand-hall',
+    name: 'Grand Ramen Hall',
+    gridWidth: 16,
+    gridHeight: 10,
+    seats: 18,
+    stoves: 6,
+    unlockCost: TIER_UNLOCK['grand-hall'].cost,
+    unlockReputation: TIER_UNLOCK['grand-hall'].reputation,
+    demandMultiplier: 3.2,
+    pricePremium: TIER_PRICE_PREMIUM['grand-hall'],
+    decorMultiplier: 1.15,
   },
 ];
 
@@ -65,6 +96,11 @@ export function getTier(id: ShopTierId): ShopTier {
   const tier = SHOP_TIERS.find((t) => t.id === id);
   if (!tier) throw new Error(`Unknown shop tier: ${id}`);
   return tier;
+}
+
+/** Narrow an arbitrary string (e.g. a URL param) to a known tier id, or null. */
+export function isTierId(value: string | null): value is ShopTierId {
+  return value !== null && SHOP_TIERS.some((t) => t.id === value);
 }
 
 export function nextTier(id: ShopTierId): ShopTier | null {
