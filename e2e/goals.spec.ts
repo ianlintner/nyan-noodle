@@ -14,7 +14,11 @@ interface W {
   __nyanPrep?: { openShop(): void };
   __nyanService?: { openDoors(): void };
   __nyanShop?: { setSpeed(n: number): void };
-  __nyanReport?: { next(): void; report(): { goalsCompleted: { id: string; coins: number }[] } };
+  __nyanReport?: {
+    next(): void;
+    upgrades(): void;
+    report(): { goalsCompleted: { id: string; coins: number }[] };
+  };
   __nyanGoals?: {
     current(): { def: { id: string }; done: boolean }[];
     completed(): string[];
@@ -22,6 +26,7 @@ interface W {
     forceGrandOpening(): string;
   };
   __nyanMilestone?: { stats(): { days: number; bowlsServed: number }; keepPlaying(): void };
+  __nyanUpgrades?: { prep(): void };
   __nyanSession?: { state: SimState; update(s: SimState): void };
 }
 
@@ -108,7 +113,10 @@ test('a finished goal is paid on the Report, ticked on Prep and the Grand Openin
   expect(await page.evaluate(() => (window as unknown as W).__nyanGoals!.forceGrandOpening())).toBe(
     'pending',
   );
-  await page.evaluate(() => (window as unknown as W).__nyanReport!.next());
+  // Report -> Upgrades -> Back used to enter Prep directly and skip a pending celebration.
+  await page.evaluate(() => (window as unknown as W).__nyanReport!.upgrades());
+  await flag(page, 'upgradesReady');
+  await page.evaluate(() => (window as unknown as W).__nyanUpgrades!.prep());
   await flag(page, 'milestoneReady');
   const stats = await page.evaluate(() => (window as unknown as W).__nyanMilestone!.stats());
   expect(stats.days).toBe(2);

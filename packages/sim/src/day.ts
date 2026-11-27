@@ -247,6 +247,16 @@ export function settleDay(
   };
   // Goals read the post-day state (stars, regulars, gear) plus today's stats and pay once.
   const goals = evaluateGoals(next, { served, perfectBowls });
-  const settled: DayReport = { ...report, goalsCompleted: goals.completions };
+  // Star rewards land after the day's service, so derive the report's reputation from the
+  // final saved value: otherwise the Report contradicts the save and a gate crossed by the
+  // reward gets no unlock notification until the following day.
+  const finalReputation = goals.state.economy.reputation;
+  const settled: DayReport = {
+    ...report,
+    reputation: finalReputation,
+    reputationDelta: Math.round((finalReputation - before) * 100) / 100,
+    unlocks: starUnlocks(before, finalReputation, state),
+    goalsCompleted: goals.completions,
+  };
   return { state: { ...goals.state, lastReport: settled }, report: settled };
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { autopilotDay, autopilotRun } from './autopilot';
+import { upgradeTier } from './build';
+import { planDay, settleDay } from './day';
 import {
   GOALS,
   acknowledgeOpening,
@@ -62,6 +64,7 @@ describe('evaluateGoals', () => {
     const first = evaluateGoals(start, NO_DAY);
     expect(first.completions.map((c) => c.id)).toEqual(['cart-stars']);
     expect(first.state.economy.fishCoins).toBe(start.economy.fishCoins + 10);
+    expect(first.state.economy.lifetimeEarned).toBe(start.economy.lifetimeEarned + 10);
     expect(first.state.goals.completed).toEqual(['cart-stars']);
     // Same state again: nothing more is owed.
     const again = evaluateGoals(first.state, NO_DAY);
@@ -94,6 +97,15 @@ describe('evaluateGoals', () => {
     // A reward at the star cap cannot push reputation past it.
     const capped = evaluateGoals(withRep(start, MAX_REPUTATION), { served: 9, perfectBowls: 3 });
     expect(capped.state.economy.reputation).toBe(MAX_REPUTATION);
+  });
+
+  it('counts goal payouts in lifetime earnings, like sales and tips', () => {
+    const start = withRep(createSimState(7, 'cart'), 0.6);
+    const paid = evaluateGoals(start, NO_DAY);
+    const coins = paid.completions.reduce((sum, g) => sum + g.coins, 0);
+    expect(coins).toBeGreaterThan(0);
+    expect(paid.state.economy.fishCoins).toBe(start.economy.fishCoins + coins);
+    expect(paid.state.economy.lifetimeEarned).toBe(start.economy.lifetimeEarned + coins);
   });
 
   it('reports progress clamped to the target, and done goals as full', () => {
@@ -129,6 +141,22 @@ describe('Grand Opening milestone', () => {
     // Acknowledging something that is not pending changes nothing.
     const locked = createSimState(7, 'cart');
     expect(acknowledgeOpening(locked)).toBe(locked);
+  });
+
+  it('arms when the Grand Hall is bought at five stars, before any next service', () => {
+    const bar = withRep(createSimState(7, 'ramen-bar'), MAX_REPUTATION);
+    const rich: SimState = { ...bar, economy: { ...bar.economy, fishCoins: 100_000 } };
+    const purchase = upgradeTier(rich);
+    expect(purchase.ok).toBe(true);
+    if (!purchase.ok) return;
+    expect(purchase.state.tierId).toBe('grand-hall');
+    expect(purchase.state.goals.opening).toBe('pending');
+    // A poor day afterwards cannot hide a milestone already earned at purchase time.
+    const later = autopilotDay({
+      ...purchase.state,
+      economy: { ...purchase.state.economy, reputation: MAX_REPUTATION - 1 },
+    });
+    expect(later.state.goals.opening).toBe('pending');
   });
 
   it('summarises days, bowls and the best regular', () => {
@@ -170,6 +198,37 @@ describe('goals through settleDay (reference autopilot)', () => {
     for (const g of day2.goalsCompleted)
       expect(report.goalsCompleted.map((x) => x.id)).not.toContain(g.id);
     expect(state.goals.bowlsServed).toBe(report.customersServed);
+  });
+
+  it('keeps the Report reputation in sync with the saved state every day', () => {
+    for (const seed of SEEDS) {
+      let s = createSimState(seed, 'cart');
+      for (let day = 0; day < 35; day++) {
+        const before = s.economy.reputation;
+        const result = autopilotDay(s);
+        expect(result.report.reputation).toBe(result.state.economy.reputation);
+        expect(result.state.lastReport!.reputation).toBe(result.state.economy.reputation);
+        expect(result.report.reputationDelta).toBe(
+          Math.round((result.report.reputation - before) * 100) / 100,
+        );
+        s = result.state;
+      }
+    }
+  });
+
+  it('announces a star gate crossed by a goal reward in the same Report', () => {
+    const start = withRep(createSimState(7, 'small-shop'), 3.1);
+    const plan = planDay(start);
+    const visits = plan.visits.slice(0, 3).map((v) => ({ ...v, outcome: 'served' as const }));
+    expect(visits).toHaveLength(3);
+    const result = settleDay(start, { ...plan, visits }, { chefQualities: [100, 100, 100] });
+    const { state, report } = result;
+    expect(report.perfectBowls).toBe(3);
+    expect(report.goalsCompleted.map((g) => g.id)).toContain('shop-perfect');
+    // Service alone ends at 3.48 stars; the 0.05-star goal reward crosses the 3.5 gate.
+    expect(state.economy.reputation).toBeGreaterThanOrEqual(3.5);
+    expect(report.reputation).toBe(state.economy.reputation);
+    expect(report.unlocks).toContain('Ramen Bar expansion');
   });
 
   it('is deterministic by seed', () => {

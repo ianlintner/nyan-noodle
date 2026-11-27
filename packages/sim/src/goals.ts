@@ -144,6 +144,16 @@ export function atGrandOpening(state: SimState): boolean {
   return state.tierId === top?.id && state.economy.reputation >= MAX_REPUTATION;
 }
 
+/**
+ * Arm the opening once the top tier is at full stars. Called both when the purchase first
+ * satisfies the condition and on settle: a later bad day must not erase a celebration already
+ * earned, and a goal's star reward can be what crosses the threshold.
+ */
+export function armGrandOpening(state: SimState): SimState {
+  if (state.goals.opening !== 'locked' || !atGrandOpening(state)) return state;
+  return { ...state, goals: { ...state.goals, opening: 'pending' } };
+}
+
 export interface GoalResult {
   readonly state: SimState;
   readonly completions: readonly GoalCompletion[];
@@ -173,6 +183,7 @@ export function evaluateGoals(state: SimState, stats: DayStats): GoalResult {
     economy: {
       ...state.economy,
       fishCoins: state.economy.fishCoins + coins,
+      lifetimeEarned: state.economy.lifetimeEarned + coins,
       reputation: Math.min(
         MAX_REPUTATION,
         Math.round((state.economy.reputation + stars) * 100) / 100,
@@ -184,9 +195,7 @@ export function evaluateGoals(state: SimState, stats: DayStats): GoalResult {
       bowlsServed: state.goals.bowlsServed + stats.served,
     },
   };
-  if (next.goals.opening === 'locked' && atGrandOpening(next)) {
-    next = { ...next, goals: { ...next.goals, opening: 'pending' } };
-  }
+  next = armGrandOpening(next);
   return { state: next, completions };
 }
 

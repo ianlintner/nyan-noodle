@@ -183,6 +183,7 @@ export {
   GOALS,
   PERFECT_QUALITY,
   acknowledgeOpening,
+  armGrandOpening,
   atGrandOpening,
   createGoals,
   currentGoals,

@@ -9,6 +9,7 @@ import {
   describeProgressionError,
   effectiveMenu,
   getTier,
+  openingPending,
   playerCapacity,
   salePrice,
   staffCapacity,
@@ -44,6 +45,13 @@ export class PrepScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Continue/import and Report -> Upgrades -> Back can reach Prep without going through
+    // ReportScene.next(). A saved pending celebration must still be shown before any Prep
+    // controls (or a new service) can skip it.
+    if (openingPending(session.state)) {
+      this.scene.start(SCENE_KEYS.milestone);
+      return;
+    }
     audio.setMusicMode('prep');
     backdrop(this);
     this.msg = messageLine(this, NATIVE_HEIGHT - 38);
