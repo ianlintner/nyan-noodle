@@ -9,6 +9,7 @@ import {
   describeProgressionError,
   effectiveMenu,
   getTier,
+  openingPending,
   playerCapacity,
   salePrice,
   staffCapacity,
@@ -20,6 +21,7 @@ import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { audio } from '../audio/manager';
 import { SERVICE_SCENE_KEY } from '../service/ServiceScene';
+import { drawGoalsPanel, exposeGoalsApi } from './goalsPanel';
 import { session } from './session';
 import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsNumber } from './ui';
 import { ATLAS_KEY } from '../shop/CatActor';
@@ -43,11 +45,19 @@ export class PrepScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Continue/import and Report -> Upgrades -> Back can reach Prep without going through
+    // ReportScene.next(). A saved pending celebration must still be shown before any Prep
+    // controls (or a new service) can skip it.
+    if (openingPending(session.state)) {
+      this.scene.start(SCENE_KEYS.milestone);
+      return;
+    }
     audio.setMusicMode('prep');
     backdrop(this);
     this.msg = messageLine(this, NATIVE_HEIGHT - 38);
     this.render();
     this.exposeDebugApi();
+    exposeGoalsApi();
     this.registry.set('prepReady', true);
     this.events.once('shutdown', () => this.registry.set('prepReady', false));
   }
@@ -118,6 +128,9 @@ export class PrepScene extends Phaser.Scene {
     );
     sy += 11;
     pixelText(this, cx, sy, `Seats: ${tier.seats} max`, { token: 'slate' });
+
+    // ---- goals -----------------------------------------------------------------
+    drawGoalsPanel(this, 6, 158, NATIVE_WIDTH - 12, 68, s);
 
     // ---- footer ----------------------------------------------------------------
     createButton(this, 6, NATIVE_HEIGHT - 26, 90, 18, 'Upgrades', () =>

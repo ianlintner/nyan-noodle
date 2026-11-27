@@ -11,6 +11,8 @@ import type { RecipeId } from './recipes';
 import { STARTING_RECIPES } from './recipes';
 import type { Order } from './orders';
 import type { Regular } from './regulars';
+import { createGoals } from './goals';
+import type { GoalCompletion, GoalsState } from './goals';
 
 export type ComplaintKind = 'queue' | 'sold-out' | 'too-slow' | 'pricey';
 
@@ -34,6 +36,10 @@ export interface DayReport {
   /** Human-readable things that became available today (stars crossed). */
   readonly unlocks: readonly string[];
   readonly stockLeft: number;
+  /** Bowls served at Perfect quality today (goal ladder input). */
+  readonly perfectBowls: number;
+  /** Goals finished by today's settle, with what each paid. */
+  readonly goalsCompleted: readonly GoalCompletion[];
 }
 
 export type EquipmentId = 'knives' | 'burner' | 'signboard';
@@ -63,6 +69,8 @@ export interface SimState {
   readonly equipment: Readonly<Record<EquipmentId, number>>;
   readonly staff: StaffModel;
   readonly regulars: readonly Regular[];
+  /** Goal ladder progress and the Grand Opening milestone (see goals.ts). */
+  readonly goals: GoalsState;
   /** In-flight orders during the current service phase. */
   readonly activeOrders: readonly Order[];
   readonly lastReport: DayReport | null;
@@ -70,7 +78,7 @@ export interface SimState {
   readonly revenueHistory: readonly number[];
 }
 
-export const SIM_VERSION = 4;
+export const SIM_VERSION = 5;
 export const STARTING_STOCK = 8;
 
 export function zeroByRecipe(): Record<RecipeId, number> {
@@ -100,6 +108,7 @@ export function createSimState(seed: number, tierId: ShopTierId): SimState {
     equipment: zeroEquipment(),
     staff: createStaffModel(),
     regulars: [],
+    goals: createGoals(),
     activeOrders: [],
     lastReport: null,
     revenueHistory: [],

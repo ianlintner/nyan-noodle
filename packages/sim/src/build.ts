@@ -4,6 +4,7 @@ import { activeSeats, nextRotation, validateLayout } from './layoutRules';
 import type { BuildItem, LayoutIssue, Rotation } from './layoutRules';
 import { getTier, nextTier } from './shop';
 import type { ShopTierId } from './shop';
+import { armGrandOpening } from './goals';
 import type { SimState } from './state';
 
 export type BuildError = LayoutIssue | 'funds' | 'unknown-item' | 'max-tier' | 'reputation';
@@ -176,12 +177,12 @@ export function upgradeTier(state: SimState): BuildResult<{ refunded: readonly B
   return {
     ok: true,
     refunded,
-    state: {
+    state: armGrandOpening({
       ...state,
       tierId: next.id,
       items,
       economy: { ...state.economy, fishCoins: state.economy.fishCoins - next.unlockCost + refund },
-    },
+    }),
   };
 }
 

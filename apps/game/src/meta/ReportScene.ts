@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { getTier } from '@nyan-noodle/sim';
+import { getTier, openingPending } from '@nyan-noodle/sim';
 import type { ComplaintKind, DayReport } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { audio } from '../audio/manager';
+import { exposeGoalsApi, rewardText } from './goalsPanel';
 import { session } from './session';
 import { SCENE_KEYS, backdrop, icon, loadAtlas, messageLine, signed, starsNumber } from './ui';
 
@@ -49,17 +50,21 @@ export class ReportScene extends Phaser.Scene {
       120,
       18,
       `Start day ${state.clock.day}`,
-      () => this.scene.start(SCENE_KEYS.prep),
+      () => this.next(),
     );
     // Day-end autosave.
     this.msg.say('Saving...');
     session
       .save()
       .then(() => {
-        this.msg.say('Day saved');
         this.registry.set('savedDay', report.day);
+        // The player may already have left for the next scene; its text is gone by then.
+        if (this.sys.isActive()) this.msg.say('Day saved');
       })
-      .catch(() => this.msg.say('Could not save - use Export on the title screen', false));
+      .catch(() => {
+        if (this.sys.isActive())
+          this.msg.say('Could not save - use Export on the title screen', false);
+      });
     this.exposeDebugApi(report);
     this.registry.set('reportReady', true);
   }
@@ -101,6 +106,21 @@ export class ReportScene extends Phaser.Scene {
     icon(this, left.content.x + 4, y + 6, 'coin');
     pixelText(this, left.content.x + 24, y + 10, `Now ${state.economy.fishCoins} Fish Coins`);
 
+    // Goals finished by this day's settle; the reward is already in the coin total above.
+    const done = report.goalsCompleted;
+    if (done.length > 0) {
+      const gx = left.content.x + 4;
+      const coins = done.reduce((sum, g) => sum + g.coins, 0);
+      const stars = done.reduce((sum, g) => sum + g.stars, 0);
+      const more = done.length > 2 ? ` (+${done.length - 2} more)` : '';
+      pixelText(this, gx, y + 22, `Goal complete! ${rewardText(coins, stars)}${more}`, {
+        token: 'noriGreen',
+      });
+      for (const [i, g] of done.slice(0, 2).entries()) {
+        pixelText(this, gx + 6, y + 32 + i * 10, `* ${g.title}`, { token: 'misoOrange' });
+      }
+    }
+
     const right = drawPanel(this, 236, 26, 238, 170, { title: 'Reputation & feedback' });
     let ry = right.content.y + 4;
     const rx = right.content.x + 4;
@@ -138,11 +158,17 @@ export class ReportScene extends Phaser.Scene {
     }
   }
 
+  /** On to the next day, via the Grand Opening screen the first time the top tier is mastered. */
+  private next(): void {
+    this.scene.start(openingPending(session.state) ? SCENE_KEYS.milestone : SCENE_KEYS.prep);
+  }
+
   private exposeDebugApi(report: DayReport): void {
+    exposeGoalsApi();
     const api = {
       report: () => report,
       state: () => JSON.parse(JSON.stringify(session.state)) as unknown,
-      next: () => this.scene.start(SCENE_KEYS.prep),
+      next: () => this.next(),
       upgrades: () => this.scene.start(SCENE_KEYS.upgrades),
     };
     (window as unknown as { __nyanReport: typeof api }).__nyanReport = api;

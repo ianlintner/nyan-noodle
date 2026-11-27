@@ -17,6 +17,7 @@ import type { ServicePlan } from './service';
 import { registerVisit, regularPerks } from './regulars';
 import type { Regular } from './regulars';
 import { traitQualityBar, traitTipBonus } from './breeds';
+import { PERFECT_QUALITY, evaluateGoals } from './goals';
 import type { ComplaintKind, DayReport, SimState } from './state';
 
 /** Bowls the owner cooks alone each day, before equipment and staff. */
@@ -122,6 +123,7 @@ export function settleDay(
   let stock = state.stock;
   let cooked = 0;
   let served = 0;
+  let perfectBowls = 0;
   let revenue = 0;
   let tips = 0;
   let repGain = 0;
@@ -167,6 +169,7 @@ export function settleDay(
     const failed = quality < acceptBar;
     streak = failed ? 0 : streak + 1;
     if (!failed) {
+      if (quality >= PERFECT_QUALITY) perfectBowls += 1;
       tips += Math.round(tipForQuality(quality, price) * comboMultiplier(streak));
       // Generous/picky regulars tip a flat bonus on top of the quality tip.
       if (visit.isRegular) tips += traitTipBonus(visit.trait);
@@ -239,6 +242,21 @@ export function settleDay(
     reputationDelta: Math.round((after - before) * 100) / 100,
     unlocks: starUnlocks(before, after, state),
     stockLeft: stock,
+    perfectBowls,
+    goalsCompleted: [],
   };
-  return { state: { ...next, lastReport: report }, report };
+  // Goals read the post-day state (stars, regulars, gear) plus today's stats and pay once.
+  const goals = evaluateGoals(next, { served, perfectBowls });
+  // Star rewards land after the day's service, so derive the report's reputation from the
+  // final saved value: otherwise the Report contradicts the save and a gate crossed by the
+  // reward gets no unlock notification until the following day.
+  const finalReputation = goals.state.economy.reputation;
+  const settled: DayReport = {
+    ...report,
+    reputation: finalReputation,
+    reputationDelta: Math.round((finalReputation - before) * 100) / 100,
+    unlocks: starUnlocks(before, finalReputation, state),
+    goalsCompleted: goals.completions,
+  };
+  return { state: { ...goals.state, lastReport: settled }, report: settled };
 }
