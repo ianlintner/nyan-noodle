@@ -27,6 +27,7 @@ export type { Breed, BreedId, Trait, TraitId } from './breeds';
 export {
   AFFECTION_PERKS,
   MAX_AFFECTION,
+  MAX_WORD_OF_MOUTH,
   clampAffection,
   generateName,
   registerVisit,

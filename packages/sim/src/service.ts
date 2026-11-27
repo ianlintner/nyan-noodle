@@ -5,7 +5,7 @@ import { COAT_IDS, createCustomer } from './customers';
 import type { CoatId } from './customers';
 import { randomBreed, breedTrait, type BreedId, type TraitId } from './breeds';
 import { FAVOURITE_TOPPING, traitArrivalOffset } from './breeds';
-import { generateName, whoReturns, regularPerks } from './regulars';
+import { generateName, whoReturns, regularPerks, MAX_WORD_OF_MOUTH } from './regulars';
 import type { Regular } from './regulars';
 import { dailyDemand } from './orders';
 import { activeSeats, layoutDemandMultiplier } from './layoutRules';
@@ -99,8 +99,12 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
   const seatCount = activeSeats(state.tierId, state.items).length;
   const r = rng ?? createRng((state.seed * 2654435761 + state.clock.day * 97) >>> 0);
   const personRng = createRng((state.seed * 2246822519 + state.clock.day * 31 + 5) >>> 0);
-  // Devoted regulars pull a little extra footfall into the shop.
-  const wordOfMouth = state.regulars.reduce((sum, reg) => sum + regularPerks(reg).wordOfMouth, 0);
+  // Devoted regulars pull a little extra footfall into the shop, capped so a large
+  // roster cannot inflate demand without bound.
+  const wordOfMouth = Math.min(
+    state.regulars.reduce((sum, reg) => sum + regularPerks(reg).wordOfMouth, 0),
+    MAX_WORD_OF_MOUTH,
+  );
   const demand =
     dailyDemand(
       layoutDemandMultiplier(state.tierId, state.items) *
@@ -147,7 +151,7 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
       : [];
     const customer = createCustomer(
       i,
-      coat,
+      returningEntry ? returningEntry.regular.coat : coat,
       { recipeOrder: [recipeId], likedToppings },
       20,
       returningEntry ? returningEntry.regular.visits : 0,
@@ -178,6 +182,11 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
   const queue: Waiting[] = [];
   let next = 0;
   const lastBeat = SERVICE_BEATS;
+
+  // Night-owl arrivals (and the 0..2 beat jitter) can push a later index ahead of an
+  // earlier one, so sort the draft by arrival time before seating; otherwise a late
+  // night-owl at a low index blocks earlier arrivals behind it in the index order.
+  draft.sort((a, b) => a.arriveBeat - b.arriveBeat || a.customerId - b.customerId);
 
   for (let beat = 0; beat <= lastBeat; beat++) {
     while (next < draft.length && draft[next]!.arriveBeat <= beat) {

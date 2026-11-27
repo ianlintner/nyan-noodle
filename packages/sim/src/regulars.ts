@@ -56,6 +56,9 @@ export const AFFECTION_PERKS: readonly AffectionPerk[] = [
 /** Maximum affection a regular can reach (caps the meter and perks). */
 export const MAX_AFFECTION = 10;
 
+/** Cap on the total word-of-mouth demand the whole roster can add in one day. */
+export const MAX_WORD_OF_MOUTH = 6;
+
 /** A persisted regular: name, look, personality, favourite dish, and progress. */
 export interface Regular {
   readonly id: number;

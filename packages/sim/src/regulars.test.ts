@@ -61,12 +61,13 @@ describe('breeds & traits', () => {
 
   it('impatient customers have a lower patience budget than neutral', () => {
     const base = 20;
+    // A returning regular carries its trait's patience modifier.
     const impatient = createCustomer(
       0,
       'tabby',
       { recipeOrder: ['shoyu'], likedToppings: [] },
       base,
-      0,
+      1,
       {
         trait: 'impatient',
       },
@@ -76,12 +77,33 @@ describe('breeds & traits', () => {
       'tabby',
       { recipeOrder: ['shoyu'], likedToppings: [] },
       base,
-      0,
+      1,
       {
         trait: 'neutral',
       },
     );
     expect(impatient.patience).toBeLessThan(neutral.patience);
+  });
+
+  it('walk-in traits do not change patience (balance curve is preserved)', () => {
+    const base = 20;
+    const impatient = createCustomer(
+      0,
+      'tabby',
+      { recipeOrder: ['shoyu'], likedToppings: [] },
+      base,
+      0,
+      { trait: 'impatient' },
+    );
+    const neutral = createCustomer(
+      1,
+      'tabby',
+      { recipeOrder: ['shoyu'], likedToppings: [] },
+      base,
+      0,
+      { trait: 'neutral' },
+    );
+    expect(impatient.patience).toBe(neutral.patience);
   });
 
   it('spice-lover orders its favourite topping as an extra more eagerly', () => {
@@ -257,5 +279,66 @@ describe('service + settle integration', () => {
     const a = planService(mk());
     const b = planService(mk());
     expect(a.visits).toEqual(b.visits);
+  });
+
+  it('a late night-owl does not block earlier arrivals from being seated', () => {
+    // A night-owl regular (arrival offset 0.4) lands late in the window. Before the
+    // draft is sorted, that late index-0 entry stalls the queue loop and an earlier
+    // walk-in sits behind it; after the fix, seating order matches arrival order.
+    const state = createSimState(17, 'cart') as SimState;
+    const seeded: SimState = {
+      ...state,
+      regulars: [
+        {
+          id: 0,
+          name: 'Yuzu Tail',
+          coat: 'tabby',
+          breed: 'tuxedo',
+          trait: 'night-owl',
+          favoriteRecipe: 'shoyu',
+          visits: 9,
+          affection: 10,
+          lastSeenDay: 1,
+        },
+      ],
+    };
+    const plan = planService(seeded);
+    const seated = plan.visits
+      .filter((v) => v.seatBeat !== null)
+      .sort((a, b) => a.seatBeat! - b.seatBeat!);
+    // Seating order is monotonic in arrival time: no later-arriving cat is seated
+    // before an earlier-arriving one.
+    for (let i = 1; i < seated.length; i++) {
+      expect(seated[i]!.arriveBeat).toBeGreaterThanOrEqual(seated[i - 1]!.arriveBeat);
+    }
+  });
+
+  it('a returning regular keeps its own coat for patience', () => {
+    // sakura coat has patienceModifier 1.25 vs tabby 1.0; a returning sakura regular
+    // must keep the sakura patience, not a freshly drawn walk-in coat.
+    const state = createSimState(23, 'cart') as SimState;
+    const regular: SimState = {
+      ...state,
+      regulars: [
+        {
+          id: 0,
+          name: 'Sakura Fur',
+          coat: 'sakura',
+          breed: 'ragdoll',
+          trait: 'neutral',
+          favoriteRecipe: 'shoyu',
+          visits: 9,
+          affection: 10,
+          lastSeenDay: 1,
+        },
+      ],
+    };
+    // Deterministic: the regular returns (favourite on menu, high pull) and its visit's
+    // patience must equal basePatience * sakura modifier * 3 beats.
+    const plan = planService(regular);
+    const visit = plan.visits.find((v) => v.isRegular && v.regularId === 0);
+    expect(visit).toBeTruthy();
+    // patienceBeats = round(20 * 1.25) * 3 = 75 (trait neutral => modifier 1).
+    expect(visit!.patienceBeats).toBe(Math.round(20 * 1.25) * 3);
   });
 });

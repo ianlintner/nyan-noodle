@@ -62,12 +62,13 @@ export function createCustomer(
 ): CatCustomer {
   const coatModifier = COATS[coat]?.patienceModifier ?? 1;
   // Assign a trait (and its patience modifier) only when the caller hasn't already
-  // pinned them.
+  // pinned them. Trait patience is a returning-regular economics effect: a first-time
+  // walk-in carries its trait for flavour/order generation but keeps the baseline
+  // patience so the pinned balance curve is unchanged by random walk-in traits.
   const trait = options.trait ?? 'neutral';
-  const patience = Math.max(
-    1,
-    Math.round(basePatience * coatModifier * traitPatienceModifier(trait)),
-  );
+  const isRegular = visits > 0;
+  const traitModifier = isRegular ? traitPatienceModifier(trait) : 1;
+  const patience = Math.max(1, Math.round(basePatience * coatModifier * traitModifier));
   return {
     id,
     coat,
@@ -76,7 +77,7 @@ export function createCustomer(
     name: options.name ?? '',
     breed: options.breed ?? 'calico',
     trait,
-    isRegular: visits > 0,
+    isRegular,
     visits,
   };
 }

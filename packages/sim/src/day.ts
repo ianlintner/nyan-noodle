@@ -130,7 +130,8 @@ export function settleDay(
   // Build the next roster of regulars: returning ones advance, first-time walk-ins
   // who got a good bowl convert into new regulars (their first dish becomes their favourite).
   const regularMap = new Map(state.regulars.map((reg) => [reg.id, reg]));
-  let nextRegularId = regularMap.size;
+  // Never reuse an id just because the roster has a gap; advance from the highest id.
+  let nextRegularId = state.regulars.reduce((max, r) => Math.max(max, r.id), -1) + 1;
 
   for (const visit of plan.visits) {
     if (visit.outcome === 'lost') {

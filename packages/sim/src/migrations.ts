@@ -4,6 +4,7 @@ import { STARTING_RECIPES } from './recipes';
 import { SIM_VERSION, STARTING_STOCK, zeroByRecipe, zeroEquipment } from './state';
 import type { ShopTierId } from './shop';
 import type { SimState } from './state';
+import { MAX_AFFECTION } from './regulars';
 
 /** A loosely-typed state at some older version. */
 type Raw = Record<string, unknown>;
@@ -128,6 +129,9 @@ export function validateState(raw: Raw): SimState {
         typeof reg.favoriteRecipe === 'string' &&
         typeof reg.visits === 'number' &&
         typeof reg.affection === 'number' &&
+        Number.isInteger(reg.affection) &&
+        reg.affection >= 0 &&
+        reg.affection <= MAX_AFFECTION &&
         typeof reg.lastSeenDay === 'number',
       `regulars[${i}]`,
     );

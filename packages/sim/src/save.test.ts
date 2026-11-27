@@ -13,6 +13,7 @@ import {
 } from './save';
 import { SIM_VERSION, createSimState } from './state';
 import type { SimState } from './state';
+import { MAX_AFFECTION } from './regulars';
 
 const played = (): SimState => autopilotRun(createSimState(2026, 'cart'), 4).at(-1)!;
 
@@ -166,5 +167,31 @@ describe('migrations', () => {
     expect(() => migrateState(withItems([{ id: 1, kind: 'stool', x: 0, y: 0, rot: 9 }]))).toThrow(
       /invalid save: items\[0\]/,
     );
+  });
+
+  it('rejects out-of-range regular affection rather than crashing the hearts meter', () => {
+    const base = createSimState(4, 'stall') as unknown as Record<string, unknown>;
+    const withRegular = (reg: Record<string, unknown>): Record<string, unknown> => ({
+      ...base,
+      regulars: [reg],
+    });
+    const valid = {
+      id: 0,
+      name: 'Mochi Whisker',
+      breed: 'calico',
+      trait: 'picky',
+      coat: 'tabby',
+      favoriteRecipe: 'shoyu',
+      visits: 1,
+      affection: 3,
+      lastSeenDay: 1,
+    };
+    // A healthy regular of every accepted affection loads fine.
+    expect(() => migrateState(withRegular(valid))).not.toThrow();
+    for (const bad of [-1, MAX_AFFECTION + 1, 1.5, Number.NaN]) {
+      expect(() => migrateState(withRegular({ ...valid, affection: bad }))).toThrow(
+        /invalid save: regulars\[0\]/,
+      );
+    }
   });
 });
