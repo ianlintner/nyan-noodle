@@ -23,6 +23,8 @@ const COMPLAINT_LABEL: Record<ComplaintKind, string> = {
 /** Close-of-day report: sales, tips, complaints, reputation change and unlocks. */
 export class ReportScene extends Phaser.Scene {
   private msg!: ReturnType<typeof messageLine>;
+  /** Goal lines tagged for the `layout()` e2e bounds check. */
+  private goalLines: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super(REPORT_SCENE_KEY);
@@ -75,6 +77,7 @@ export class ReportScene extends Phaser.Scene {
 
   private draw(report: DayReport): void {
     const state = session.state;
+    this.goalLines = [];
     pixelText(this, NATIVE_WIDTH / 2, 6, `Day ${report.day} report`, {
       scale: 2,
       token: 'lanternYellow',
@@ -100,13 +103,13 @@ export class ReportScene extends Phaser.Scene {
     ];
     let y = left.content.y + 4;
     for (const [label, value, bold, frame] of rows) {
-      rowIcon(this, left.content.x + 4, y, frame ?? 'icon/coin', 14);
+      rowIcon(this, left.content.x + 4, y, frame ?? 'icon/coin', 12);
       pixelText(this, left.content.x + 24, y, label, { token: bold ? 'ink' : 'slate' });
       pixelText(this, left.content.x + left.content.width - 4, y, value, {
         token: bold ? (report.profit >= 0 ? 'noriGreen' : 'chiliRed') : 'ink',
         originX: 1,
       });
-      y += 14;
+      y += 12;
     }
     icon(this, left.content.x + 4, y + 6, 'coin');
     pixelText(this, left.content.x + 24, y + 10, `Now ${state.economy.fishCoins} Fish Coins`);
@@ -118,11 +121,21 @@ export class ReportScene extends Phaser.Scene {
       const coins = done.reduce((sum, g) => sum + g.coins, 0);
       const stars = done.reduce((sum, g) => sum + g.stars, 0);
       const more = done.length > 2 ? ` (+${done.length - 2} more)` : '';
-      pixelText(this, gx, y + 22, `Goal complete! ${rewardText(coins, stars)}${more}`, {
-        token: 'noriGreen',
-      });
+      const goalLine = pixelText(
+        this,
+        gx,
+        y + 22,
+        `Goal complete! ${rewardText(coins, stars)}${more}`,
+        {
+          token: 'noriGreen',
+        },
+      );
+      this.goalLines.push(goalLine);
       for (const [i, g] of done.slice(0, 2).entries()) {
-        pixelText(this, gx + 6, y + 32 + i * 10, `* ${g.title}`, { token: PANEL_TEXT.gold });
+        const titleLine = pixelText(this, gx + 6, y + 32 + i * 10, `* ${g.title}`, {
+          token: PANEL_TEXT.gold,
+        });
+        this.goalLines.push(titleLine);
       }
     }
 
@@ -175,6 +188,14 @@ export class ReportScene extends Phaser.Scene {
       state: () => JSON.parse(JSON.stringify(session.state)) as unknown,
       next: () => this.next(),
       upgrades: () => this.scene.start(SCENE_KEYS.upgrades),
+      /** Native-space bounds of the Takings panel and its goal lines (art e2e check). */
+      layout: () => ({
+        panel: { x: 6, y: 26, width: 224, height: 170 },
+        lines: this.goalLines.map((t) => {
+          const b = t.getBounds();
+          return { x: b.x, y: b.y, width: b.width, height: b.height, text: t.text };
+        }),
+      }),
     };
     (window as unknown as { __nyanReport: typeof api }).__nyanReport = api;
   }

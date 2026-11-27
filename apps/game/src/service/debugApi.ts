@@ -6,6 +6,17 @@ import type { ServiceLayout } from './layout';
 import type { ServiceTicket } from './tickets';
 import type { CookStage } from './touch';
 
+export interface NativeBox {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface TextBox extends NativeBox {
+  readonly text: string;
+}
+
 /**
  * The scene state the e2e debug bridge reads. Keeping the bridge here lets the
  * scene stay under the architecture file cap without changing what it exposes.
@@ -26,6 +37,15 @@ export interface ServiceDebugView {
   brothHeat: number;
   noodleSweep: number;
   readonly railButtons: readonly Phaser.GameObjects.Container[];
+  /** Native-space bounds for the art/layout e2e gate. */
+  readonly stageArt: () => {
+    readonly stage: TextBox;
+    readonly status: TextBox;
+    readonly pot: NativeBox;
+    readonly basket: NativeBox;
+    readonly header: TextBox | null;
+    readonly ticketNames: readonly TextBox[];
+  };
   select(i: number): void;
   addTopping(t: ToppingId): void;
   addToppingByIndex(i: number): void;
@@ -54,6 +74,7 @@ export function exposeServiceDebugApi(host: Phaser.Scene, s: ServiceDebugView): 
       })),
     required: () => [...s.required],
     layout: () => s.layout,
+    stageArt: () => s.stageArt(),
     toppingSequence: () => [...s.toppingSequence],
     broth: () => ({ ...s.brothHold, heat: s.brothHeat }),
     noodleSweep: () => s.noodleSweep,

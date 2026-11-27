@@ -160,6 +160,7 @@ export function drawTicketRail(
       fontSize: '8px',
       color: PALETTE.ink,
     });
+    label.setName('ticketName');
     if (t.affection > 0) {
       const hearts = scene.add.text(w - 11, 2, '♥'.repeat(Math.min(t.affection, 5)), {
         fontFamily: FONT_FAMILY,

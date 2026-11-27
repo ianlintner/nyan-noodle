@@ -4,7 +4,7 @@ import { color, PANEL_TEXT } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { ATLAS_KEY } from '../shop/CatActor';
 import type { ServiceLayout } from './layout';
-import { stageBar } from './layout';
+import { stageBar, stageVessels } from './layout';
 import { drawTodayPanel } from './stageView';
 import { ServiceTouchControls } from './touch';
 
@@ -40,16 +40,20 @@ export function buildServiceHud(s: ServiceHudState): ServiceHud {
     title: 'Cooking',
   });
   const bar = stageBar(cooking);
+  const vessels = stageVessels(cooking, bar);
   // A pot for the broth/topping stages and a noodle basket for the boil stage sit
-  // behind the mechanically precise bar. Both come from the procedural atlas.
+  // beside the gauge as 2x sprites, not as a tiny icon at the gauge's end.
   const pot = s.scene.add
-    .image(Math.round(bar.x + bar.w - 20), Math.round(bar.y + 24), ATLAS_KEY, 'furniture/big_pot')
-    .setOrigin(0, 1);
+    .image(vessels.pot.x, vessels.pot.y, ATLAS_KEY, 'furniture/big_pot')
+    .setOrigin(0, 0)
+    .setScale(2);
   const basket = s.scene.add
-    .image(Math.round(bar.x + 2), Math.round(bar.y + 22), ATLAS_KEY, 'ingredient/noodles')
-    .setOrigin(0, 1);
+    .image(vessels.basket.x, vessels.basket.y, ATLAS_KEY, 'ingredient/noodles')
+    .setOrigin(0, 0)
+    .setScale(2);
   const stageG = s.scene.add.graphics();
   const stageText = pixelText(s.scene, content.x + 2, content.y + 4, s.intro);
+  stageText.setWordWrapWidth(content.width - 4);
   const statusText = pixelText(
     s.scene,
     content.x + 2,
