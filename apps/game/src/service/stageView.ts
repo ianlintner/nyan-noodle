@@ -187,8 +187,24 @@ export function drawTicketRail(
 
     c.add([portrait, bowl, label, glyphG, patienceG]);
     c.setSize(w, h);
-    c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
-    c.on('pointerup', () => t.onSelect(i));
+    // Container.setSize() sets displayOrigin to (w/2, h/2), so align hitArea with [0..w, 0..h].
+    c.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(w / 2, h / 2, w, h),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
+    let pressed = false;
+    c.on('pointerdown', () => {
+      pressed = true;
+    });
+    c.on('pointerout', () => {
+      pressed = false;
+    });
+    c.on('pointerup', () => {
+      if (!pressed) return;
+      pressed = false;
+      t.onSelect(i);
+    });
     if (active) {
       const ring = scene.add
         .rectangle(x + w / 2, y + 2 + h / 2, w + 2, h + 2)
