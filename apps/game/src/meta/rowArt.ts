@@ -28,8 +28,10 @@ export function rowIcon(
   y: number,
   frame: string,
   cropHeight?: number,
+  scale = 1,
 ): Phaser.GameObjects.Image {
   const image = scene.add.image(Math.round(x), Math.round(y), ATLAS_KEY, frame).setOrigin(0, 0);
   if (cropHeight !== undefined) image.setCrop(0, 0, image.width, cropHeight);
+  if (scale !== 1) image.setScale(scale);
   return image;
 }

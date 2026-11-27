@@ -7,7 +7,7 @@ import {
   type ToppingId,
 } from '@nyan-noodle/sim';
 import { isPortrait } from '../config';
-import { PALETTE } from '../theme/palette';
+import { PALETTE, PANEL_TEXT } from '../theme/palette';
 import { session } from '../meta/session';
 import { installCoach } from '../meta/coach';
 import { audio } from '../audio/manager';
@@ -346,7 +346,7 @@ export class ServiceScene extends Phaser.Scene {
         .setText(
           `+${gain} (price ${ticket.order.price}, tip ${payout.bonusCoins})\ncombo x${payout.comboMultiplier.toFixed(2)}  total ${this.coins}`,
         )
-        .setColor(PALETTE.lanternYellow);
+        .setColor(PALETTE[PANEL_TEXT.gold]);
     }
     this.completed.add(this.activeIdx);
     this.stage = 'serve';

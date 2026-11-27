@@ -110,10 +110,10 @@ export class PrepScene extends Phaser.Scene {
     const cx = stockPanel.content.x + 4;
     let sy = stockPanel.content.y + 4;
     const cap = stockCap(s.tierId);
-    rowIcon(this, cx, sy, 'food/bowl_empty');
+    rowIcon(this, cx, sy, 'food/bowl_empty', undefined, 0.5);
     pixelText(this, cx + 20, sy, `Stock: ${s.stock}/${cap} bowls`);
     sy += 11;
-    rowIcon(this, cx, sy, 'icon/coin');
+    rowIcon(this, cx, sy, 'icon/coin', undefined, 0.5);
     pixelText(this, cx + 20, sy, `Ingredients ${STOCK_BOWL_COST}c per bowl`, { token: 'slate' });
     sy += 13;
     const buy = (n: number, label: string, x: number): void => {
@@ -124,10 +124,10 @@ export class PrepScene extends Phaser.Scene {
     buy(cap, 'Fill', cx + 104);
     sy += 24;
     const staffN = s.staff.roster.length;
-    rowIcon(this, cx, sy, 'icon/flame');
+    rowIcon(this, cx, sy, 'icon/flame', undefined, 0.5);
     pixelText(this, cx + 20, sy, `You cook ${playerCapacity(s)} bowls/day`);
     sy += 11;
-    rowIcon(this, cx, sy, 'icon/heart');
+    rowIcon(this, cx, sy, 'icon/heart', undefined, 0.5);
     pixelText(
       this,
       cx + 20,
@@ -139,7 +139,7 @@ export class PrepScene extends Phaser.Scene {
     );
     sy += 11;
     if (pantryOffer(s)) {
-      rowIcon(this, cx, sy, 'furniture/sign', 12);
+      rowIcon(this, cx, sy, 'furniture/sign', undefined, 0.5);
       pixelText(this, cx + 20, sy, "Neighbour's pantry:", { token: PANEL_TEXT.gold });
       sy += 11;
       createButton(this, cx, sy, 150, 16, `Take ${NEIGHBOUR_PANTRY_BOWLS} free bowls`, () =>

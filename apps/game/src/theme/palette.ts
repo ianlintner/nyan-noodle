@@ -68,15 +68,18 @@ export function contrastRatio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Alpha-blend one palette value over another; used to check dimmed button labels. */
-export function blendTokens(fg: PaletteToken, bg: PaletteToken, alpha: number): string {
-  const a = PALETTE[fg];
-  const b = PALETTE[bg];
+/** Alpha-blend two hex colours; used to model composited layers exactly. */
+export function blendHex(fg: string, bg: string, alpha: number): string {
   const channels = [1, 3, 5].map((i) => {
     const mixed =
-      Number.parseInt(a.slice(i, i + 2), 16) * alpha +
-      Number.parseInt(b.slice(i, i + 2), 16) * (1 - alpha);
+      Number.parseInt(fg.slice(i, i + 2), 16) * alpha +
+      Number.parseInt(bg.slice(i, i + 2), 16) * (1 - alpha);
     return Math.round(mixed).toString(16).padStart(2, '0');
   });
   return `#${channels.join('')}`;
+}
+
+/** Alpha-blend one palette value over another; used to check dimmed button labels. */
+export function blendTokens(fg: PaletteToken, bg: PaletteToken, alpha: number): string {
+  return blendHex(PALETTE[fg], PALETTE[bg], alpha);
 }

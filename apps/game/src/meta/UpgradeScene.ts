@@ -42,6 +42,8 @@ const BTN_W = 108;
 export class UpgradeScene extends Phaser.Scene {
   private dynamic: Phaser.GameObjects.GameObject[] = [];
   private msg!: ReturnType<typeof messageLine>;
+  /** Keeps every hired cat reachable: the sim allows five, but only three rows fit at once. */
+  private staffPage = 0;
 
   constructor() {
     super(UPGRADE_SCENE_KEY);
@@ -181,13 +183,19 @@ export class UpgradeScene extends Phaser.Scene {
     goBuild.setDim(false);
 
     // ---- staff ---------------------------------------------------------------------
+    const perPage = 3;
+    const count = s.staff.roster.length;
+    const pages = Math.max(1, Math.ceil(count / perPage));
+    this.staffPage = Math.min(this.staffPage, pages - 1);
+    const lastPage = this.staffPage === pages - 1;
+    const pageTag = pages > 1 ? ` ${this.staffPage + 1}/${pages}` : '';
     const sp = drawPanel(this, 6 + 2 * (COL_W + 12), 26, COL_W + 8 - 26, 178, {
-      title: `Staff cats (${s.staff.roster.length})`,
+      title: `Staff cats (${count})${pageTag}`,
     });
     y = sp.content.y + 3;
     const sx = sp.content.x + 3;
-    // Three full rows plus the hire row fit the panel; the title carries the total.
-    for (const member of s.staff.roster.slice(0, 3)) {
+    const start = this.staffPage * perPage;
+    for (const member of s.staff.roster.slice(start, start + perPage)) {
       const cost = staffLevelCost(member.level);
       const maxed = member.level >= STAFF_LEVEL_MAX;
       const coat = (['tabby', 'grey', 'black', 'white'] as const)[member.id % 4]!;
@@ -200,25 +208,44 @@ export class UpgradeScene extends Phaser.Scene {
         this.apply(levelStaff(session.state, member.id), `${member.name} levelled up!`),
       );
       b.container.setData('nyanRowButton', true);
+      b.container.setData('nyanLevelButton', member.id);
       b.setDim(!maxed && s.economy.fishCoins < cost);
       y += ROW_H + 2;
     }
-    const count = s.staff.roster.length;
-    if (count < STAFF_MAX) {
-      const need = STAFF_HIRE_STARS[count] ?? 99;
-      rowIcon(this, sx, y, 'icon/heart');
-      pixelText(this, sx + 20, y, 'Hire a staff cat');
-      pixelText(this, sx + 20, y + 11, `Needs ${need} stars`, { token: 'slate' }).setData(
-        'nyanRowDetail',
-        true,
-      );
-      const b = createButton(this, sx + 20, y + 23, 80, 12, `Hire ${STAFF_HIRE_COST}c`, () =>
-        this.apply(hireStaff(session.state), 'A new cat joins the kitchen!'),
-      );
-      b.container.setData('nyanRowButton', true);
-      b.setDim(rep < need || s.economy.fishCoins < STAFF_HIRE_COST);
-    } else {
-      pixelText(this, sx, y, 'Kitchen is full', { token: 'slate' });
+    // The hire row belongs on the last page, where the new cat appears.
+    if (lastPage) {
+      if (count < STAFF_MAX) {
+        const need = STAFF_HIRE_STARS[count] ?? 99;
+        rowIcon(this, sx, y, 'icon/heart');
+        pixelText(this, sx + 20, y, 'Hire a staff cat');
+        pixelText(this, sx + 20, y + 11, `Needs ${need} stars`, { token: 'slate' }).setData(
+          'nyanRowDetail',
+          true,
+        );
+        const b = createButton(this, sx + 20, y + 23, 80, 12, `Hire ${STAFF_HIRE_COST}c`, () => {
+          this.staffPage = Math.floor(count / perPage); // the new cat lands on this page
+          this.apply(hireStaff(session.state), 'A new cat joins the kitchen!');
+        });
+        b.container.setData('nyanRowButton', true);
+        b.setDim(rep < need || s.economy.fishCoins < STAFF_HIRE_COST);
+      } else {
+        pixelText(this, sx, y, 'Kitchen is full', { token: 'slate' });
+      }
+      y += ROW_H + 2;
+    }
+    if (pages > 1) {
+      const prev = createButton(this, sx, y, 56, 12, 'Prev', () => {
+        this.staffPage = Math.max(0, this.staffPage - 1);
+        this.render();
+      });
+      prev.container.setData('nyanRowButton', true);
+      prev.setDim(this.staffPage === 0);
+      const next = createButton(this, sx + 60, y, 56, 12, 'Next', () => {
+        this.staffPage = Math.min(pages - 1, this.staffPage + 1);
+        this.render();
+      });
+      next.container.setData('nyanRowButton', true);
+      next.setDim(lastPage);
     }
 
     createButton(this, 6, NATIVE_HEIGHT - 26, 90, 18, 'Back to prep', () =>
@@ -252,6 +279,10 @@ export class UpgradeScene extends Phaser.Scene {
         return {
           details: this.children.list.filter((o) => o.getData('nyanRowDetail') === true).map(box),
           buttons: this.children.list.filter((o) => o.getData('nyanRowButton') === true).map(box),
+          /** Staff ids with a Level button on the current page. */
+          levels: this.children.list
+            .filter((o) => o.getData('nyanLevelButton') !== undefined)
+            .map((o) => o.getData('nyanLevelButton') as number),
         };
       },
     };
