@@ -9,8 +9,11 @@ interface Box {
 }
 
 interface UpgradeLayout {
+  panels: Box[];
+  titles: Box[];
   details: Box[];
   buttons: Box[];
+  next?: Box;
   /** Staff ids with a Level button on the current page. */
   levels: number[];
 }
@@ -47,6 +50,22 @@ function expectNoOverlap(layout: UpgradeLayout): void {
         `detail ${JSON.stringify(detail)} overlaps button ${JSON.stringify(button)}`,
       ).toBe(false);
     }
+  }
+}
+
+/** Every row label/detail must stay inside the panel it was drawn in. */
+function expectInsidePanels(layout: UpgradeLayout): void {
+  expect(layout.panels.length).toBeGreaterThan(0);
+  for (const text of [...layout.titles, ...layout.details]) {
+    const panel = layout.panels.find(
+      (p) => text.x >= p.x && text.x < p.x + p.w && text.y >= p.y && text.y < p.y + p.h,
+    );
+    expect(panel, `text ${JSON.stringify(text)} is outside every panel`).toBeTruthy();
+    if (!panel) continue;
+    expect(
+      text.x + text.w <= panel.x + panel.w - 2,
+      `text ${JSON.stringify(text)} overflows panel ${JSON.stringify(panel)}`,
+    ).toBe(true);
   }
 }
 
@@ -93,9 +112,11 @@ test('upgrade rows keep detail text clear of buttons at both viewports', async (
   ] as const) {
     await page.setViewportSize({ width, height });
     await settle(page);
-    expectNoOverlap(
-      await page.evaluate(() => (window as unknown as ArtWindow).__nyanUpgrades!.layout()),
+    const layout = await page.evaluate(() =>
+      (window as unknown as ArtWindow).__nyanUpgrades!.layout(),
     );
+    expectNoOverlap(layout);
+    expectInsidePanels(layout);
   }
 
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -141,13 +162,16 @@ test('all five staff cats keep a Level button through pagination', async ({ page
   const first = await layout();
   expect(first.levels).toEqual([1, 2, 3]);
   expectNoOverlap(first);
+  expectInsidePanels(first);
+  expect(first.next).toBeTruthy();
 
-  // Next button sits at native (405..461, 161..173) on the staff panel.
-  await clickNative(page, 433, 167);
+  const next = first.next!;
+  await clickNative(page, next.x + next.w / 2, next.y + next.h / 2);
   await settle(page);
   const second = await layout();
   expect(second.levels).toEqual([4, 5]);
   expectNoOverlap(second);
+  expectInsidePanels(second);
   expect([...first.levels, ...second.levels].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
 });
 

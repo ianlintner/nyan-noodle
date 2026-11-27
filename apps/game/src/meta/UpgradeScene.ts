@@ -38,12 +38,21 @@ const COL_W = 154;
 const ROW_H = 36;
 const BTN_W = 108;
 
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** Upgrade shop: recipes + mastery, equipment, staff cats, and the road to build mode. */
 export class UpgradeScene extends Phaser.Scene {
   private dynamic: Phaser.GameObjects.GameObject[] = [];
   private msg!: ReturnType<typeof messageLine>;
   /** Keeps every hired cat reachable: the sim allows five, but only three rows fit at once. */
   private staffPage = 0;
+  /** Last rendered panel rects, exposed to e2e so text containment can be asserted. */
+  private panels: Rect[] = [];
 
   constructor() {
     super(UPGRADE_SCENE_KEY);
@@ -51,6 +60,11 @@ export class UpgradeScene extends Phaser.Scene {
 
   preload(): void {
     loadAtlas(this);
+  }
+
+  private panel(x: number, y: number, w: number, h: number, title: string) {
+    this.panels.push({ x, y, w, h });
+    return drawPanel(this, x, y, w, h, { title });
   }
 
   create(): void {
@@ -92,7 +106,7 @@ export class UpgradeScene extends Phaser.Scene {
     cropHeight?: number,
   ): void {
     rowIcon(this, x, y, frame, cropHeight);
-    pixelText(this, x + 20, y, title);
+    pixelText(this, x + 20, y, title).setData('nyanRowTitle', true);
     pixelText(this, x + 20, y + 11, detail, { token: 'slate' }).setData('nyanRowDetail', true);
     const b = createButton(this, x + 20, y + 23, BTN_W, 12, label, onClick);
     b.container.setData('nyanRowButton', true);
@@ -103,6 +117,7 @@ export class UpgradeScene extends Phaser.Scene {
     const s = session.state;
     const rep = s.economy.reputation;
     const tier = getTier(s.tierId);
+    this.panels = [];
     pixelText(this, 8, 6, 'Upgrade shop', { token: 'lanternYellow', scale: 2 });
     pixelText(
       this,
@@ -113,7 +128,7 @@ export class UpgradeScene extends Phaser.Scene {
     );
 
     // ---- recipes -----------------------------------------------------------------
-    const rp = drawPanel(this, 6, 26, COL_W + 8, 178, { title: 'Recipes & mastery' });
+    const rp = this.panel(6, 26, COL_W + 8, 178, 'Recipes & mastery');
     let y = rp.content.y + 3;
     for (const id of RECIPE_IDS) {
       const x = rp.content.x + 3;
@@ -149,7 +164,7 @@ export class UpgradeScene extends Phaser.Scene {
     }
 
     // ---- equipment --------------------------------------------------------------
-    const ep = drawPanel(this, 6 + COL_W + 12, 26, COL_W + 8, 178, { title: 'Equipment' });
+    const ep = this.panel(6 + COL_W + 12, 26, COL_W + 8, 178, 'Equipment');
     y = ep.content.y + 3;
     for (const def of EQUIPMENT) {
       const level = s.equipment[def.id];
@@ -159,8 +174,8 @@ export class UpgradeScene extends Phaser.Scene {
       this.row(
         ep.content.x + 3,
         y,
-        `${def.name} L${level}`,
-        maxed ? def.blurb : `${def.blurb} (${need} stars)`,
+        `${def.name} L${level}${maxed ? '' : ` (${need} stars)`}`,
+        def.blurb,
         maxed ? 'Max' : `Buy ${cost}c`,
         !maxed && (rep < need || s.economy.fishCoins < cost),
         () => this.apply(buyEquipment(session.state, def.id), `${def.name} upgraded!`),
@@ -189,9 +204,13 @@ export class UpgradeScene extends Phaser.Scene {
     this.staffPage = Math.min(this.staffPage, pages - 1);
     const lastPage = this.staffPage === pages - 1;
     const pageTag = pages > 1 ? ` ${this.staffPage + 1}/${pages}` : '';
-    const sp = drawPanel(this, 6 + 2 * (COL_W + 12), 26, COL_W + 8 - 26, 178, {
-      title: `Staff cats (${count})${pageTag}`,
-    });
+    const sp = this.panel(
+      6 + 2 * (COL_W + 12),
+      26,
+      COL_W + 8 - 26,
+      178,
+      `Staff cats (${count})${pageTag}`,
+    );
     y = sp.content.y + 3;
     const sx = sp.content.x + 3;
     const start = this.staffPage * perPage;
@@ -200,7 +219,7 @@ export class UpgradeScene extends Phaser.Scene {
       const maxed = member.level >= STAFF_LEVEL_MAX;
       const coat = (['tabby', 'grey', 'black', 'white'] as const)[member.id % 4]!;
       rowIcon(this, sx, y, catPortrait(coat), 12);
-      pixelText(this, sx + 20, y, `${member.name} L${member.level}`);
+      pixelText(this, sx + 20, y, `${member.name} L${member.level}`).setData('nyanRowTitle', true);
       pixelText(this, sx + 20, y + 11, `wage ${member.wage}c  q~${cookQuality(s, true, 'shoyu')}`, {
         token: 'slate',
       }).setData('nyanRowDetail', true);
@@ -217,7 +236,7 @@ export class UpgradeScene extends Phaser.Scene {
       if (count < STAFF_MAX) {
         const need = STAFF_HIRE_STARS[count] ?? 99;
         rowIcon(this, sx, y, 'icon/heart');
-        pixelText(this, sx + 20, y, 'Hire a staff cat');
+        pixelText(this, sx + 20, y, 'Hire a staff cat').setData('nyanRowTitle', true);
         pixelText(this, sx + 20, y + 11, `Needs ${need} stars`, { token: 'slate' }).setData(
           'nyanRowDetail',
           true,
@@ -245,6 +264,7 @@ export class UpgradeScene extends Phaser.Scene {
         this.render();
       });
       next.container.setData('nyanRowButton', true);
+      next.container.setData('nyanNextButton', true);
       next.setDim(lastPage);
     }
 
@@ -268,17 +288,27 @@ export class UpgradeScene extends Phaser.Scene {
       hire: () => this.apply(hireStaff(session.state), 'ok'),
       prep: () => this.scene.start(SCENE_KEYS.prep),
       /**
-       * Native-pixel boxes for the detail text and action buttons. Exposed so e2e can
-       * prove they never intersect at any viewport size.
+       * Native-pixel boxes for row text, full button faces and panels. Exposed so e2e can
+       * prove text never intersects a button or escapes its panel at any viewport size.
        */
       layout: () => {
-        const box = (o: Phaser.GameObjects.GameObject) => {
+        const box = (o: Phaser.GameObjects.GameObject): Rect => {
+          if (o instanceof Phaser.GameObjects.Container) {
+            // Graphics faces have no getBounds(); use the explicit button size.
+            return { x: o.x, y: o.y, w: o.width, h: o.height };
+          }
           const b = (o as Phaser.GameObjects.Text).getBounds();
           return { x: b.x, y: b.y, w: b.width, h: b.height };
         };
+        const tagged = (key: string): Rect[] =>
+          this.children.list.filter((o) => o.getData(key) === true).map(box);
+        const next = this.children.list.find((o) => o.getData('nyanNextButton') === true);
         return {
-          details: this.children.list.filter((o) => o.getData('nyanRowDetail') === true).map(box),
-          buttons: this.children.list.filter((o) => o.getData('nyanRowButton') === true).map(box),
+          panels: this.panels.map((p) => ({ ...p })),
+          titles: tagged('nyanRowTitle'),
+          details: tagged('nyanRowDetail'),
+          buttons: tagged('nyanRowButton'),
+          next: next ? box(next) : undefined,
           /** Staff ids with a Level button on the current page. */
           levels: this.children.list
             .filter((o) => o.getData('nyanLevelButton') !== undefined)
