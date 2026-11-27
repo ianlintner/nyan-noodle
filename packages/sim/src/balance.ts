@@ -4,8 +4,9 @@
  *
  * Target curve, checked by `balance.test.ts` over 8 seeds with the reference autopilot
  * and reproduced by `npm run sim:headless`:
- *   - Stall by day 3-4, Small Shop on day 6-8, Ramen Bar ~day 14,
- *     Grand Hall ~day 25-30, revenue rising every tier.
+ *   - Stall by day 3-4, Small Shop on day 6-8, Ramen Bar on day 11-14,
+ *     Grand Hall on day 20-25, mean daily takings up >=1.3x every tier, and big
+ *     venues never selling out (their pantry scales via `STOCK_CAP_BY_TIER`).
  *
  * Levers, roughly in order of impact:
  *   - `PLAYER_BOWLS`: the owner's daily cook cap. This, not seats, is the early bottleneck.
@@ -36,6 +37,18 @@ export const TIER_PRICE_PREMIUM = {
   'small-shop': 1.5,
   'ramen-bar': 1.65,
   'grand-hall': 2,
+} as const;
+
+/**
+ * Bowls of stock a shop can hold, per tier. Big venues out-serve a flat 40-bowl pantry:
+ * Ramen Bar and Grand Hall kitchens cook 40-60 bowls a day, so their pantries grow too.
+ */
+export const STOCK_CAP_BY_TIER = {
+  cart: 40,
+  stall: 40,
+  'small-shop': 40,
+  'ramen-bar': 60,
+  'grand-hall': 90,
 } as const;
 
 /** Catalog price of one stove. */

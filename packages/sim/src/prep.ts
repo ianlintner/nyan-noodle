@@ -2,11 +2,19 @@ import { RECIPES } from './recipes';
 import type { RecipeId } from './recipes';
 import { MASTERY_PRICE_PER_LEVEL } from './progression';
 import type { ActionResult } from './progression';
+import { STOCK_CAP_BY_TIER } from './balance';
 import { getTier } from './shop';
+import type { ShopTierId } from './shop';
 import type { SimState } from './state';
 
 export const STOCK_BOWL_COST = 3;
-export const STOCK_CAP = 40;
+/** Pantry size of the smallest tiers; bigger venues hold more (see `stockCap`). */
+export const STOCK_CAP = STOCK_CAP_BY_TIER.cart;
+
+/** Bowls of stock the current tier's pantry holds. */
+export function stockCap(tierId: ShopTierId): number {
+  return STOCK_CAP_BY_TIER[tierId];
+}
 export const PRICE_STEP = 0.1;
 export const PRICE_ADJUST_MIN = -3;
 export const PRICE_ADJUST_MAX = 3;
@@ -46,7 +54,7 @@ export function adjustPrice(state: SimState, id: RecipeId, delta: number): Actio
 
 /** Buy up to `bowls` of stock (clamped by the cap and what the player can afford). */
 export function buyStock(state: SimState, bowls: number): ActionResult {
-  const room = STOCK_CAP - state.stock;
+  const room = stockCap(state.tierId) - state.stock;
   const affordable = Math.floor(state.economy.fishCoins / STOCK_BOWL_COST);
   const n = Math.min(bowls, room, affordable);
   if (room <= 0) return { ok: false, reason: 'maxed' };

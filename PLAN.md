@@ -30,7 +30,7 @@ Incremental layer: Fish Coins (soft currency), Reputation Stars (gate for shop t
 5. Progression: end-of-day report, upgrades, hire staff, unlock recipes, shop tier expansions (Cart -> Stall -> Small Shop at MVP).
 6. Save/load + deployable static build.
 
-Non-goals (Later): monetization/cosmetics shop, prestige branches, cloud saves/accounts, multiplayer/visiting shops, events/seasons, mobile touch polish, localization, voice/music beyond one loop.
+Non-goals for the MVP (moved to Phase 2/3 below): cosmetics shop, prestige branches, cloud saves, events/seasons, mobile touch polish. Still out of scope: monetization, accounts, ads, multiplayer/visiting shops, localization.
 
 ## Milestones / cards
 | # | Title | Depends | Assignee | Route | Acceptance |
@@ -47,5 +47,31 @@ Non-goals (Later): monetization/cosmetics shop, prestige branches, cloud saves/a
 
 Cards 2 and 3 run in parallel after 1. Release in waves. PRs: Copilot review -> Ian approval -> guarded squash merge.
 
+MVP: **done** (#9, #10, #11).
+
+## Phase 2 — done
+| Item | PR | Notes |
+|---|---|---|
+| Hosting: Pages mirror + Cat Herding Games hub under `/nyan-noodle/` | #14, #15, #16 | subpath e2e in CI |
+| Procedural audio, settings panel, gameplay SFX | #13 | settings persist outside saves |
+| Cat regulars, breeds and traits | #12 | `regulars.ts`, `breeds.ts`, Regulars scene |
+| Ramen Bar and Grand Ramen Hall tiers | #17 | 5 tiers total |
+| Touch input and responsive layout | #18 | iPhone/Pixel e2e projects |
+| Integration: playtest, 5-tier balance, docs | this pass | per-tier pantry fixes the Grand Hall sell-out; report in `docs/playtest/` |
+
+30-day curve (8 seeds): Stall day 3, Small Shop 6-8, Ramen Bar 12-13, Grand Hall 21-23; every tier earns >=1.3x the last.
+
+## Phase 3 — proposed
+Still no backend-dependent gameplay, accounts, ads or paid currency. Order is by player value.
+
+| # | Title | Depends | Scope / acceptance |
+|---|---|---|---|
+| 3.1 | Events and seasons | - | sim `events.ts`: seeded calendar (festival days, rainy days, seasonal dish), demand/price modifiers, one limited recipe per season. Fixes the Ramen Bar plateau (playtest F2). Balance test pins event days. |
+| 3.2 | Prestige branches ("Open a new branch") | 3.1 | after Grand Hall, reset to Cart with a permanent branch perk (recipe start, staff level, decor); stars past 5.0 feed branch rank (F3). Save migration + 30/60-day curve test. |
+| 3.3 | Cosmetic-only shop | 3.2 | noren, lanterns, cat outfits bought with earned Fish Coins / branch tokens only. No real money, no gameplay stats. Atlas frames + build-mode catalog tab. |
+| 3.4 | Delivery / catering | 3.1 | second order channel: delivery tickets with travel time and a courier staff cat; capacity shared with the dining room. |
+| 3.5 | Cloud saves (opt-in, export-first) | - | keep IndexedDB as source of truth; optional sync via the user's own file/storage (e.g. a save-file download/upload or a third-party storage picker). No Nyan Noodle accounts or server. Conflict = newest-wins with backup. |
+| 3.6 | Polish carry-overs | - | phone landscape scaling decision (F4), deterministic kitchen e2e (F5), real bitmap font. |
+
 ## Later
-Monetization (cosmetics only), prestige branches, seasonal events, cat breeds with traits, delivery/catering, mobile UI, audio pass, cloud saves, lexiconlang-generated cat names/regulars.
+Multiplayer/visiting shops, localization, lexiconlang-generated cat names, music beyond the procedural loop.

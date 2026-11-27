@@ -9,6 +9,7 @@ import {
   buyStock,
   effectiveMenu,
   salePrice,
+  stockCap,
   toggleMenu,
 } from './prep';
 import {
@@ -41,6 +42,15 @@ describe('prep', () => {
     expect(full).toEqual({ ok: false, reason: 'maxed' });
     const partial = buyStock(rich(s, 999, 0), 999);
     expect(partial.ok && partial.state.stock).toBe(STOCK_CAP);
+  });
+
+  it('grows the pantry with the venue so big tiers can stock a full kitchen', () => {
+    expect(stockCap('cart')).toBe(STOCK_CAP);
+    expect(stockCap('ramen-bar')).toBeGreaterThan(STOCK_CAP);
+    expect(stockCap('grand-hall')).toBeGreaterThan(stockCap('ramen-bar'));
+    const hall = { ...rich(createSimState(1, 'grand-hall'), 999, 5), stock: 0 };
+    const filled = buyStock(hall, 999);
+    expect(filled.ok && filled.state.stock).toBe(stockCap('grand-hall'));
   });
 
   it('keeps at least one dish on the menu and only toggles owned recipes', () => {
