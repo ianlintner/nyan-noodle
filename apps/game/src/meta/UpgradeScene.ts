@@ -27,6 +27,7 @@ import { audio } from '../audio/manager';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { REGULARS_SCENE_KEY } from './RegularsScene';
 import { session } from './session';
+import { installCoach } from './coach';
 import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsNumber } from './ui';
 
 export const UPGRADE_SCENE_KEY = SCENE_KEYS.upgrades;
@@ -54,6 +55,7 @@ export class UpgradeScene extends Phaser.Scene {
     backdrop(this);
     this.msg = messageLine(this, NATIVE_HEIGHT - 38);
     this.render();
+    installCoach(this, 'upgrades', session.coach);
     this.exposeDebugApi();
     this.registry.set('upgradesReady', true);
     this.events.once('shutdown', () => this.registry.set('upgradesReady', false));
@@ -71,7 +73,7 @@ export class UpgradeScene extends Phaser.Scene {
     for (const o of this.dynamic) o.destroy();
     const before = new Set(this.children.list);
     this.draw();
-    this.dynamic = this.children.list.filter((o) => !before.has(o));
+    this.dynamic = this.children.list.filter((o) => !before.has(o) && !o.getData('nyanCoach'));
   }
 
   /** One row: two text lines on the left, one action button under them. */

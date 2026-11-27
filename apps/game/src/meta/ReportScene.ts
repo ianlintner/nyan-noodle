@@ -6,6 +6,7 @@ import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { audio } from '../audio/manager';
 import { exposeGoalsApi, rewardText } from './goalsPanel';
 import { session } from './session';
+import { installCoach } from './coach';
 import { SCENE_KEYS, backdrop, icon, loadAtlas, messageLine, signed, starsNumber } from './ui';
 
 export const REPORT_SCENE_KEY = SCENE_KEYS.report;
@@ -40,6 +41,7 @@ export class ReportScene extends Phaser.Scene {
       return;
     }
     this.draw(report);
+    installCoach(this, 'report', session.coach);
     createButton(this, 6, NATIVE_HEIGHT - 26, 90, 18, 'Upgrades', () =>
       this.scene.start(SCENE_KEYS.upgrades),
     );

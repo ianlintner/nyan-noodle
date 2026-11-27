@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page, TestInfo } from '@playwright/test';
 import { autopilotPrep, autopilotRun, createSimState } from '../packages/sim/src/index';
 import type { SimState } from '../packages/sim/src/index';
+import { bypassCoach } from './coachBypass';
 
 /**
  * Goal ladder + Grand Opening: play real day 1 through the UI, see the finished goals paid on
@@ -48,6 +49,7 @@ const shot = async (page: Page, info: TestInfo, name: string, w = 1280, h = 720)
 
 /** New game, then day 1 with the reference autopilot's prep; ends on the Report scene. */
 async function playDayOne(page: Page): Promise<SimState> {
+  await bypassCoach(page);
   await page.goto('/');
   await flag(page, 'titleReady');
   await page.evaluate(() => (window as unknown as W).__nyanTitle!.newGame());

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { autopilotPrep, autopilotRun, createSimState } from '../packages/sim/src/index';
 import type { SimState } from '../packages/sim/src/index';
+import { bypassCoach } from './coachBypass';
 
 /**
  * MVP integration playthrough: the real game (title -> prep -> kitchen -> shop service ->
@@ -36,6 +37,7 @@ test('8-day playthrough matches the headless sim and climbs Cart -> Stall -> Sma
   test.setTimeout(240_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
+  await bypassCoach(page);
   await page.goto('/');
   await flag(page, 'titleReady');
   await page.screenshot({ path: `${SEED_DIR}/01-title.png` });

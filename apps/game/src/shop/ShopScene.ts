@@ -18,9 +18,10 @@ import {
 } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, TILE_SIZE } from '../config';
 import { PALETTE } from '../theme/palette';
-import { createButton, drawPanel, pixelText, type ButtonHandle } from '../theme/hud';
+import type { ButtonHandle } from '../theme/hud';
+import { buildShopHud } from './hudView';
 import { BuildController, type BuildTool } from '../build/BuildController';
-import { BuildPanel, BTN_STEP } from '../build/BuildPanel';
+import { BTN_STEP, type BuildPanel } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { CameraRig } from './CameraRig';
@@ -28,10 +29,11 @@ import { ShopDirector } from './director';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
 import { startSteam } from './steam';
-import { installShopTouch, overBuildTouch, type ShopTouchUi } from './touch';
+import { overBuildTouch, type ShopTouchUi } from './touch';
 import { cellScreenPoint, nativeScreenPoint } from './screen';
 import { WorldView } from './WorldView';
 import { session } from '../meta/session';
+import { installCoach, showCoachOnce } from '../meta/coach';
 import { SCENE_KEYS } from '../meta/ui';
 import { ShopSound, shopSoundSource } from './sound';
 
@@ -163,6 +165,7 @@ export class ShopScene extends Phaser.Scene {
     this.rig = new CameraRig(this, this.layout.cols * TILE_SIZE, this.layout.rows * TILE_SIZE);
     const hudBefore = new Set(this.children.list);
     this.buildHud();
+    installCoach(this, this.params.mode === 'build' ? 'build' : 'shop', session.coach);
     this.shopAudio.install(this, this.soundSource, {
       registerUi: (o) => this.cameras.main.ignore(o),
     });
@@ -243,6 +246,7 @@ export class ShopScene extends Phaser.Scene {
     this.build.enable();
     this.toggle.setLabel(this.inSession ? 'Done' : 'Open shop');
     this.speedButton?.container.setVisible(false);
+    if (this.params.mode !== 'build') showCoachOnce(this, 'build', session.coach);
     this.say('Pick furniture, click to place', true);
   }
 
@@ -326,40 +330,25 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    const { content } = drawPanel(this, 4, 4, 128, 56, { title: 'Nyan Noodle' });
-    this.hudText = pixelText(this, content.x + 2, content.y + 1, '');
-    this.msgText = pixelText(this, 6, 62, '', { token: 'brothGold' });
-    this.toggle = createButton(this, 4, NATIVE_HEIGHT - 18, 64, 14, 'Build', () => {
-      if (this.inSession) return this.mode === 'build' ? this.leaveBuild() : this.finishDay();
-      if (this.mode === 'build') this.startService();
-      else this.enterBuild();
-    });
-    if (this.inSession) {
-      this.speedButton = createButton(this, 72, NATIVE_HEIGHT - 18, 48, 14, 'x1', () => {
-        const next = this.params.speed >= 8 ? 1 : this.params.speed * 2;
-        this.params = { ...this.params, speed: next };
-        this.speedButton?.setLabel(`x${next}`);
-      });
-    }
-    this.buildPanel = new BuildPanel(
-      this,
-      {
-        pick: (tool) => this.pick(tool),
-        rotate: () => this.build.rotate(),
-        upgrade: () => this.upgrade(),
-      },
-      this.state.tierId,
-    );
-    this.touchUi = installShopTouch(this, {
+    const hud = buildShopHud({
+      scene: this,
+      inSession: this.inSession,
+      tierId: this.state.tierId,
       rig: this.rig,
       build: this.build,
       isBuild: () => this.mode === 'build',
+      speed: () => this.params.speed,
+      onSpeed: (next) => void (this.params = { ...this.params, speed: next }),
+      onToggle: () => {
+        if (this.inSession) return this.mode === 'build' ? this.leaveBuild() : this.finishDay();
+        if (this.mode === 'build') this.startService();
+        else this.enterBuild();
+      },
+      onPick: (tool) => this.pick(tool),
+      onRotate: () => this.build.rotate(),
+      onUpgrade: () => this.upgrade(),
     });
-    pixelText(this, NATIVE_WIDTH - 4, NATIVE_HEIGHT - 3, '+/- zoom  arrows pan', {
-      token: 'cream',
-      originX: 1,
-      originY: 1,
-    });
+    Object.assign(this, hud);
   }
   private exposeDebugApi(): void {
     const screen = (x: number, y: number): { x: number; y: number } => cellScreenPoint(this, x, y);
