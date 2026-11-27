@@ -6,7 +6,13 @@ See [PLAN.md](PLAN.md) for the stack, art direction, MVP scope and card breakdow
 
 ## Status
 
-MVP feature-complete on the stacked PR chain (#1-#8 plus this integration pass): sim core, art pipeline, shop scene, cooking minigames, build mode, day loop with saves, and a balanced Cart -> Stall -> Small Shop curve. No backend, accounts, ads or IAP. Not yet: a real bitmap font, tiers beyond Small Shop, mobile/touch polish.
+MVP and Phase 2 are both done. The game has a sim core, an art pipeline, the shop scene, cooking minigames, build mode, a day loop with saves, procedural audio, cat regulars with breeds and traits, touch/responsive play, and all five tiers balanced over 30 days (Cart -> Stall -> Small Shop -> Ramen Bar -> Grand Ramen Hall). There is no backend, accounts, ads or IAP. Phase 3 (events/seasons, prestige branches, cosmetic-only shop, delivery, opt-in cloud saves) is proposed in [PLAN.md](PLAN.md). The latest playtest report and balance table are in [docs/playtest/](docs/playtest/README.md).
+
+|                                                              |                                                                  |
+| ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| ![Title](docs/playtest/01-title.png)                         | ![Kitchen](docs/playtest/03-kitchen.png)                         |
+| ![Ramen Bar service](docs/playtest/04-service-ramen-bar.png) | ![Grand Hall service](docs/playtest/05-service-grand-hall.png)   |
+| ![Prep at Grand Hall](docs/playtest/02-prep-grand-hall.png)  | ![iPhone portrait](docs/playtest/07-iphone-portrait-service.png) |
 
 ## Play
 
@@ -37,7 +43,7 @@ npm run dev
 6. **Upgrades** (stars + coins): recipes (Miso, Tonkotsu), mastery, knives / burner / signboard, staff cats. **Build** mode places stools, stoves, tables and decor, and buys the next shop tier.
 7. **Sound**: click _Sound_ at the title screen, or press `ESC` during the day, to open the audio panel. Adjust Master / Music / SFX and mute; settings persist in this browser independently of save import/export. Browsers require a first click or keypress before any sound plays.
 
-Expected pace: Stall around day 3–4, Small Shop around day 7–8.
+Expected pace: Stall around day 3, Small Shop day 6–8, Ramen Bar day 12–13, Grand Ramen Hall day 22–23. The pantry grows with the venue (40 bowls up to Small Shop, 60 at Ramen Bar, 90 at Grand Hall).
 
 ## Develop
 
@@ -58,11 +64,11 @@ npm run assets:generate  # regenerate the sprite atlas, then npm run validate-as
 npm run format           # Prettier write
 ```
 
-Dev URLs jump straight into a scene: `?scene=boot|title|prep|shop|service|report|upgrades`. The shop takes `seed=`, `tier=cart|stall|small-shop`, `speed=1..16`, `mode=build`, `coins=`, `rep=`; the service sandbox (no save) takes `seed=` and `count=1..8`. The boot scene shows the palette and HUD chrome.
+Dev URLs jump straight into a scene: `?scene=boot|title|prep|shop|service|report|upgrades|regulars`. The shop takes `seed=`, `tier=cart|stall|small-shop|ramen-bar|grand-hall`, `speed=1..16`, `mode=build`, `coins=`, `rep=`; the service sandbox (no save) takes `seed=` and `count=1..8`. The boot scene shows the palette and HUD chrome.
 
 ### Balance
 
-Early-game knobs (cook cap, tier coin/star gates, tier price premium, stove cost, autopilot reserve) live in `packages/sim/src/balance.ts`. `balance.test.ts` pins the curve over 8 seeds and `e2e/mvp.spec.ts` plays 8 days in the browser and checks them against the headless sim day for day. Screenshots of that run are in `docs/mvp/`.
+Balance knobs (cook cap, tier coin/star gates, tier price premium, per-tier pantry, stove cost, autopilot reserve) live in `packages/sim/src/balance.ts`. `balance.test.ts` pins the 30-day five-tier curve over 8 seeds and `e2e/mvp.spec.ts` plays 8 days in the browser and checks them against the headless sim day for day. Screenshots of that run are in `docs/mvp/`.
 
 ### Systems
 
