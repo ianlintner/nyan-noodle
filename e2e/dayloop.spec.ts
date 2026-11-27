@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type Phaser from 'phaser';
+import { bypassCoach } from './coachBypass';
 
 interface Report {
   day: number;
@@ -142,6 +143,7 @@ test.describe('day loop meta', () => {
     test.setTimeout(150_000);
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));
+    await bypassCoach(page);
     await page.goto('/');
     await titleReady(page);
     expect(await page.evaluate(() => (window as unknown as W).__nyanTitle!.summary())).toBeNull();
@@ -241,6 +243,7 @@ test.describe('day loop meta', () => {
   }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));
+    await bypassCoach(page);
     await page.goto('/');
     await titleReady(page);
     await page.evaluate(() => (window as unknown as W).__nyanTitle!.newGame());

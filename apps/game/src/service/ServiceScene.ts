@@ -7,9 +7,9 @@ import {
   type ToppingId,
 } from '@nyan-noodle/sim';
 import { isPortrait } from '../config';
-import { nativeScreenPoint } from '../shop/screen';
 import { PALETTE } from '../theme/palette';
 import { session } from '../meta/session';
+import { installCoach } from '../meta/coach';
 import { audio } from '../audio/manager';
 import { installPause } from '../audio/pause';
 import { persistAudioSettings } from '../audio/controller';
@@ -20,6 +20,7 @@ import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
 import { serviceRail, drawServiceRail, type ServiceTicket } from './tickets';
 import { buildServiceHud } from './hud';
+import { exposeServiceDebugApi } from './debugApi';
 import { serviceLayout, stageBar, type ServiceLayout } from './layout';
 import type { CookStage, ServiceTouchControls } from './touch';
 import {
@@ -45,14 +46,15 @@ interface ServiceParams {
 /** Interactive service phase: ticket rail, three cooking minigames and a sim-scored serve. */
 export class ServiceScene extends Phaser.Scene {
   private params: ServiceParams = { seed: 2026, count: 4 };
-  private inSession = false;
-  private tickets: ServiceTicket[] = [];
-  private qualities: (number | null)[] = [];
+  /** Public for the e2e bridge in `service/debugApi.ts`. */
+  inSession = false;
+  tickets: ServiceTicket[] = [];
+  qualities: (number | null)[] = [];
   private todayLines: string[] = [];
-  private activeIdx = -1;
-  private completed = new Set<number>();
-  private stage: Stage = 'broth';
-  private layout!: ServiceLayout;
+  activeIdx = -1;
+  completed = new Set<number>();
+  stage: Stage = 'broth';
+  layout!: ServiceLayout;
   private touch?: ServiceTouchControls;
   private touchHolding = false;
   private uiObjects: Phaser.GameObjects.GameObject[] = [];
@@ -61,18 +63,18 @@ export class ServiceScene extends Phaser.Scene {
     if (portrait !== this.layout.portrait) this.relayout();
   };
 
-  private brothHold = emptyBrothHold;
-  private brothHeat = 0.5;
-  private noodleSweep = 0;
+  brothHold = emptyBrothHold;
+  brothHeat = 0.5;
+  noodleSweep = 0;
   private noodleStopped = false;
-  private toppingSequence: ToppingId[] = [];
-  private required: readonly ToppingId[] = [];
+  toppingSequence: ToppingId[] = [];
+  required: readonly ToppingId[] = [];
 
-  private streak = 0;
-  private coins = 0;
+  streak = 0;
+  coins = 0;
   private beats = 0;
 
-  private railButtons: Phaser.GameObjects.Container[] = [];
+  railButtons: Phaser.GameObjects.Container[] = [];
   private railRings: Phaser.GameObjects.Rectangle[] = [];
   private stageG!: Phaser.GameObjects.Graphics;
   private stageText!: Phaser.GameObjects.Text;
@@ -118,6 +120,7 @@ export class ServiceScene extends Phaser.Scene {
     ) as unknown as ServiceScene['keys'];
     this.buildTickets();
     this.buildUi();
+    installCoach(this, 'kitchen', session.coach);
     installPause(this, persistAudioSettings);
     this.exposeDebugApi();
     this.registry.set('serviceReady', true);
@@ -201,7 +204,7 @@ export class ServiceScene extends Phaser.Scene {
 
   // --- ticket selection & stage machine ------------------------------------
 
-  private select(i: number): void {
+  select(i: number): void {
     if (i < 0 || i >= this.tickets.length || this.completed.has(i)) return;
     this.activeIdx = i;
     this.stage = 'broth';
@@ -259,7 +262,7 @@ export class ServiceScene extends Phaser.Scene {
     this.sampleBroth();
   }
 
-  private sampleBroth(): void {
+  sampleBroth(): void {
     this.brothHold = sampleBroth(this.brothHold, this.brothHeat, BROTH_LO, BROTH_HI);
     if (this.brothHold.samples >= BROTH_SAMPLES) this.advanceBroth();
     else this.drawStage();
@@ -272,7 +275,7 @@ export class ServiceScene extends Phaser.Scene {
 
   // --- input handlers (mouse + keyboard + e2e share these) -----------------
 
-  private addToppingByIndex(index: number): void {
+  addToppingByIndex(index: number): void {
     if (index < 0 || index >= this.required.length) return;
     this.addTopping(this.required[index]!);
   }
@@ -358,40 +361,6 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   private exposeDebugApi(): void {
-    const api = {
-      inSession: () => this.inSession,
-      stage: () => this.stage,
-      activeIdx: () => this.activeIdx,
-      streak: () => this.streak,
-      coins: () => this.coins,
-      completed: () => [...this.completed],
-      qualities: () => [...this.qualities],
-      tickets: () =>
-        this.tickets.map((t) => ({
-          recipeId: t.order.recipeId,
-          extras: [...t.order.extraToppings],
-          price: t.order.price,
-          doneness: t.doneness,
-        })),
-      required: () => [...this.required],
-      layout: () => this.layout,
-      toppingSequence: () => [...this.toppingSequence],
-      broth: () => ({ ...this.brothHold, heat: this.brothHeat }),
-      noodleSweep: () => this.noodleSweep,
-      select: (i: number) => this.select(i),
-      ticketScreen: (i: number) =>
-        nativeScreenPoint(this, this.railButtons[i]!.x, this.railButtons[i]!.y),
-      addTopping: (t: ToppingId) => this.addTopping(t),
-      addToppingByIndex: (i: number) => this.addToppingByIndex(i),
-      stopNoodles: () => this.stopNoodles(),
-      serve: () => this.serve(),
-      openDoors: () => this.openDoors(),
-      /** DEBUG: drive the broth needle directly, one sample per call. */
-      setBrothHeat: (h: number) =>
-        void ((this.brothHeat = Phaser.Math.Clamp(h, 0, 1)), this.sampleBroth()),
-      /** DEBUG: set the noodle sweep position directly (before/after stop). */
-      setNoodleSweep: (s: number) => void (this.noodleSweep = s % 1),
-    };
-    (window as unknown as { __nyanService: typeof api }).__nyanService = api;
+    exposeServiceDebugApi(this, this);
   }
 }

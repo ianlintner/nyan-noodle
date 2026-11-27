@@ -13,11 +13,15 @@ import { MilestoneScene } from './meta/MilestoneScene';
 import { session } from './meta/session';
 import { audio } from './audio/manager';
 import { loadAudioSettings } from './audio/controller';
+import { exposeCoachApi } from './meta/coach';
 
 // Saved preferences must be applied before any settings UI or audible output exists: a first
 // gesture during the read must not start audio with default (unmuted) settings. The
 // AudioContext itself is still created lazily inside the gesture handler below.
-void loadAudioSettings().then(boot);
+void Promise.all([loadAudioSettings(), session.coach.ready()]).then(() => {
+  exposeCoachApi(session.coach);
+  boot();
+});
 
 function boot(): void {
   /** Browser autoplay policy: an AudioContext may only start inside a real user gesture. */

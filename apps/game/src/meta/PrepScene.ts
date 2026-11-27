@@ -26,6 +26,7 @@ import { audio } from '../audio/manager';
 import { SERVICE_SCENE_KEY } from '../service/ServiceScene';
 import { drawGoalsPanel, exposeGoalsApi } from './goalsPanel';
 import { session } from './session';
+import { installCoach } from './coach';
 import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsNumber } from './ui';
 import { ATLAS_KEY } from '../shop/CatActor';
 
@@ -59,6 +60,7 @@ export class PrepScene extends Phaser.Scene {
     backdrop(this);
     this.msg = messageLine(this, NATIVE_HEIGHT - 38);
     this.render();
+    installCoach(this, 'prep', session.coach);
     this.exposeDebugApi();
     exposeGoalsApi();
     this.registry.set('prepReady', true);
@@ -76,7 +78,7 @@ export class PrepScene extends Phaser.Scene {
     for (const o of this.dynamic) o.destroy();
     const before = new Set(this.children.list);
     this.draw();
-    this.dynamic = this.children.list.filter((o) => !before.has(o));
+    this.dynamic = this.children.list.filter((o) => !before.has(o) && !o.getData('nyanCoach'));
   }
 
   private draw(): void {

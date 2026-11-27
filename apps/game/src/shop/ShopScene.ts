@@ -1,15 +1,11 @@
 import Phaser from 'phaser';
 import {
-  activeSeats,
-  appealScore,
   createSimState,
   describeBuildError,
   getTier,
   isTierId,
-  layoutDemandMultiplier,
   planService,
   settleDay,
-  upgradeInfo,
   upgradeTier,
   type BuildError,
   type ServicePlan,
@@ -18,9 +14,10 @@ import {
 } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, TILE_SIZE } from '../config';
 import { PALETTE } from '../theme/palette';
-import { createButton, drawPanel, pixelText, type ButtonHandle } from '../theme/hud';
+import type { ButtonHandle } from '../theme/hud';
+import { buildShopHud, shopBuildSummary } from './hudView';
 import { BuildController, type BuildTool } from '../build/BuildController';
-import { BuildPanel, BTN_STEP } from '../build/BuildPanel';
+import { BTN_STEP, type BuildPanel } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { CameraRig } from './CameraRig';
@@ -28,10 +25,11 @@ import { ShopDirector } from './director';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
 import { startSteam } from './steam';
-import { installShopTouch, overBuildTouch, type ShopTouchUi } from './touch';
+import { overBuildTouch, type ShopTouchUi } from './touch';
 import { cellScreenPoint, nativeScreenPoint } from './screen';
 import { WorldView } from './WorldView';
 import { session } from '../meta/session';
+import { installCoach, overCoachButton, type CoachHandle } from '../meta/coach';
 import { SCENE_KEYS } from '../meta/ui';
 import { ShopSound, shopSoundSource } from './sound';
 
@@ -79,6 +77,7 @@ export class ShopScene extends Phaser.Scene {
   private buildPanel!: BuildPanel;
   private touchUi!: ShopTouchUi;
   private toggle!: ButtonHandle;
+  private coach!: CoachHandle;
   private beat = 0;
   private hudText!: Phaser.GameObjects.Text;
   private msgText!: Phaser.GameObjects.Text;
@@ -163,6 +162,14 @@ export class ShopScene extends Phaser.Scene {
     this.rig = new CameraRig(this, this.layout.cols * TILE_SIZE, this.layout.rows * TILE_SIZE);
     const hudBefore = new Set(this.children.list);
     this.buildHud();
+    this.coach = installCoach(
+      this,
+      this.params.mode === 'build' ? 'build' : 'shop',
+      session.coach,
+      {
+        registerUi: (o) => this.cameras.main.ignore(o),
+      },
+    );
     this.shopAudio.install(this, this.soundSource, {
       registerUi: (o) => this.cameras.main.ignore(o),
     });
@@ -179,7 +186,7 @@ export class ShopScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number): void {
     this.touchUi.setVisible(this.mode === 'build');
     if (this.mode === 'build') {
-      this.hudText.setText(this.buildSummary());
+      this.hudText.setText(shopBuildSummary(this.state));
       const problem = this.build.hoverProblem;
       const text = problem ? describeBuildError(problem as BuildError) : this.message;
       this.msgText.setText(text);
@@ -209,6 +216,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPanel.setVisible(false);
     this.rig.dragEnabled = true;
     this.mode = 'service';
+    this.coach.setContext('shop');
     this.director?.destroy();
     this.plan = planService(this.state);
     this.beat = 0;
@@ -243,6 +251,8 @@ export class ShopScene extends Phaser.Scene {
     this.build.enable();
     this.toggle.setLabel(this.inSession ? 'Done' : 'Open shop');
     this.speedButton?.container.setVisible(false);
+    this.coach.setContext('build');
+    if (this.params.mode !== 'build') this.coach.callout('build');
     this.say('Pick furniture, click to place', true);
   }
 
@@ -291,23 +301,8 @@ export class ShopScene extends Phaser.Scene {
   private overUi(x: number, y: number): boolean {
     if (this.mode === 'build' && (this.buildPanel.contains(x, y) || overBuildTouch(x, y)))
       return true;
-    return (x < 136 && y < 58) || (x < 72 && y > NATIVE_HEIGHT - 20);
-  }
-
-  private buildSummary(): string {
-    const s = this.state;
-    const tier = getTier(s.tierId);
-    const seats = activeSeats(s.tierId, s.items).length;
-    const stoves = s.items.filter((i) => i.kind === 'stove').length;
-    const demand = Math.round(
-      (layoutDemandMultiplier(s.tierId, s.items) / tier.demandMultiplier - 1) * 100,
-    );
-    const up = upgradeInfo(s);
-    const need = up ? `Next: ${up.cost}c ${up.reputation}*` : 'Top tier';
     return (
-      `${tier.name}  Coins ${s.economy.fishCoins}\n` +
-      `Seats ${seats}/${tier.seats} Stoves ${stoves}/${tier.stoves}\n` +
-      `Appeal ${appealScore(s.items)} (+${demand}%) ${need}`
+      (x < 136 && y < 58) || (x < 72 && y > NATIVE_HEIGHT - 20) || overCoachButton('shop', x, y)
     );
   }
 
@@ -326,40 +321,25 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    const { content } = drawPanel(this, 4, 4, 128, 56, { title: 'Nyan Noodle' });
-    this.hudText = pixelText(this, content.x + 2, content.y + 1, '');
-    this.msgText = pixelText(this, 6, 62, '', { token: 'brothGold' });
-    this.toggle = createButton(this, 4, NATIVE_HEIGHT - 18, 64, 14, 'Build', () => {
-      if (this.inSession) return this.mode === 'build' ? this.leaveBuild() : this.finishDay();
-      if (this.mode === 'build') this.startService();
-      else this.enterBuild();
-    });
-    if (this.inSession) {
-      this.speedButton = createButton(this, 72, NATIVE_HEIGHT - 18, 48, 14, 'x1', () => {
-        const next = this.params.speed >= 8 ? 1 : this.params.speed * 2;
-        this.params = { ...this.params, speed: next };
-        this.speedButton?.setLabel(`x${next}`);
-      });
-    }
-    this.buildPanel = new BuildPanel(
-      this,
-      {
-        pick: (tool) => this.pick(tool),
-        rotate: () => this.build.rotate(),
-        upgrade: () => this.upgrade(),
-      },
-      this.state.tierId,
-    );
-    this.touchUi = installShopTouch(this, {
+    const hud = buildShopHud({
+      scene: this,
+      inSession: this.inSession,
+      tierId: this.state.tierId,
       rig: this.rig,
       build: this.build,
       isBuild: () => this.mode === 'build',
+      speed: () => this.params.speed,
+      onSpeed: (next) => void (this.params = { ...this.params, speed: next }),
+      onToggle: () => {
+        if (this.inSession) return this.mode === 'build' ? this.leaveBuild() : this.finishDay();
+        if (this.mode === 'build') this.startService();
+        else this.enterBuild();
+      },
+      onPick: (tool) => this.pick(tool),
+      onRotate: () => this.build.rotate(),
+      onUpgrade: () => this.upgrade(),
     });
-    pixelText(this, NATIVE_WIDTH - 4, NATIVE_HEIGHT - 3, '+/- zoom  arrows pan', {
-      token: 'cream',
-      originX: 1,
-      originY: 1,
-    });
+    Object.assign(this, hud);
   }
   private exposeDebugApi(): void {
     const screen = (x: number, y: number): { x: number; y: number } => cellScreenPoint(this, x, y);
