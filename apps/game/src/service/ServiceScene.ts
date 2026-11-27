@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import {
   CHEF_TICKETS,
+  MIN_ACCEPT_QUALITY,
   chefTickets,
   planService,
   settleBowl,
+  traitQualityBar,
   type CookMeasurements,
   type ToppingId,
 } from '@nyan-noodle/sim';
@@ -323,6 +325,7 @@ export class ServiceScene extends Phaser.Scene {
       this.streak,
       Math.floor(this.beats),
       RUSH_THRESHOLD_BEATS,
+      MIN_ACCEPT_QUALITY + (ticket.isRegular ? traitQualityBar(ticket.trait) : 0),
     );
     this.qualities[this.activeIdx] = payout.quality;
     if (payout.failed) {

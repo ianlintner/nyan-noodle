@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { Doneness, TraitId } from '@nyan-noodle/sim';
+import { NATIVE_WIDTH } from '../config';
 import { color } from '../theme/palette';
 import { drawPanel, FONT_FAMILY, pixelText } from '../theme/hud';
 import { ATLAS_KEY } from '../shop/CatActor';
@@ -94,15 +95,22 @@ export function drawTicketRail(
 ): { buttons: Phaser.GameObjects.Container[]; rings: Phaser.GameObjects.Rectangle[] } {
   const buttons: Phaser.GameObjects.Container[] = [];
   const rings: Phaser.GameObjects.Rectangle[] = [];
+  // Shrink cards to fit when the rail holds more than the fixed 70px stride can carry.
+  const gap = 4;
+  const avail = NATIVE_WIDTH - 16; // 8px margins on each side of the rail band.
+  const w = Math.min(
+    66,
+    Math.floor((avail - gap * (tickets.length - 1)) / Math.max(1, tickets.length)),
+  );
   tickets.forEach((t, i) => {
     const done = completed.has(i);
     const active = i === activeIdx;
-    const x = 8 + i * 70;
-    const w = 66;
+    const x = 8 + i * (w + gap);
     const h = 24;
     const c = scene.add.container(x, 4);
 
     // Ticket tile background: a small card with a 1px outline and 3-tone face.
+    // Added first so the affection hearts and labels drawn later sit above it.
     const g = scene.add.graphics();
     g.fillStyle(color('outline'), 1);
     g.fillRect(0, 0, w, h);
@@ -110,6 +118,7 @@ export function drawTicketRail(
     g.fillRect(1, 1, w - 2, h - 2);
     g.fillStyle(color(done ? 'tatami' : 'steamWhite'), 1);
     g.fillRect(1, 1, w - 2, 1);
+    c.add(g);
 
     // Cat portrait: head crop of the down/idle frame.
     const coat = t.resolveCoat(t.coat);
@@ -155,7 +164,7 @@ export function drawTicketRail(
     );
     patienceG.fillRect(3, h - 4, full, 2);
 
-    c.add([g, portrait, bowl, label, glyphG, patienceG]);
+    c.add([portrait, bowl, label, glyphG, patienceG]);
     c.setSize(w, h);
     c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
     c.on('pointerup', () => t.onSelect(i));

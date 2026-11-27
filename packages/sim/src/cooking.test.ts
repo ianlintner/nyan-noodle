@@ -166,4 +166,29 @@ describe('settleBowl', () => {
     const b = settleBowl('miso', ['egg'], 12, perfect(), 2, 4, 12);
     expect(a).toEqual(b);
   });
+
+  it('a raised accept bar (picky regular) fails a bowl the base 40 bar accepts', () => {
+    // A good-but-not-perfect bowl lands above MIN_ACCEPT_QUALITY (40) but below a
+    // picky regular's bar (40 + 12 = 52); the live kitchen feedback must agree with
+    // settleDay rather than showing a false accept.
+    const mid: CookMeasurements = {
+      broth: { inBandFraction: 0.9, overheated: false },
+      noodles: { requested: 'firm', stoppedAt: 0.9 }, // overcooked: triangle falloff
+      toppings: { applied: ['nori', 'scallion'] }, // complete for shoyu default
+    };
+    const quality = scoreBowl('shoyu', [], mid).quality;
+    // The base settle accepts it:
+    const base = settleBowl('shoyu', [], 10, mid, 0, 2, 10);
+    expect(base.failed).toBe(false);
+    expect(quality).toBeGreaterThanOrEqual(MIN_ACCEPT_QUALITY);
+
+    // A picky regular holds it to a higher bar; a bar just above the bowl's own
+    // quality rejects it, exactly as settleDay's acceptBar = 40 + traitQualityBar
+    // ('picky') would for a mid-quality bowl.
+    const picky = settleBowl('shoyu', [], 10, mid, 0, 2, 10, quality + 1);
+    expect(picky.failed).toBe(true);
+    expect(picky.quality).toBe(quality);
+    expect(picky.tip).toBe(0);
+    expect(picky.bonusCoins).toBe(0);
+  });
 });

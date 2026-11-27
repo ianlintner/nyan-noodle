@@ -21,6 +21,11 @@ export {
   breedTrait,
   randomBreed,
   randomTrait,
+  traitArrivalOffset,
+  traitPatienceModifier,
+  traitQualityBar,
+  traitTipBonus,
+  traitToppingBias,
 } from './breeds';
 export type { Breed, BreedId, Trait, TraitId } from './breeds';
 
