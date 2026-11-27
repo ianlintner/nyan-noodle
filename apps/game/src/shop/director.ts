@@ -18,7 +18,7 @@ export interface ShopEvent {
 }
 
 interface Runtime {
-  readonly visit: ServiceVisit;
+  visit: ServiceVisit;
   readonly actor: CatActor;
   phase: CustomerPhase;
   slot: number;
@@ -100,6 +100,16 @@ export class ShopDirector {
         y: r.actor.y,
         seat: r.visit.seatIndex,
       }));
+  }
+
+  /**
+   * Swap in a replanned service (after a greet). History before now is identical in the
+   * new plan, so only unspawned arrivals and each cat's future seat/leave beats change.
+   */
+  setPlan(plan: ServicePlan): void {
+    const byId = new Map(plan.visits.map((v) => [v.customerId, v]));
+    for (const r of this.runtimes.values()) r.visit = byId.get(r.visit.customerId) ?? r.visit;
+    this.pending = plan.visits.filter((v) => !this.runtimes.has(v.customerId));
   }
 
   /** Remove every cat and bowl (leaving the shop for build mode). */

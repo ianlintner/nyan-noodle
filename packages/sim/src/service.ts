@@ -11,6 +11,7 @@ import { dailyDemand } from './orders';
 import { activeSeats, layoutDemandMultiplier } from './layoutRules';
 import type { RecipeId } from './recipes';
 import { effectiveMenu } from './prep';
+import { GREET_PATIENCE_BEATS } from './interact';
 
 /** Length of the service window on the finer "beat" timeline used for presentation. */
 export const SERVICE_BEATS = 120;
@@ -94,8 +95,14 @@ interface Persona {
  * from seed+day, so it never perturbs `advanceDay`'s draws. A second persona
  * stream assigns breeds/traits/names and picks returning regulars, also seeded,
  * so the demand/coat/menu draws (and thus the balance curve) stay byte-identical.
+ * `greets` (customerId -> times greeted) extends that cat's patience; with none it is the
+ * autopilot baseline, so the same seed + the same greets always yields the same plan.
  */
-export function planService(state: SimState, rng?: Rng): ServicePlan {
+export function planService(
+  state: SimState,
+  rng?: Rng,
+  greets?: ReadonlyMap<number, number>,
+): ServicePlan {
   const seatCount = activeSeats(state.tierId, state.items).length;
   const r = rng ?? createRng((state.seed * 2654435761 + state.clock.day * 97) >>> 0);
   const personRng = createRng((state.seed * 2246822519 + state.clock.day * 31 + 5) >>> 0);
@@ -172,7 +179,8 @@ export function planService(state: SimState, rng?: Rng): ServicePlan {
         Math.floor((i * span) / demand) +
         r.int(0, 2) +
         Math.round(span * traitArrivalOffset(persona.trait)),
-      patienceBeats: customer.patience * BEATS_PER_PATIENCE_TICK,
+      patienceBeats:
+        customer.patience * BEATS_PER_PATIENCE_TICK + (greets?.get(i) ?? 0) * GREET_PATIENCE_BEATS,
       dwell: r.int(16, 26),
     };
   });

@@ -5,6 +5,7 @@ import {
   getTier,
   isTierId,
   planService,
+  tipEligibleVisits,
   settleDay,
   upgradeTier,
   type BuildError,
@@ -15,13 +16,14 @@ import {
 import { NATIVE_HEIGHT, NATIVE_WIDTH, TILE_SIZE } from '../config';
 import { PALETTE } from '../theme/palette';
 import type { ButtonHandle } from '../theme/hud';
-import { buildShopHud, shopBuildSummary } from './hudView';
+import { buildShopHud, overBottomButtons, shopBuildSummary } from './hudView';
 import { BuildController, type BuildTool } from '../build/BuildController';
 import { BTN_STEP, type BuildPanel } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { CameraRig } from './CameraRig';
 import { ShopDirector } from './director';
+import { ShopInteraction } from './interact';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
 import { startSteam } from './steam';
@@ -69,6 +71,7 @@ export class ShopScene extends Phaser.Scene {
   private layout!: ShopLayout;
   private plan: ServicePlan | null = null;
   private director: ShopDirector | null = null;
+  private interact: ShopInteraction | null = null;
   private mode: 'service' | 'build' = 'service';
   private world!: WorldView;
   private rig!: CameraRig;
@@ -114,6 +117,7 @@ export class ShopScene extends Phaser.Scene {
     this.beat = 0;
     this.plan = null;
     this.director = null;
+    this.interact = null;
     this.staffActor = null;
     this.speedButton = null;
   }
@@ -197,6 +201,7 @@ export class ShopScene extends Phaser.Scene {
     const dt = Math.min(deltaMs, 100);
     this.beat += (dt * this.params.speed) / BEAT_MS;
     this.director.update(this.beat, dt, this.params.speed);
+    this.interact?.update();
     if (this.inSession && !this.settled && this.beat > this.plan.beats && this.director.done) {
       this.finishDay();
     }
@@ -204,7 +209,7 @@ export class ShopScene extends Phaser.Scene {
     this.hudText.setText(
       `Day ${this.plan.day} service ${Math.min(Math.floor(this.beat), this.plan.beats)}/${this.plan.beats}\n` +
         `Queue ${c.queued}  Seated ${c.seated}/${this.plan.seats}\n` +
-        `Served ${c.served}  Lost ${c.lost}`,
+        `Served ${c.served}  Lost ${c.lost}\n${this.interact?.hudLine() ?? ''}`,
     );
     this.msgText.setText('');
   }
@@ -218,9 +223,21 @@ export class ShopScene extends Phaser.Scene {
     this.mode = 'service';
     this.coach.setContext('shop');
     this.director?.destroy();
+    this.interact?.destroy();
     this.plan = planService(this.state);
     this.beat = 0;
     this.director = new ShopDirector(this, this.layout, this.plan, (o) => this.uiCam.ignore(o));
+    this.interact = new ShopInteraction({
+      scene: this,
+      layout: this.layout,
+      tier: this.state.tierId,
+      director: this.director,
+      beat: () => this.beat,
+      replan: (byCat) => (this.plan = planService(this.state, undefined, byCat)),
+      eligible: () => tipEligibleVisits(this.state, this.plan!, this.chefQualities),
+      overUi: (x, y) => this.overUi(x, y),
+      register: (o) => this.uiCam.ignore(o),
+    });
     this.toggle.setLabel(this.inSession ? 'Skip day' : 'Build');
     this.speedButton?.container.setVisible(this.inSession);
     this.message = '';
@@ -230,7 +247,10 @@ export class ShopScene extends Phaser.Scene {
   private finishDay(): void {
     if (!this.plan || this.settled) return;
     this.settled = true;
-    const { state } = settleDay(this.state, this.plan, { chefQualities: this.chefQualities });
+    const { state } = settleDay(this.state, this.plan, {
+      chefQualities: this.chefQualities,
+      collected: this.interact?.ids,
+    });
     session.update(state);
     this.scene.start(SCENE_KEYS.report);
   }
@@ -242,6 +262,8 @@ export class ShopScene extends Phaser.Scene {
 
   private enterBuild(): void {
     this.director?.destroy();
+    this.interact?.destroy();
+    this.interact = null;
     this.director = null;
     this.plan = null;
     this.mode = 'build';
@@ -301,9 +323,7 @@ export class ShopScene extends Phaser.Scene {
   private overUi(x: number, y: number): boolean {
     if (this.mode === 'build' && (this.buildPanel.contains(x, y) || overBuildTouch(x, y)))
       return true;
-    return (
-      (x < 136 && y < 58) || (x < 72 && y > NATIVE_HEIGHT - 20) || overCoachButton('shop', x, y)
-    );
+    return (x < 136 && y < 68) || overBottomButtons(x, y) || overCoachButton('shop', x, y);
   }
 
   // ---- scene pieces ----------------------------------------------------------
@@ -370,6 +390,7 @@ export class ShopScene extends Phaser.Scene {
       toggleScreen: () => nativeScreenPoint(this, 36, NATIVE_HEIGHT - 11),
       startService: () => this.startService(),
       finishDay: () => this.finishDay(),
+      interact: () => this.interact?.debug() ?? null,
       setSpeed: (n: number) => (this.params = { ...this.params, speed: n }),
       inSession: () => this.inSession,
       enterBuild: () => this.enterBuild(),

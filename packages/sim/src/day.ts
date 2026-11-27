@@ -18,6 +18,7 @@ import { registerVisit, regularPerks } from './regulars';
 import type { Regular } from './regulars';
 import { traitQualityBar, traitTipBonus } from './breeds';
 import { PERFECT_QUALITY, evaluateGoals } from './goals';
+import { collectBonus } from './interact';
 import type { ComplaintKind, DayReport, SimState } from './state';
 
 /** Bowls the owner cooks alone each day, before equipment and staff. */
@@ -101,12 +102,40 @@ export interface SettleOptions {
    * order to the owner's first bowls. Null/missing entries fall back to the modelled quality.
    */
   readonly chefQualities?: readonly (number | null)[];
+  /**
+   * Customer ids whose tip pop the owner tapped during service, IN TAP ORDER. Each collected
+   * pop on a paid bowl adds a collect count bonus (the Nth distinct tap pays more, capped by
+   * `collectMultiplier`); skipped pops never reset it. Order follows taps, not arrival;
+   * duplicates and unknown ids are ignored. Omitted = autopilot.
+   */
+  readonly collected?: readonly number[];
+}
+
+/** Customer ids whose visit actually earns a tip (same computation as `settleDay`). */
+export function tipEligibleVisits(
+  state: SimState,
+  plan: ServicePlan,
+  chefQualities: readonly (number | null)[] = [],
+): ReadonlySet<number> {
+  const visitTips = new Map<number, number>();
+  settleInternal(state, plan, { chefQualities }, visitTips);
+  return new Set(visitTips.keys());
 }
 
 export function settleDay(
   state: SimState,
   plan: ServicePlan,
   options: SettleOptions = {},
+): DayResult {
+  return settleInternal(state, plan, options, new Map());
+}
+
+/** Shared settlement; `visitTips` receives each tipped visit's base tip (customerId -> tip). */
+function settleInternal(
+  state: SimState,
+  plan: ServicePlan,
+  options: SettleOptions,
+  visitTips: Map<number, number>,
 ): DayResult {
   const r = options.rng ?? createRng(settleSeed(state));
   const chef = options.chefQualities ?? [];
@@ -167,6 +196,7 @@ export function settleDay(
       ? MIN_ACCEPT_QUALITY + traitQualityBar(visit.trait)
       : MIN_ACCEPT_QUALITY;
     const failed = quality < acceptBar;
+    const tipsBefore = tips;
     streak = failed ? 0 : streak + 1;
     if (!failed) {
       if (quality >= PERFECT_QUALITY) perfectBowls += 1;
@@ -200,8 +230,21 @@ export function settleDay(
       regularMap.set(nextRegularId, newcomer);
       nextRegularId += 1;
     }
+    const visitTip = tips - tipsBefore;
+    if (visitTip > 0) visitTips.set(visit.customerId, visitTip);
     const adjust = state.priceAdjust[id];
     if (adjust > 0 && r.next() < adjust * PRICEY_COMPLAINT_CHANCE) complaintKinds.pricey += 1;
+  }
+
+  // Collect count bonuses (capped by collectMultiplier) follow the owner's tap order; the seeded base tips above are untouched.
+  const counted = new Set<number>();
+  let collectCount = 0;
+  for (const id of options.collected ?? []) {
+    const base = visitTips.get(id);
+    if (base === undefined || counted.has(id)) continue;
+    counted.add(id);
+    collectCount += 1;
+    tips += collectBonus(base, collectCount);
   }
 
   const complaints = Object.values(complaintKinds).reduce((a, b) => a + b, 0);

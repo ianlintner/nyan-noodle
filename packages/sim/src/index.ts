@@ -176,6 +176,7 @@ export {
   planDay,
   playerCapacity,
   settleDay,
+  tipEligibleVisits,
   staffCapacity,
 } from './day';
 export type { DayResult, SettleOptions } from './day';
@@ -208,7 +209,25 @@ export type {
   OpeningStatus,
 } from './goals';
 
-export { CHEF_TICKETS, DONENESS_OPTIONS, chefTickets } from './chef';
+export {
+  CHEF_TICKETS,
+  CHEF_TICKETS_BY_TIER,
+  DONENESS_OPTIONS,
+  chefTicketCap,
+  chefTickets,
+} from './chef';
+export {
+  COLLECT_BONUS,
+  GREET_BUDGET_BY_TIER,
+  GREET_PATIENCE_BEATS,
+  MAX_GREETS_PER_CAT,
+  NO_GREETS,
+  collectBonus,
+  collectMultiplier,
+  greetBudget,
+  spendGreet,
+} from './interact';
+export type { GreetLedger } from './interact';
 export type { ChefTicket, Doneness } from './chef';
 
 export { STARTING_STOCK } from './state';
