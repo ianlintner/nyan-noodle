@@ -132,6 +132,11 @@ export class ServiceScene extends Phaser.Scene {
         order: t.order,
         doneness: t.doneness,
         coat: t.coat,
+        name: t.name,
+        breed: t.breed,
+        trait: t.trait,
+        isRegular: t.isRegular,
+        affection: t.affection,
         patience: t.patience,
       }));
       const coming = plan.visits.filter((v) => v.outcome === 'served').length;
@@ -190,6 +195,9 @@ export class ServiceScene extends Phaser.Scene {
         recipeId: t.order.recipeId,
         coat: t.coat,
         patience: t.patience,
+        name: t.name,
+        trait: t.trait,
+        affection: t.affection,
         resolveCoat: (coat) => (coat === 'sakura' ? 'white' : coat),
         onSelect: (i) => this.select(i),
       })),
