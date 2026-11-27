@@ -8,9 +8,23 @@ import type { BreedId, TraitId } from './breeds';
 import { salePrice } from './prep';
 import type { ServicePlan } from './service';
 import type { SimState } from './state';
+import type { ShopTierId } from './shop';
 
 /** Bowls the owner cooks by hand (the three minigames) at the start of each service. */
 export const CHEF_TICKETS = 3;
+
+/** Hand-cook cap per shop tier: the cart starts at CHEF_TICKETS and bigger shops ask more. */
+export const CHEF_TICKETS_BY_TIER: Readonly<Record<ShopTierId, number>> = {
+  cart: CHEF_TICKETS,
+  stall: 3,
+  'small-shop': 4,
+  'ramen-bar': 4,
+  'grand-hall': 5,
+};
+
+export function chefTicketCap(tier: ShopTierId): number {
+  return CHEF_TICKETS_BY_TIER[tier];
+}
 
 export type Doneness = 'soft' | 'firm' | 'default';
 export const DONENESS_OPTIONS: readonly Doneness[] = ['soft', 'firm', 'default'];

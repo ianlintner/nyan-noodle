@@ -18,6 +18,7 @@ import { registerVisit, regularPerks } from './regulars';
 import type { Regular } from './regulars';
 import { traitQualityBar, traitTipBonus } from './breeds';
 import { PERFECT_QUALITY, evaluateGoals } from './goals';
+import { collectBonus } from './interact';
 import type { ComplaintKind, DayReport, SimState } from './state';
 
 /** Bowls the owner cooks alone each day, before equipment and staff. */
@@ -101,6 +102,11 @@ export interface SettleOptions {
    * order to the owner's first bowls. Null/missing entries fall back to the modelled quality.
    */
   readonly chefQualities?: readonly (number | null)[];
+  /**
+   * Customer ids whose tip pop the owner tapped during service. Each collected pop on a
+   * paid bowl adds a bonus and builds a `collectStreak` combo; omitted = autopilot baseline.
+   */
+  readonly collected?: readonly number[];
 }
 
 export function settleDay(
@@ -110,6 +116,8 @@ export function settleDay(
 ): DayResult {
   const r = options.rng ?? createRng(settleSeed(state));
   const chef = options.chefQualities ?? [];
+  const collected = new Set(options.collected ?? []);
+  let collectStreak = 0;
   const menu = effectiveMenu(state);
   const complaintKinds: Record<ComplaintKind, number> = {
     queue: 0,
@@ -167,6 +175,7 @@ export function settleDay(
       ? MIN_ACCEPT_QUALITY + traitQualityBar(visit.trait)
       : MIN_ACCEPT_QUALITY;
     const failed = quality < acceptBar;
+    const tipsBefore = tips;
     streak = failed ? 0 : streak + 1;
     if (!failed) {
       if (quality >= PERFECT_QUALITY) perfectBowls += 1;
@@ -199,6 +208,13 @@ export function settleDay(
       };
       regularMap.set(nextRegularId, newcomer);
       nextRegularId += 1;
+    }
+    const visitTip = tips - tipsBefore;
+    if (visitTip > 0 && collected.has(visit.customerId)) {
+      collectStreak += 1;
+      tips += collectBonus(visitTip, collectStreak);
+    } else if (visitTip > 0) {
+      collectStreak = 0;
     }
     const adjust = state.priceAdjust[id];
     if (adjust > 0 && r.next() < adjust * PRICEY_COMPLAINT_CHANCE) complaintKinds.pricey += 1;

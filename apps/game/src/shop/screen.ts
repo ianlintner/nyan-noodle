@@ -28,3 +28,18 @@ export function cellScreenPoint(
     y: rect.top + (wy - cam.worldView.y) * cam.zoom * k,
   };
 }
+
+/** Map a world-space point (actor feet, pops) to page coordinates. */
+export function worldScreenPoint(
+  scene: Phaser.Scene,
+  wx: number,
+  wy: number,
+): { x: number; y: number } {
+  const cam = scene.cameras.main;
+  const rect = scene.game.canvas.getBoundingClientRect();
+  const k = rect.width / NATIVE_WIDTH;
+  return {
+    x: rect.left + (wx - cam.worldView.x) * cam.zoom * k,
+    y: rect.top + (wy - cam.worldView.y) * cam.zoom * k,
+  };
+}

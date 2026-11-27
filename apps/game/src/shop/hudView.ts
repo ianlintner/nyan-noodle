@@ -41,7 +41,7 @@ export interface ShopHud {
 
 /** The shop's fixed HUD, built once per scene create. Behaviour lives in ShopScene. */
 export function buildShopHud(s: ShopHudState): ShopHud {
-  const { content } = drawPanel(s.scene, 4, 4, 128, 56, { title: 'Nyan Noodle' });
+  const { content } = drawPanel(s.scene, 4, 4, 128, 66, { title: 'Nyan Noodle' });
   const hudText = pixelText(s.scene, content.x + 2, content.y + 1, '');
   const msgText = pixelText(s.scene, 6, 62, '', { token: 'brothGold' });
   const toggle = createButton(s.scene, 4, NATIVE_HEIGHT - 18, 64, 14, 'Build', s.onToggle);

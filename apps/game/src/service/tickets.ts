@@ -1,5 +1,5 @@
 import {
-  CHEF_TICKETS,
+  chefTicketCap,
   COAT_IDS,
   DONENESS_OPTIONS,
   bowlPrice,
@@ -92,17 +92,19 @@ export function serviceRail(
   if (!inSession) return { tickets: seededServiceTickets(seed, count), todayLines: [] };
   const state = session.state;
   const plan = planService(state);
-  const tickets: ServiceTicket[] = chefTickets(state, plan, CHEF_TICKETS).map((t) => ({
-    order: t.order,
-    doneness: t.doneness,
-    coat: t.coat,
-    name: t.name,
-    breed: t.breed,
-    trait: t.trait,
-    isRegular: t.isRegular,
-    affection: t.affection,
-    patience: t.patience,
-  }));
+  const tickets: ServiceTicket[] = chefTickets(state, plan, chefTicketCap(state.tierId)).map(
+    (t) => ({
+      order: t.order,
+      doneness: t.doneness,
+      coat: t.coat,
+      name: t.name,
+      breed: t.breed,
+      trait: t.trait,
+      isRegular: t.isRegular,
+      affection: t.affection,
+      patience: t.patience,
+    }),
+  );
   const coming = plan.visits.filter((v) => v.outcome === 'served').length;
   return {
     tickets,
