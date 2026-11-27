@@ -23,14 +23,14 @@ export function greetBudget(tier: ShopTierId): number {
   return GREET_BUDGET_BY_TIER[tier];
 }
 
-/** Multiplier for the Nth consecutive collected tip (1 = no combo yet). Named apart from the cook-streak combo. */
-export function collectMultiplier(collectStreak: number): number {
-  return 1 + Math.min(Math.max(collectStreak - 1, 0), COLLECT_COMBO_CAP) * COLLECT_COMBO_STEP;
+/** Multiplier for the Nth collected tip pop (1 = no bonus yet). Named apart from the cook-streak combo. */
+export function collectMultiplier(collectCount: number): number {
+  return 1 + Math.min(Math.max(collectCount - 1, 0), COLLECT_COMBO_CAP) * COLLECT_COMBO_STEP;
 }
 
-/** Extra Fish Coins for collecting a pop worth `tip` at the given collect streak (at least 1). */
-export function collectBonus(tip: number, collectStreak: number): number {
-  return Math.max(1, Math.round(tip * COLLECT_BONUS * collectMultiplier(collectStreak)));
+/** Extra Fish Coins for collecting a pop worth `tip` at the given collect count (at least 1). */
+export function collectBonus(tip: number, collectCount: number): number {
+  return Math.max(1, Math.round(tip * COLLECT_BONUS * collectMultiplier(collectCount)));
 }
 
 /** Tracks greets spent today; day-transient (never saved). */

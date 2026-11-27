@@ -97,3 +97,19 @@ test('collecting tip pops raises the day tips above a no-tap run of the same see
   expect(active.taps).toBeGreaterThan(0);
   expect(active.tips).toBeGreaterThan(idle.tips);
 });
+
+test('clicks on the pause overlay do not greet the cat underneath', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openShop(page, 1);
+  await page.waitForFunction(() => {
+    const i = (window as unknown as W).__nyanShop!.interact();
+    return !!i && i.cats.length > 0;
+  });
+  const before = await look(page);
+  const budget = before.greetsLeft;
+  await page.keyboard.press('Escape');
+  // The overlay pauses the scene but Phaser input still delivers pointer events.
+  await page.mouse.click(before.cats[0]!.x, before.cats[0]!.y);
+  await page.keyboard.press('Escape');
+  expect((await look(page)).greetsLeft).toBe(budget);
+});

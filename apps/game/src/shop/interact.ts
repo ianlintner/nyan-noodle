@@ -60,8 +60,15 @@ export class ShopInteraction {
   /** Pointers currently held; a second one means a pinch, never a tap. */
   private readonly held = new Set<number>();
   private readonly onDown = (p: Phaser.Input.Pointer): void => {
+    // The pause overlay lives on the same scene; its buttons must not spend taps below it.
+    if (this.b.scene.scene.isPaused()) return;
     this.held.add(p.id);
     this.down = this.held.size === 1 ? { id: p.id, x: p.x, y: p.y } : null;
+  };
+  /** A pause discards any press that began before it, so resume cannot spend it. */
+  private readonly onPause = (): void => {
+    this.down = null;
+    this.held.clear();
   };
   private readonly onOutside = (p: Phaser.Input.Pointer): void => {
     this.held.delete(p.id);
@@ -69,6 +76,10 @@ export class ShopInteraction {
   };
   private readonly onUp = (p: Phaser.Input.Pointer): void => {
     this.held.delete(p.id);
+    if (this.b.scene.scene.isPaused()) {
+      this.down = null;
+      return;
+    }
     const d = this.down;
     if (!d || d.id !== p.id) return;
     this.down = null;
@@ -86,6 +97,7 @@ export class ShopInteraction {
     b.scene.input.on('pointerdown', this.onDown);
     b.scene.input.on('pointerup', this.onUp);
     b.scene.input.on('pointerupoutside', this.onOutside);
+    b.scene.events.on('pause', this.onPause);
   }
 
   get ids(): number[] {
@@ -151,6 +163,7 @@ export class ShopInteraction {
     this.b.scene.input.off('pointerdown', this.onDown);
     this.b.scene.input.off('pointerup', this.onUp);
     this.b.scene.input.off('pointerupoutside', this.onOutside);
+    this.b.scene.events.off('pause', this.onPause);
     this.bars.destroy();
     for (const p of this.pops) p.sprite.destroy();
     this.pops.length = 0;
@@ -188,6 +201,14 @@ export class ShopInteraction {
       return this.floater(x, y, this.greetsLeft <= 0 ? 'No greets left' : 'Happy!', '#9aa0a6');
     this.ledger = next;
     this.plan = this.b.replan(next.byCat);
+    // A replan can change who earns a tip; drop pops that are no longer collectible.
+    const eligible = this.b.eligible();
+    for (let i = this.pops.length - 1; i >= 0; i--) {
+      if (!eligible.has(this.pops[i]!.id)) {
+        this.pops[i]!.sprite.destroy();
+        this.pops.splice(i, 1);
+      }
+    }
     this.b.director.setPlan(this.plan);
     this.floater(x, y, '♥ Welcome!', '#ff7aa8');
   }
