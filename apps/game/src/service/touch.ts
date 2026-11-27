@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import { NATIVE_WIDTH } from '../config';
 import { color } from '../theme/palette';
 import { FONT_FAMILY } from '../theme/hud';
@@ -144,8 +144,7 @@ export class ServiceTouchControls {
 
   /** Page coordinates of a control's centre, for Playwright touch emulation. */
   screenPoint(name: string): { x: number; y: number } {
-    const button =
-      name === 'action' ? this.action : this.toppings[Number(name.replace('top', ''))];
+    const button = name === 'action' ? this.action : this.toppings[Number(name.replace('top', ''))];
     if (!button) throw new Error(`unknown touch control: ${name}`);
     const r = button.rect;
     const canvas = this.scene.game.canvas.getBoundingClientRect();

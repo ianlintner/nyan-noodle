@@ -7,6 +7,7 @@ import {
   type ToppingId,
 } from '@nyan-noodle/sim';
 import { isPortrait } from '../config';
+import { nativeScreenPoint } from '../shop/screen';
 import { PALETTE } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from '../meta/session';
@@ -147,9 +148,8 @@ export class ServiceScene extends Phaser.Scene {
       ? `Day ${session.state.clock.day}: cook the first cats'\nbowls by hand, or just\nopen the doors.`
       : 'Click a ticket on the rail.';
     this.stageText = pixelText(this, content.x + 2, content.y + 4, intro);
-    this.statusText = pixelText(this, content.x + 2, content.y + Math.min(134, cooking.h - 24), '', {
-      token: 'lanternYellow',
-    });
+    const statusY = content.y + Math.min(134, cooking.h - 24);
+    this.statusText = pixelText(this, content.x + 2, statusY, '', { token: 'lanternYellow' });
     this.drawRail();
     if (this.inSession) {
       drawTodayPanel(this, this.todayLines, today);
@@ -379,6 +379,8 @@ export class ServiceScene extends Phaser.Scene {
       broth: () => ({ ...this.brothHold, heat: this.brothHeat }),
       noodleSweep: () => this.noodleSweep,
       select: (i: number) => this.select(i),
+      ticketScreen: (i: number) =>
+        nativeScreenPoint(this, this.railButtons[i]!.x, this.railButtons[i]!.y),
       addTopping: (t: ToppingId) => this.addTopping(t),
       addToppingByIndex: (i: number) => this.addToppingByIndex(i),
       stopNoodles: () => this.stopNoodles(),
