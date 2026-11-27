@@ -8,6 +8,8 @@ import type { ShopTierId } from './shop';
 import type { SimState } from './state';
 
 export const STOCK_BOWL_COST = 3;
+/** Free bowls from the neighbour's pantry when the cupboard and wallet are both empty. */
+export const NEIGHBOUR_PANTRY_BOWLS = 5;
 /** Pantry size of the smallest tiers; bigger venues hold more (see `stockCap`). */
 export const STOCK_CAP = STOCK_CAP_BY_TIER.cart;
 
@@ -68,5 +70,30 @@ export function buyStock(state: SimState, bowls: number): ActionResult {
       stockSpent: state.stockSpent + cost,
       economy: { ...state.economy, fishCoins: state.economy.fishCoins - cost },
     },
+  };
+}
+
+/** True when the cupboard is bare, buying is unaffordable and today's pantry is unused. */
+export function pantryOffer(state: SimState): boolean {
+  return (
+    state.stock <= 0 &&
+    state.economy.fishCoins < STOCK_BOWL_COST &&
+    state.pantryDay !== state.clock.day
+  );
+}
+
+/**
+ * Once a day a neighbour lends a few bowls so a broke shop can always open. Pure: the
+ * returned state records the day the favour was used, so it cannot be claimed twice.
+ */
+export function neighbourPantry(state: SimState): ActionResult {
+  if (state.stock > 0) return { ok: false, reason: 'has-stock' };
+  if (state.economy.fishCoins >= STOCK_BOWL_COST) return { ok: false, reason: 'can-afford' };
+  if (state.pantryDay === state.clock.day) return { ok: false, reason: 'pantry-used' };
+  const bowls = Math.min(stockCap(state.tierId), NEIGHBOUR_PANTRY_BOWLS);
+  if (bowls <= 0) return { ok: false, reason: 'maxed' };
+  return {
+    ok: true,
+    state: { ...state, stock: bowls, pantryDay: state.clock.day },
   };
 }

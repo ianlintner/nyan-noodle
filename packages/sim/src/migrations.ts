@@ -68,6 +68,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
       lastReport: report ? { perfectBowls: 0, goalsCompleted: [], ...report } : null,
     };
   },
+  // v5 -> v6: once-a-day neighbour's pantry. Old saves have never used it.
+  5: (raw) => ({ ...raw, version: 6, pantryDay: 0 }),
 };
 
 export class MigrationError extends Error {}
@@ -136,6 +138,7 @@ export function validateState(raw: Raw): SimState {
   need(Array.isArray(raw.menu), 'menu');
   need(isRecord(raw.mastery) && isRecord(raw.priceAdjust) && isRecord(raw.equipment), 'meta');
   need(typeof raw.stock === 'number', 'stock');
+  need(Number.isInteger(raw.pantryDay) && (raw.pantryDay as number) >= 0, 'pantryDay');
   need(isRecord(raw.staff) && Array.isArray(raw.staff.roster), 'staff');
   need(Array.isArray(raw.revenueHistory), 'revenueHistory');
   need(Array.isArray(raw.regulars), 'regulars');

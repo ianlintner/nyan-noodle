@@ -151,6 +151,16 @@ describe('migrations', () => {
     expect(parseSave(serializeSave(createSave(migrated, 'x'))).state).toEqual(migrated);
   });
 
+  it('upgrades a v5 save, adding an unused neighbour pantry', () => {
+    const v6 = createSimState(4, 'stall') as unknown as Record<string, unknown>;
+    const v5: Record<string, unknown> = { ...v6, version: 5 };
+    delete v5.pantryDay;
+    const migrated = migrateState(v5);
+    expect(migrated.version).toBe(SIM_VERSION);
+    expect(migrated.pantryDay).toBe(0);
+    expect(parseSave(serializeSave(createSave(migrated, 'x'))).state).toEqual(migrated);
+  });
+
   it('does not stage a surprise Grand Opening for a v4 shop already at the top', () => {
     const v4 = {
       ...(createSimState(4, 'grand-hall') as unknown as Record<string, unknown>),
@@ -164,6 +174,11 @@ describe('migrations', () => {
   it('rejects a save whose goals block is malformed', () => {
     const bad = { ...createSimState(4, 'cart'), goals: { completed: 'x', opening: 'locked' } };
     expect(() => migrateState(bad)).toThrow(/invalid save: goals/);
+  });
+
+  it('rejects a save with a malformed pantry day', () => {
+    const bad = { ...createSimState(4, 'cart'), pantryDay: -1 };
+    expect(() => migrateState(bad)).toThrow(/invalid save: pantryDay/);
   });
 
   it('parses an old-version save inside a current envelope', () => {

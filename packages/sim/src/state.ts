@@ -71,6 +71,8 @@ export interface SimState {
   readonly regulars: readonly Regular[];
   /** Goal ladder progress and the Grand Opening milestone (see goals.ts). */
   readonly goals: GoalsState;
+  /** Day the once-a-day neighbour's pantry was last taken (0 = never). */
+  readonly pantryDay: number;
   /** In-flight orders during the current service phase. */
   readonly activeOrders: readonly Order[];
   readonly lastReport: DayReport | null;
@@ -78,7 +80,7 @@ export interface SimState {
   readonly revenueHistory: readonly number[];
 }
 
-export const SIM_VERSION = 5;
+export const SIM_VERSION = 6;
 export const STARTING_STOCK = 8;
 
 export function zeroByRecipe(): Record<RecipeId, number> {
@@ -104,6 +106,7 @@ export function createSimState(seed: number, tierId: ShopTierId): SimState {
     priceAdjust: zeroByRecipe(),
     stock: STARTING_STOCK,
     stockSpent: 0,
+    pantryDay: 0,
     mastery: zeroByRecipe(),
     equipment: zeroEquipment(),
     staff: createStaffModel(),

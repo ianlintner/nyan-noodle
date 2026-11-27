@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { autopilotPrep, autopilotRun, stockReserve } from './autopilot';
 import { playerCapacity, staffCapacity } from './day';
-import { STOCK_BOWL_COST, stockCap } from './prep';
+import { NEIGHBOUR_PANTRY_BOWLS, STOCK_BOWL_COST, stockCap } from './prep';
 import { STAFF_HIRE_COST, hireStaff } from './progression';
 import { createSimState } from './state';
 import type { SimState } from './state';
@@ -48,6 +48,20 @@ describe('autopilot stock reserve', () => {
     const roomy = autopilotPrep(withCoins(needed));
     expect(roomy.staff.roster).toHaveLength(empty.staff.roster.length + 1);
     expect(roomy.stock).toBeGreaterThanOrEqual(stockedTarget(roomy));
+  });
+
+  it('takes the neighbour pantry if it starts broke and empty', () => {
+    const s = createSimState(3, 'cart');
+    const broke: SimState = {
+      ...s,
+      stock: 0,
+      pantryDay: 0,
+      economy: { ...s.economy, fishCoins: 0 },
+    };
+    const prepped = autopilotPrep(broke);
+    expect(prepped.stock).toBe(NEIGHBOUR_PANTRY_BOWLS);
+    expect(prepped.pantryDay).toBe(prepped.clock.day);
+    expect(prepped.economy.fishCoins).toBe(0);
   });
 
   it('always leaves enough to stock the kitchen it built when it started solvent', () => {

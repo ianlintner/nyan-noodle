@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {
+  NEIGHBOUR_PANTRY_BOWLS,
   PRICE_STEP,
   RECIPES,
   RECIPE_UNLOCKS,
@@ -9,7 +10,9 @@ import {
   describeProgressionError,
   effectiveMenu,
   getTier,
+  neighbourPantry,
   openingPending,
+  pantryOffer,
   playerCapacity,
   salePrice,
   staffCapacity,
@@ -127,7 +130,15 @@ export class PrepScene extends Phaser.Scene {
       },
     );
     sy += 11;
-    pixelText(this, cx, sy, `Seats: ${tier.seats} max`, { token: 'slate' });
+    if (pantryOffer(s)) {
+      pixelText(this, cx, sy, "Neighbour's pantry:", { token: 'misoOrange' });
+      sy += 11;
+      createButton(this, cx, sy, 150, 16, `Take ${NEIGHBOUR_PANTRY_BOWLS} free bowls`, () =>
+        this.apply(neighbourPantry(session.state)),
+      );
+    } else {
+      pixelText(this, cx, sy, `Seats: ${tier.seats} max`, { token: 'slate' });
+    }
 
     // ---- goals -----------------------------------------------------------------
     drawGoalsPanel(this, 6, 158, NATIVE_WIDTH - 12, 68, s);
@@ -141,7 +152,14 @@ export class PrepScene extends Phaser.Scene {
       this.scene.start(SCENE_KEYS.title);
     });
     createButton(this, NATIVE_WIDTH - 126, NATIVE_HEIGHT - 26, 120, 18, 'Open the shop!', () => {
-      if (s.stock <= 0) return this.msg.say('Buy some stock first - bowls need ingredients', false);
+      if (s.stock <= 0) {
+        return this.msg.say(
+          pantryOffer(s)
+            ? "Broke and out of stock - take the neighbour's pantry"
+            : 'Buy some stock first - bowls need ingredients',
+          false,
+        );
+      }
       void session.save().catch(() => undefined);
       this.scene.start(SERVICE_SCENE_KEY, { session: true });
     });
@@ -193,6 +211,14 @@ export class PrepScene extends Phaser.Scene {
       buy: (n: number) => this.apply(buyStock(session.state, n)),
       toggle: (id: RecipeId) => this.apply(toggleMenu(session.state, id)),
       price: (id: RecipeId, d: number) => this.apply(adjustPrice(session.state, id, d)),
+      pantry: () => this.apply(neighbourPantry(session.state)),
+      offer: () => pantryOffer(session.state),
+      /** Test hook: force the dead-end state (empty pantry, no coins) and redraw. */
+      forceBroke: () => {
+        const s = session.state;
+        session.update({ ...s, stock: 0, economy: { ...s.economy, fishCoins: 0 } });
+        this.render();
+      },
       openShop: () => this.scene.start(SERVICE_SCENE_KEY, { session: true }),
       upgrades: () => this.scene.start(SCENE_KEYS.upgrades),
     };
