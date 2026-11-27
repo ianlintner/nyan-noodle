@@ -5,7 +5,6 @@ import {
   EQUIPMENT,
   MASTERY_MAX,
   RECIPE_UNLOCKS,
-  STAFF_HIRE_COST,
   buyEquipment,
   hireStaff,
   levelStaff,
@@ -14,7 +13,7 @@ import {
 } from './progression';
 import { planService } from './service';
 import { upgradeInfo, upgradeTier } from './build';
-import { STOCK_BOWL_COST } from './prep';
+import { STOCK_BOWL_COST, stockCap } from './prep';
 import type { RecipeId } from './recipes';
 import type { EquipmentId, SimState } from './state';
 
@@ -33,57 +32,67 @@ function apply(state: SimState, result: { ok: boolean; state?: SimState }): SimS
 }
 
 /**
+ * Coins the autopilot holds back for stock in `s`: enough to fill the kitchen's cooking
+ * capacity (capped by the pantry) on top of what is already in stock.
+ */
+export function stockReserve(s: SimState): number {
+  const target = Math.min(playerCapacity(s) + staffCapacity(s), stockCap(s.tierId));
+  return Math.max(AUTOPILOT_RESERVE, Math.max(0, target - s.stock) * STOCK_BOWL_COST);
+}
+
+/**
+ * Apply a purchase only if the state it leaves behind can still afford its own stock.
+ * Hires and burner upgrades raise capacity, so the reserve is checked after the change.
+ */
+function applyGuarded(state: SimState, result: { ok: boolean; state?: SimState }): SimState {
+  const next = apply(state, result);
+  return next !== state && next.economy.fishCoins >= stockReserve(next) ? next : state;
+}
+
+/**
  * Simple reference player used by the headless curve and the balance tests: opens every
  * dish it owns, keeps stock topped up, and spends coins on the cheapest useful upgrade.
  */
 export function autopilotPrep(start: SimState): SimState {
   let s = start;
   // Spend before buying stock, but always keep enough back to stock a full kitchen: a
-  // big venue that spends its stock money on upgrades sells out before lunch.
-  const stockBudget = (playerCapacity(s) + staffCapacity(s)) * STOCK_BOWL_COST;
-  const reserve = Math.max(AUTOPILOT_RESERVE, stockBudget);
-
+  // big venue that spends its stock money on upgrades sells out before lunch. Every
+  // purchase is checked against the reserve of the state it produces (`applyGuarded`).
   const up = upgradeInfo(s);
-  if (up && s.economy.fishCoins >= up.cost + reserve && s.economy.reputation >= up.reputation) {
-    s = apply(s, upgradeTier(s));
+  if (up && s.economy.fishCoins >= up.cost && s.economy.reputation >= up.reputation) {
+    s = applyGuarded(s, upgradeTier(s));
   }
   // A new tier carries the old layout over; fill the new floor before anything else.
-  s = furnishToCapacity(s, Math.max(0, s.economy.fishCoins - reserve));
+  // Furnishing does not change cooking capacity, so the current reserve stays valid.
+  s = furnishToCapacity(s, Math.max(0, s.economy.fishCoins - stockReserve(s)));
 
   // The kitchen turned cats away yesterday: more cooking capacity pays for itself, so it
   // comes before saving for the next tier.
   const tooSlow = (s.lastReport?.complaintKinds['too-slow'] ?? 0) > 0;
   if (tooSlow) {
-    const canSpend = (cost: number): boolean => s.economy.fishCoins - cost >= reserve;
-    if (canSpend(equipmentCost('burner', s))) s = apply(s, buyEquipment(s, 'burner'));
-    if (canSpend(STAFF_HIRE_COST)) s = apply(s, hireStaff(s));
+    if (Number.isFinite(equipmentCost('burner', s))) s = applyGuarded(s, buyEquipment(s, 'burner'));
+    s = applyGuarded(s, hireStaff(s));
   }
 
   // Once the next tier's star gate is (nearly) open, hoard coins for it.
   const gate = upgradeInfo(s);
   const saving = gate !== null && s.economy.reputation >= gate.reputation - SAVE_AHEAD_STARS;
-  const afford = (cost: number): boolean => !saving && s.economy.fishCoins - cost >= reserve;
+  const buy = (result: { ok: boolean; state?: SimState }): void => {
+    if (!saving) s = applyGuarded(s, result);
+  };
 
   for (const id of Object.keys(RECIPE_UNLOCKS) as RecipeId[]) {
-    if (!s.unlockedRecipes.includes(id) && afford(RECIPE_UNLOCKS[id].cost)) {
-      s = apply(s, unlockRecipe(s, id));
-    }
+    if (!s.unlockedRecipes.includes(id)) buy(unlockRecipe(s, id));
   }
   for (const id of s.unlockedRecipes) {
     if (!s.menu.includes(id)) s = apply(s, toggleMenu(s, id));
   }
-  if (afford(60)) s = apply(s, hireStaff(s));
-  for (const def of EQUIPMENT) {
-    if (afford(def.costs[s.equipment[def.id]] ?? 9999)) s = apply(s, buyEquipment(s, def.id));
-  }
+  buy(hireStaff(s));
+  for (const def of EQUIPMENT) buy(buyEquipment(s, def.id));
   for (const id of s.unlockedRecipes) {
-    if (s.mastery[id] < MASTERY_MAX && afford(30 * (s.mastery[id] + 1))) {
-      s = apply(s, trainMastery(s, id));
-    }
+    if (s.mastery[id] < MASTERY_MAX) buy(trainMastery(s, id));
   }
-  for (const member of s.staff.roster) {
-    if (afford(40 * member.level)) s = apply(s, levelStaff(s, member.id));
-  }
+  for (const member of s.staff.roster) buy(levelStaff(s, member.id));
   // Stock what the kitchen can actually cook today (plus a small buffer).
   const wanted = Math.max(0, playerCapacity(s) + staffCapacity(s) + 2 - s.stock);
   const bowls = Math.min(wanted, Math.floor(s.economy.fishCoins / STOCK_BOWL_COST));
