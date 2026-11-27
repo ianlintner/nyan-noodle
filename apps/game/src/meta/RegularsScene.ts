@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BREEDS, TRAITS, regularPerks } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
+import { PANEL_TEXT } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { ATLAS_KEY } from '../shop/CatActor';
 import { session } from './session';
@@ -99,7 +100,7 @@ export class RegularsScene extends Phaser.Scene {
           xs + 22,
           y + 20,
           `${reg.visits} visits  ${affection}  perk +${perks.tipBonus}c`,
-          { token: 'brothGold' },
+          { token: PANEL_TEXT.gold },
         );
         pixelText(this, NATIVE_WIDTH - 20, y + 10, `day ${reg.lastSeenDay}`, {
           token: 'slate',

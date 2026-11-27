@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Doneness, TraitId } from '@nyan-noodle/sim';
 import { NATIVE_WIDTH } from '../config';
 import type { Rect } from './layout';
-import { color } from '../theme/palette';
+import { color, PALETTE } from '../theme/palette';
 import { drawPanel, FONT_FAMILY, pixelText } from '../theme/hud';
 import { ATLAS_KEY } from '../shop/CatActor';
 import { drawTraitGlyph } from '../theme/traits';
@@ -158,13 +158,13 @@ export function drawTicketRail(
       fontFamily: FONT_FAMILY,
       fontStyle: 'bold',
       fontSize: '8px',
-      color: '#2b1d2e',
+      color: PALETTE.ink,
     });
     if (t.affection > 0) {
       const hearts = scene.add.text(w - 11, 2, '♥'.repeat(Math.min(t.affection, 5)), {
         fontFamily: FONT_FAMILY,
-        fontSize: '7px',
-        color: '#c33a3a',
+        fontSize: '8px',
+        color: PALETTE.chiliRed,
       });
       hearts.setOrigin(1, 0);
       c.add(hearts);

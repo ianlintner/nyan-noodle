@@ -1,6 +1,18 @@
 import type Phaser from 'phaser';
-import { PALETTE, color, type PaletteToken } from './palette';
+import { PALETTE, blendHex, color, hexToNumber, type PaletteToken } from './palette';
 import { safeHorizontalPad, safeVerticalPad, type ButtonBox } from './hitArea';
+
+/**
+ * Gated buttons wash out their face instead of fading the whole container: the ink
+ * label stays at full opacity so it keeps WCAG AA contrast in every button state.
+ */
+export const DIM_FACE_ALPHA = 0.55;
+
+/** The colour actually painted under a button label, for normal/pressed/dim states. */
+export function buttonFaceHex(pressed: boolean, dimmed: boolean): string {
+  const face = pressed ? PALETTE.misoOrange : PALETTE.brothGold;
+  return dimmed ? blendHex(face, PALETTE.cream, DIM_FACE_ALPHA) : face;
+}
 
 interface RegisteredButton {
   box: ButtonBox;
@@ -135,14 +147,16 @@ export function createButton(
   const text = pixelText(scene, 0, 0, label, { token: 'ink', originX: 0.5, originY: 0.5 });
   const container = scene.add.container(Math.round(x), Math.round(y), [g, text]);
 
-  const draw = (pressed: boolean): void => {
+  let pressed = false;
+  let dimmed = false;
+  const draw = (): void => {
     const dy = pressed ? 1 : 0;
     g.clear();
-    g.fillStyle(color('outline'), 1);
+    g.fillStyle(color(dimmed ? 'stone' : 'outline'), 1);
     roundedRect(g, 0, 0, width, height);
-    g.fillStyle(color(pressed ? 'misoOrange' : 'brothGold'), 1);
+    g.fillStyle(hexToNumber(buttonFaceHex(pressed, dimmed)), 1);
     roundedRect(g, 2, 2 + dy, width - 4, height - 4 - (pressed ? 1 : 0));
-    if (!pressed) {
+    if (!pressed && !dimmed) {
       g.fillStyle(color('lanternYellow'), 1);
       g.fillRect(3, 3, width - 6, 1);
       g.fillStyle(color('misoOrange'), 1);
@@ -150,7 +164,7 @@ export function createButton(
     }
     text.setPosition(Math.round(width / 2), Math.round(height / 2) + dy);
   };
-  draw(false);
+  draw();
 
   container.setSize(width, height);
   const desiredPad = isTouchDevice() ? 5 : 0;
@@ -197,16 +211,26 @@ export function createButton(
   container.once('destroy', unregister);
   scene.events.once('shutdown', unregister);
   setHitArea(padX, padY);
-  container.on('pointerdown', () => draw(true));
+  container.on('pointerdown', () => {
+    pressed = true;
+    draw();
+  });
   container.on('pointerup', () => {
-    draw(false);
+    pressed = false;
+    draw();
     onClick();
   });
-  container.on('pointerout', () => draw(false));
+  container.on('pointerout', () => {
+    pressed = false;
+    draw();
+  });
 
   return {
     container,
     setLabel: (next) => text.setText(next),
-    setDim: (dim) => container.setAlpha(dim ? 0.55 : 1),
+    setDim: (dim) => {
+      dimmed = dim;
+      draw();
+    },
   };
 }

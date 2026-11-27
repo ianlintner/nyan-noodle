@@ -2,12 +2,14 @@ import Phaser from 'phaser';
 import { getTier, openingPending } from '@nyan-noodle/sim';
 import type { ComplaintKind, DayReport } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
+import { PANEL_TEXT } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { audio } from '../audio/manager';
 import { exposeGoalsApi, rewardText } from './goalsPanel';
 import { session } from './session';
 import { installCoach } from './coach';
 import { SCENE_KEYS, backdrop, icon, loadAtlas, messageLine, signed, starsNumber } from './ui';
+import { rowIcon } from './rowArt';
 
 export const REPORT_SCENE_KEY = SCENE_KEYS.report;
 
@@ -87,18 +89,19 @@ export class ReportScene extends Phaser.Scene {
     );
 
     const left = drawPanel(this, 6, 26, 224, 170, { title: 'Takings' });
-    const rows: [string, string, boolean?][] = [
-      ['Cats served', `${report.customersServed}`],
-      ['Cats who left', `${report.customersLost}`],
-      ['Bowl sales', `${report.revenue}c`],
-      ['Tips', `${report.tips}c`],
-      ['Costs (wages+stock)', `-${report.costs}c`],
-      ['Profit', `${signed(report.profit)}c`, true],
-      ['Stock left', `${report.stockLeft} bowls`],
+    const rows: [string, string, boolean?, string?][] = [
+      ['Cats served', `${report.customersServed}`, false, 'cat/tabby/down/idle_0'],
+      ['Cats who left', `${report.customersLost}`, false, 'icon/cross'],
+      ['Bowl sales', `${report.revenue}c`, false, 'food/bowl_shoyu'],
+      ['Tips', `${report.tips}c`, false, 'icon/coin'],
+      ['Costs (wages+stock)', `-${report.costs}c`, false, 'icon/hammer'],
+      ['Profit', `${signed(report.profit)}c`, true, 'icon/star'],
+      ['Stock left', `${report.stockLeft} bowls`, false, 'food/bowl_empty'],
     ];
     let y = left.content.y + 4;
-    for (const [label, value, bold] of rows) {
-      pixelText(this, left.content.x + 4, y, label, { token: bold ? 'ink' : 'slate' });
+    for (const [label, value, bold, frame] of rows) {
+      rowIcon(this, left.content.x + 4, y, frame ?? 'icon/coin', 14);
+      pixelText(this, left.content.x + 24, y, label, { token: bold ? 'ink' : 'slate' });
       pixelText(this, left.content.x + left.content.width - 4, y, value, {
         token: bold ? (report.profit >= 0 ? 'noriGreen' : 'chiliRed') : 'ink',
         originX: 1,
@@ -119,7 +122,7 @@ export class ReportScene extends Phaser.Scene {
         token: 'noriGreen',
       });
       for (const [i, g] of done.slice(0, 2).entries()) {
-        pixelText(this, gx + 6, y + 32 + i * 10, `* ${g.title}`, { token: 'misoOrange' });
+        pixelText(this, gx + 6, y + 32 + i * 10, `* ${g.title}`, { token: PANEL_TEXT.gold });
       }
     }
 
@@ -150,7 +153,7 @@ export class ReportScene extends Phaser.Scene {
       ry += 10;
     }
     ry = Math.max(ry + 8, right.content.y + 96);
-    pixelText(this, rx, ry, 'New today:', { token: 'misoOrange' });
+    pixelText(this, rx, ry, 'New today:', { token: PANEL_TEXT.gold });
     ry += 11;
     if (report.unlocks.length === 0)
       pixelText(this, rx + 6, ry, 'Nothing new yet', { token: 'slate' });

@@ -7,7 +7,7 @@ import {
   type ToppingId,
 } from '@nyan-noodle/sim';
 import { isPortrait } from '../config';
-import { PALETTE } from '../theme/palette';
+import { PALETTE, PANEL_TEXT } from '../theme/palette';
 import { session } from '../meta/session';
 import { installCoach } from '../meta/coach';
 import { audio } from '../audio/manager';
@@ -77,6 +77,7 @@ export class ServiceScene extends Phaser.Scene {
   railButtons: Phaser.GameObjects.Container[] = [];
   private railRings: Phaser.GameObjects.Rectangle[] = [];
   private stageG!: Phaser.GameObjects.Graphics;
+  private stageVessels!: { pot: Phaser.GameObjects.Image; basket: Phaser.GameObjects.Image };
   private stageText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
   private keys!: Record<
@@ -158,11 +159,13 @@ export class ServiceScene extends Phaser.Scene {
       onOpenDoors: () => this.openDoors(),
     });
     this.stageG = hud.stageG;
+    this.stageVessels = hud.vessels;
     this.stageText = hud.stageText;
     this.statusText = hud.statusText;
     this.touch = hud.touch;
     this.uiObjects = hud.objects;
     this.drawRail();
+    this.drawStage();
   }
 
   /** Rebuild HUD for the new orientation while keeping tickets and cooking progress. */
@@ -179,6 +182,8 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   private drawStage(): void {
+    this.stageVessels.pot.setVisible(this.activeIdx >= 0 && this.stage !== 'noodles');
+    this.stageVessels.basket.setVisible(this.activeIdx >= 0 && this.stage === 'noodles');
     if (this.activeIdx < 0) return;
     const bar = stageBar(this.layout.cooking);
     if (this.stage === 'broth') drawBroth(this.stageG, this.brothHeat, this.brothHold.samples, bar);
@@ -341,7 +346,7 @@ export class ServiceScene extends Phaser.Scene {
         .setText(
           `+${gain} (price ${ticket.order.price}, tip ${payout.bonusCoins})\ncombo x${payout.comboMultiplier.toFixed(2)}  total ${this.coins}`,
         )
-        .setColor(PALETTE.lanternYellow);
+        .setColor(PALETTE[PANEL_TEXT.gold]);
     }
     this.completed.add(this.activeIdx);
     this.stage = 'serve';

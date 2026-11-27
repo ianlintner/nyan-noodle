@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { currentGoals, evaluateGoals, getTier, openingStats } from '@nyan-noodle/sim';
 import type { GoalDef, GoalStatus, SimState } from '@nyan-noodle/sim';
+import { PANEL_TEXT } from '../theme/palette';
 import { drawPanel, pixelText } from '../theme/hud';
 import { session } from './session';
 import { starsNumber } from './ui';
@@ -40,7 +41,7 @@ export function drawGoalsPanel(
       originX: 1,
     });
     pixelText(scene, right, ry, rewardText(g.def.rewardCoins, g.def.rewardStars), {
-      token: 'misoOrange',
+      token: PANEL_TEXT.gold,
       originX: 1,
     });
     ry += 11;

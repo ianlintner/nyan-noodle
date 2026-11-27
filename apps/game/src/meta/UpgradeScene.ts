@@ -23,6 +23,8 @@ import {
 import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
+import { PANEL_TEXT } from '../theme/palette';
+import { catPortrait, EQUIPMENT_ICON, RECIPE_ICON, rowIcon } from './rowArt';
 import { audio } from '../audio/manager';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { REGULARS_SCENE_KEY } from './RegularsScene';
@@ -34,13 +36,24 @@ export const UPGRADE_SCENE_KEY = SCENE_KEYS.upgrades;
 
 const RECIPE_IDS: readonly RecipeId[] = ['shoyu', 'miso', 'tonkotsu'];
 const COL_W = 154;
-const ROW_H = 32;
-const BTN_W = 70;
+const ROW_H = 36;
+const BTN_W = 108;
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 /** Upgrade shop: recipes + mastery, equipment, staff cats, and the road to build mode. */
 export class UpgradeScene extends Phaser.Scene {
   private dynamic: Phaser.GameObjects.GameObject[] = [];
   private msg!: ReturnType<typeof messageLine>;
+  /** Keeps every hired cat reachable: the sim allows five, but only three rows fit at once. */
+  private staffPage = 0;
+  /** Last rendered panel rects, exposed to e2e so text containment can be asserted. */
+  private panels: Rect[] = [];
 
   constructor() {
     super(UPGRADE_SCENE_KEY);
@@ -48,6 +61,11 @@ export class UpgradeScene extends Phaser.Scene {
 
   preload(): void {
     loadAtlas(this);
+  }
+
+  private panel(x: number, y: number, w: number, h: number, title: string) {
+    this.panels.push({ x, y, w, h });
+    return drawPanel(this, x, y, w, h, { title });
   }
 
   create(): void {
@@ -76,7 +94,7 @@ export class UpgradeScene extends Phaser.Scene {
     this.dynamic = this.children.list.filter((o) => !before.has(o) && !o.getData('nyanCoach'));
   }
 
-  /** One row: two text lines on the left, one action button under them. */
+  /** Atlas icon plus two text lines above a full-width action button: no overlap. */
   private row(
     x: number,
     y: number,
@@ -85,10 +103,17 @@ export class UpgradeScene extends Phaser.Scene {
     label: string,
     gated: boolean,
     onClick: () => void,
+    frame: string,
+    cropHeight?: number,
   ): void {
-    pixelText(this, x, y, title);
-    pixelText(this, x, y + 10, detail, { token: 'slate' });
-    const b = createButton(this, x + COL_W - BTN_W - 8, y + 18, BTN_W, 12, label, onClick);
+    rowIcon(this, x, y, frame, cropHeight);
+    pixelText(this, x + 20, y, title).setData('nyanRowTitle', true);
+    pixelText(this, x + 20, y + 11, detail, { token: PANEL_TEXT.muted }).setData(
+      'nyanRowDetail',
+      true,
+    );
+    const b = createButton(this, x + 20, y + 23, BTN_W, 12, label, onClick);
+    b.container.setData('nyanRowButton', true);
     b.setDim(gated);
   }
 
@@ -96,6 +121,7 @@ export class UpgradeScene extends Phaser.Scene {
     const s = session.state;
     const rep = s.economy.reputation;
     const tier = getTier(s.tierId);
+    this.panels = [];
     pixelText(this, 8, 6, 'Upgrade shop', { token: 'lanternYellow', scale: 2 });
     pixelText(
       this,
@@ -106,7 +132,7 @@ export class UpgradeScene extends Phaser.Scene {
     );
 
     // ---- recipes -----------------------------------------------------------------
-    const rp = drawPanel(this, 6, 26, COL_W + 8, 178, { title: 'Recipes & mastery' });
+    const rp = this.panel(6, 26, COL_W + 8, 178, 'Recipes & mastery');
     let y = rp.content.y + 3;
     for (const id of RECIPE_IDS) {
       const x = rp.content.x + 3;
@@ -120,6 +146,7 @@ export class UpgradeScene extends Phaser.Scene {
           `Unlock ${g.cost}c`,
           rep < g.stars || s.economy.fishCoins < g.cost,
           () => this.apply(unlockRecipe(session.state, id), `${RECIPES[id].name} unlocked!`),
+          RECIPE_ICON[id],
         );
       } else {
         const level = s.mastery[id];
@@ -134,27 +161,31 @@ export class UpgradeScene extends Phaser.Scene {
           label,
           level < MASTERY_MAX && (rep < stars || s.economy.fishCoins < masteryCost(level)),
           () => this.apply(trainMastery(session.state, id), `${RECIPES[id].name} mastery up!`),
+          RECIPE_ICON[id],
         );
       }
       y += ROW_H + 4;
     }
 
     // ---- equipment --------------------------------------------------------------
-    const ep = drawPanel(this, 6 + COL_W + 12, 26, COL_W + 8, 178, { title: 'Equipment' });
+    const ep = this.panel(6 + COL_W + 12, 26, COL_W + 8, 178, 'Equipment');
     y = ep.content.y + 3;
     for (const def of EQUIPMENT) {
       const level = s.equipment[def.id];
       const maxed = level >= def.maxLevel;
       const cost = def.costs[level] ?? 0;
       const need = def.stars[level] ?? 99;
+      // A compact star tag keeps long equipment names inside the 162px column.
+      const starsTag = maxed ? '' : ` ★${need}`;
       this.row(
         ep.content.x + 3,
         y,
-        `${def.name} L${level}`,
-        maxed ? def.blurb : `${def.blurb} (${need} stars)`,
+        `${def.name} L${level}${starsTag}`,
+        def.blurb,
         maxed ? 'Max' : `Buy ${cost}c`,
         !maxed && (rep < need || s.economy.fishCoins < cost),
         () => this.apply(buyEquipment(session.state, def.id), `${def.name} upgraded!`),
+        EQUIPMENT_ICON[def.id],
       );
       y += ROW_H + 4;
     }
@@ -173,35 +204,73 @@ export class UpgradeScene extends Phaser.Scene {
     goBuild.setDim(false);
 
     // ---- staff ---------------------------------------------------------------------
-    const sp = drawPanel(this, 6 + 2 * (COL_W + 12), 26, COL_W + 8 - 26, 178, {
-      title: 'Staff cats',
-    });
+    const perPage = 3;
+    const count = s.staff.roster.length;
+    const pages = Math.max(1, Math.ceil(count / perPage));
+    this.staffPage = Math.min(this.staffPage, pages - 1);
+    const lastPage = this.staffPage === pages - 1;
+    const pageTag = pages > 1 ? ` ${this.staffPage + 1}/${pages}` : '';
+    const sp = this.panel(
+      6 + 2 * (COL_W + 12),
+      26,
+      COL_W + 8 - 26,
+      178,
+      `Staff cats (${count})${pageTag}`,
+    );
     y = sp.content.y + 3;
     const sx = sp.content.x + 3;
-    for (const member of s.staff.roster) {
+    const start = this.staffPage * perPage;
+    for (const member of s.staff.roster.slice(start, start + perPage)) {
       const cost = staffLevelCost(member.level);
       const maxed = member.level >= STAFF_LEVEL_MAX;
-      pixelText(this, sx, y, `${member.name} L${member.level}`);
-      pixelText(this, sx, y + 10, `wage ${member.wage}c  q~${cookQuality(s, true, 'shoyu')}`, {
-        token: 'slate',
-      });
-      const b = createButton(this, sx, y + 20, 70, 12, maxed ? 'Max' : `Level ${cost}c`, () =>
+      const coat = (['tabby', 'grey', 'black', 'white'] as const)[member.id % 4]!;
+      rowIcon(this, sx, y, catPortrait(coat), 12);
+      pixelText(this, sx + 20, y, `${member.name} L${member.level}`).setData('nyanRowTitle', true);
+      pixelText(this, sx + 20, y + 11, `wage ${member.wage}c  q~${cookQuality(s, true, 'shoyu')}`, {
+        token: PANEL_TEXT.muted,
+      }).setData('nyanRowDetail', true);
+      const b = createButton(this, sx + 20, y + 23, 80, 12, maxed ? 'Max' : `Level ${cost}c`, () =>
         this.apply(levelStaff(session.state, member.id), `${member.name} levelled up!`),
       );
+      b.container.setData('nyanRowButton', true);
+      b.container.setData('nyanLevelButton', member.id);
       b.setDim(!maxed && s.economy.fishCoins < cost);
       y += ROW_H + 2;
     }
-    const count = s.staff.roster.length;
-    if (count < STAFF_MAX) {
-      const need = STAFF_HIRE_STARS[count] ?? 99;
-      pixelText(this, sx, y, 'Hire a staff cat');
-      pixelText(this, sx, y + 10, `Needs ${need} stars`, { token: 'slate' });
-      const b = createButton(this, sx, y + 20, 70, 12, `Hire ${STAFF_HIRE_COST}c`, () =>
-        this.apply(hireStaff(session.state), 'A new cat joins the kitchen!'),
-      );
-      b.setDim(rep < need || s.economy.fishCoins < STAFF_HIRE_COST);
-    } else {
-      pixelText(this, sx, y, 'Kitchen is full', { token: 'slate' });
+    // The hire row belongs on the last page, where the new cat appears.
+    if (lastPage) {
+      if (count < STAFF_MAX) {
+        const need = STAFF_HIRE_STARS[count] ?? 99;
+        rowIcon(this, sx, y, 'icon/heart');
+        pixelText(this, sx + 20, y, 'Hire a staff cat').setData('nyanRowTitle', true);
+        pixelText(this, sx + 20, y + 11, `Needs ${need} stars`, {
+          token: PANEL_TEXT.muted,
+        }).setData('nyanRowDetail', true);
+        const b = createButton(this, sx + 20, y + 23, 80, 12, `Hire ${STAFF_HIRE_COST}c`, () => {
+          this.staffPage = Math.floor(count / perPage); // the new cat lands on this page
+          this.apply(hireStaff(session.state), 'A new cat joins the kitchen!');
+        });
+        b.container.setData('nyanRowButton', true);
+        b.setDim(rep < need || s.economy.fishCoins < STAFF_HIRE_COST);
+      } else {
+        pixelText(this, sx, y, 'Kitchen is full', { token: PANEL_TEXT.muted });
+      }
+      y += ROW_H + 2;
+    }
+    if (pages > 1) {
+      const prev = createButton(this, sx, y, 56, 12, 'Prev', () => {
+        this.staffPage = Math.max(0, this.staffPage - 1);
+        this.render();
+      });
+      prev.container.setData('nyanRowButton', true);
+      prev.setDim(this.staffPage === 0);
+      const next = createButton(this, sx + 60, y, 56, 12, 'Next', () => {
+        this.staffPage = Math.min(pages - 1, this.staffPage + 1);
+        this.render();
+      });
+      next.container.setData('nyanRowButton', true);
+      next.container.setData('nyanNextButton', true);
+      next.setDim(lastPage);
     }
 
     createButton(this, 6, NATIVE_HEIGHT - 26, 90, 18, 'Back to prep', () =>
@@ -223,6 +292,39 @@ export class UpgradeScene extends Phaser.Scene {
       train: (id: RecipeId) => this.apply(trainMastery(session.state, id), 'ok'),
       hire: () => this.apply(hireStaff(session.state), 'ok'),
       prep: () => this.scene.start(SCENE_KEYS.prep),
+      /**
+       * Native-pixel boxes for row text, full button faces and panels. Exposed so e2e can
+       * prove text never intersects a button or escapes its panel at any viewport size.
+       */
+      layout: () => {
+        const box = (o: Phaser.GameObjects.GameObject): Rect => {
+          if (o instanceof Phaser.GameObjects.Container) {
+            // Graphics faces have no getBounds(); use the explicit button size.
+            return { x: o.x, y: o.y, w: o.width, h: o.height };
+          }
+          const b = (o as Phaser.GameObjects.Text).getBounds();
+          return { x: b.x, y: b.y, w: b.width, h: b.height };
+        };
+        const tagged = (key: string): Rect[] =>
+          this.children.list.filter((o) => o.getData(key) === true).map(box);
+        const taggedText = (key: string): string[] =>
+          this.children.list
+            .filter((o) => o.getData(key) === true)
+            .map((o) => (o as Phaser.GameObjects.Text).text);
+        const next = this.children.list.find((o) => o.getData('nyanNextButton') === true);
+        return {
+          panels: this.panels.map((p) => ({ ...p })),
+          titles: tagged('nyanRowTitle'),
+          labels: taggedText('nyanRowTitle'),
+          details: tagged('nyanRowDetail'),
+          buttons: tagged('nyanRowButton'),
+          next: next ? box(next) : undefined,
+          /** Staff ids with a Level button on the current page. */
+          levels: this.children.list
+            .filter((o) => o.getData('nyanLevelButton') !== undefined)
+            .map((o) => o.getData('nyanLevelButton') as number),
+        };
+      },
     };
     (window as unknown as { __nyanUpgrades: typeof api }).__nyanUpgrades = api;
   }

@@ -21,7 +21,9 @@ import {
 } from '@nyan-noodle/sim';
 import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
+import { PANEL_TEXT } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
+import { rowIcon } from './rowArt';
 import { audio } from '../audio/manager';
 import { SERVICE_SCENE_KEY } from '../service/ServiceScene';
 import { drawGoalsPanel, exposeGoalsApi } from './goalsPanel';
@@ -108,9 +110,11 @@ export class PrepScene extends Phaser.Scene {
     const cx = stockPanel.content.x + 4;
     let sy = stockPanel.content.y + 4;
     const cap = stockCap(s.tierId);
-    pixelText(this, cx, sy, `Stock: ${s.stock}/${cap} bowls`);
+    rowIcon(this, cx, sy, 'food/bowl_empty', undefined, 0.5);
+    pixelText(this, cx + 20, sy, `Stock: ${s.stock}/${cap} bowls`);
     sy += 11;
-    pixelText(this, cx, sy, `Ingredients ${STOCK_BOWL_COST}c per bowl`, { token: 'slate' });
+    rowIcon(this, cx, sy, 'icon/coin', undefined, 0.5);
+    pixelText(this, cx + 20, sy, `Ingredients ${STOCK_BOWL_COST}c per bowl`, { token: 'slate' });
     sy += 13;
     const buy = (n: number, label: string, x: number): void => {
       createButton(this, x, sy, 48, 16, label, () => this.apply(buyStock(session.state, n)));
@@ -120,11 +124,13 @@ export class PrepScene extends Phaser.Scene {
     buy(cap, 'Fill', cx + 104);
     sy += 24;
     const staffN = s.staff.roster.length;
-    pixelText(this, cx, sy, `You cook ${playerCapacity(s)} bowls/day`);
+    rowIcon(this, cx, sy, 'icon/flame', undefined, 0.5);
+    pixelText(this, cx + 20, sy, `You cook ${playerCapacity(s)} bowls/day`);
     sy += 11;
+    rowIcon(this, cx, sy, 'icon/heart', undefined, 0.5);
     pixelText(
       this,
-      cx,
+      cx + 20,
       sy,
       staffN > 0 ? `${staffN} staff cook ${staffCapacity(s)} more` : 'No staff hired yet',
       {
@@ -133,7 +139,8 @@ export class PrepScene extends Phaser.Scene {
     );
     sy += 11;
     if (pantryOffer(s)) {
-      pixelText(this, cx, sy, "Neighbour's pantry:", { token: 'misoOrange' });
+      rowIcon(this, cx, sy, 'furniture/sign', undefined, 0.5);
+      pixelText(this, cx + 20, sy, "Neighbour's pantry:", { token: PANEL_TEXT.gold });
       sy += 11;
       createButton(this, cx, sy, 150, 16, `Take ${NEIGHBOUR_PANTRY_BOWLS} free bowls`, () =>
         this.apply(neighbourPantry(session.state)),
@@ -198,7 +205,7 @@ export class PrepScene extends Phaser.Scene {
         token: 'slate',
       },
     );
-    pixelText(this, x + 176, y + 1, `${salePrice(s, id)}c`, { token: 'misoOrange', scale: 2 });
+    pixelText(this, x + 176, y + 1, `${salePrice(s, id)}c`, { token: PANEL_TEXT.gold, scale: 2 });
     createButton(this, x + 214, y, 16, 14, '-', () =>
       this.apply(adjustPrice(session.state, id, -1)),
     );
