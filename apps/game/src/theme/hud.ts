@@ -2,6 +2,9 @@ import type Phaser from 'phaser';
 import { PALETTE, color, type PaletteToken } from './palette';
 import { safeHorizontalPad, safeVerticalPad, type ButtonBox } from './hitArea';
 
+/** Dimmed button labels must still clear WCAG AA against the cream panel fill. */
+export const DIM_ALPHA = 0.7;
+
 interface RegisteredButton {
   box: ButtonBox;
   padX: number;
@@ -207,6 +210,6 @@ export function createButton(
   return {
     container,
     setLabel: (next) => text.setText(next),
-    setDim: (dim) => container.setAlpha(dim ? 0.55 : 1),
+    setDim: (dim) => container.setAlpha(dim ? DIM_ALPHA : 1),
   };
 }

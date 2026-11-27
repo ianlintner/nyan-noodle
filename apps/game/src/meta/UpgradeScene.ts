@@ -23,6 +23,7 @@ import {
 import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
+import { catPortrait, EQUIPMENT_ICON, RECIPE_ICON, rowIcon } from './rowArt';
 import { audio } from '../audio/manager';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { REGULARS_SCENE_KEY } from './RegularsScene';
@@ -34,8 +35,8 @@ export const UPGRADE_SCENE_KEY = SCENE_KEYS.upgrades;
 
 const RECIPE_IDS: readonly RecipeId[] = ['shoyu', 'miso', 'tonkotsu'];
 const COL_W = 154;
-const ROW_H = 32;
-const BTN_W = 70;
+const ROW_H = 36;
+const BTN_W = 108;
 
 /** Upgrade shop: recipes + mastery, equipment, staff cats, and the road to build mode. */
 export class UpgradeScene extends Phaser.Scene {
@@ -76,7 +77,7 @@ export class UpgradeScene extends Phaser.Scene {
     this.dynamic = this.children.list.filter((o) => !before.has(o) && !o.getData('nyanCoach'));
   }
 
-  /** One row: two text lines on the left, one action button under them. */
+  /** Atlas icon plus two text lines above a full-width action button: no overlap. */
   private row(
     x: number,
     y: number,
@@ -85,10 +86,14 @@ export class UpgradeScene extends Phaser.Scene {
     label: string,
     gated: boolean,
     onClick: () => void,
+    frame: string,
+    cropHeight?: number,
   ): void {
-    pixelText(this, x, y, title);
-    pixelText(this, x, y + 10, detail, { token: 'slate' });
-    const b = createButton(this, x + COL_W - BTN_W - 8, y + 18, BTN_W, 12, label, onClick);
+    rowIcon(this, x, y, frame, cropHeight);
+    pixelText(this, x + 20, y, title);
+    pixelText(this, x + 20, y + 11, detail, { token: 'slate' }).setData('nyanRowDetail', true);
+    const b = createButton(this, x + 20, y + 23, BTN_W, 12, label, onClick);
+    b.container.setData('nyanRowButton', true);
     b.setDim(gated);
   }
 
@@ -120,6 +125,7 @@ export class UpgradeScene extends Phaser.Scene {
           `Unlock ${g.cost}c`,
           rep < g.stars || s.economy.fishCoins < g.cost,
           () => this.apply(unlockRecipe(session.state, id), `${RECIPES[id].name} unlocked!`),
+          RECIPE_ICON[id],
         );
       } else {
         const level = s.mastery[id];
@@ -134,6 +140,7 @@ export class UpgradeScene extends Phaser.Scene {
           label,
           level < MASTERY_MAX && (rep < stars || s.economy.fishCoins < masteryCost(level)),
           () => this.apply(trainMastery(session.state, id), `${RECIPES[id].name} mastery up!`),
+          RECIPE_ICON[id],
         );
       }
       y += ROW_H + 4;
@@ -155,6 +162,7 @@ export class UpgradeScene extends Phaser.Scene {
         maxed ? 'Max' : `Buy ${cost}c`,
         !maxed && (rep < need || s.economy.fishCoins < cost),
         () => this.apply(buyEquipment(session.state, def.id), `${def.name} upgraded!`),
+        EQUIPMENT_ICON[def.id],
       );
       y += ROW_H + 4;
     }
@@ -174,31 +182,40 @@ export class UpgradeScene extends Phaser.Scene {
 
     // ---- staff ---------------------------------------------------------------------
     const sp = drawPanel(this, 6 + 2 * (COL_W + 12), 26, COL_W + 8 - 26, 178, {
-      title: 'Staff cats',
+      title: `Staff cats (${s.staff.roster.length})`,
     });
     y = sp.content.y + 3;
     const sx = sp.content.x + 3;
-    for (const member of s.staff.roster) {
+    // Three full rows plus the hire row fit the panel; the title carries the total.
+    for (const member of s.staff.roster.slice(0, 3)) {
       const cost = staffLevelCost(member.level);
       const maxed = member.level >= STAFF_LEVEL_MAX;
-      pixelText(this, sx, y, `${member.name} L${member.level}`);
-      pixelText(this, sx, y + 10, `wage ${member.wage}c  q~${cookQuality(s, true, 'shoyu')}`, {
+      const coat = (['tabby', 'grey', 'black', 'white'] as const)[member.id % 4]!;
+      rowIcon(this, sx, y, catPortrait(coat), 12);
+      pixelText(this, sx + 20, y, `${member.name} L${member.level}`);
+      pixelText(this, sx + 20, y + 11, `wage ${member.wage}c  q~${cookQuality(s, true, 'shoyu')}`, {
         token: 'slate',
-      });
-      const b = createButton(this, sx, y + 20, 70, 12, maxed ? 'Max' : `Level ${cost}c`, () =>
+      }).setData('nyanRowDetail', true);
+      const b = createButton(this, sx + 20, y + 23, 80, 12, maxed ? 'Max' : `Level ${cost}c`, () =>
         this.apply(levelStaff(session.state, member.id), `${member.name} levelled up!`),
       );
+      b.container.setData('nyanRowButton', true);
       b.setDim(!maxed && s.economy.fishCoins < cost);
       y += ROW_H + 2;
     }
     const count = s.staff.roster.length;
     if (count < STAFF_MAX) {
       const need = STAFF_HIRE_STARS[count] ?? 99;
-      pixelText(this, sx, y, 'Hire a staff cat');
-      pixelText(this, sx, y + 10, `Needs ${need} stars`, { token: 'slate' });
-      const b = createButton(this, sx, y + 20, 70, 12, `Hire ${STAFF_HIRE_COST}c`, () =>
+      rowIcon(this, sx, y, 'icon/heart');
+      pixelText(this, sx + 20, y, 'Hire a staff cat');
+      pixelText(this, sx + 20, y + 11, `Needs ${need} stars`, { token: 'slate' }).setData(
+        'nyanRowDetail',
+        true,
+      );
+      const b = createButton(this, sx + 20, y + 23, 80, 12, `Hire ${STAFF_HIRE_COST}c`, () =>
         this.apply(hireStaff(session.state), 'A new cat joins the kitchen!'),
       );
+      b.container.setData('nyanRowButton', true);
       b.setDim(rep < need || s.economy.fishCoins < STAFF_HIRE_COST);
     } else {
       pixelText(this, sx, y, 'Kitchen is full', { token: 'slate' });
@@ -223,6 +240,20 @@ export class UpgradeScene extends Phaser.Scene {
       train: (id: RecipeId) => this.apply(trainMastery(session.state, id), 'ok'),
       hire: () => this.apply(hireStaff(session.state), 'ok'),
       prep: () => this.scene.start(SCENE_KEYS.prep),
+      /**
+       * Native-pixel boxes for the detail text and action buttons. Exposed so e2e can
+       * prove they never intersect at any viewport size.
+       */
+      layout: () => {
+        const box = (o: Phaser.GameObjects.GameObject) => {
+          const b = (o as Phaser.GameObjects.Text).getBounds();
+          return { x: b.x, y: b.y, w: b.width, h: b.height };
+        };
+        return {
+          details: this.children.list.filter((o) => o.getData('nyanRowDetail') === true).map(box),
+          buttons: this.children.list.filter((o) => o.getData('nyanRowButton') === true).map(box),
+        };
+      },
     };
     (window as unknown as { __nyanUpgrades: typeof api }).__nyanUpgrades = api;
   }

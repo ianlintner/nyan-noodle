@@ -1,6 +1,10 @@
 import type Phaser from 'phaser';
+import { NATIVE_WIDTH } from '../config';
+import { color, PANEL_TEXT } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
+import { ATLAS_KEY } from '../shop/CatActor';
 import type { ServiceLayout } from './layout';
+import { stageBar } from './layout';
 import { drawTodayPanel } from './stageView';
 import { ServiceTouchControls } from './touch';
 
@@ -20,6 +24,8 @@ export interface ServiceHudState {
 export interface ServiceHud {
   objects: Phaser.GameObjects.GameObject[];
   stageG: Phaser.GameObjects.Graphics;
+  /** Atlas sprites behind the stage bar, switched by the active cooking stage. */
+  vessels: { pot: Phaser.GameObjects.Image; basket: Phaser.GameObjects.Image };
   stageText: Phaser.GameObjects.Text;
   statusText: Phaser.GameObjects.Text;
   touch: ServiceTouchControls;
@@ -33,6 +39,15 @@ export function buildServiceHud(s: ServiceHudState): ServiceHud {
   const { content } = drawPanel(s.scene, cooking.x, cooking.y, cooking.w, cooking.h, {
     title: 'Cooking',
   });
+  const bar = stageBar(cooking);
+  // A pot for the broth/topping stages and a noodle basket for the boil stage sit
+  // behind the mechanically precise bar. Both come from the procedural atlas.
+  const pot = s.scene.add
+    .image(Math.round(bar.x + bar.w - 20), Math.round(bar.y + 24), ATLAS_KEY, 'furniture/big_pot')
+    .setOrigin(0, 1);
+  const basket = s.scene.add
+    .image(Math.round(bar.x + 2), Math.round(bar.y + 22), ATLAS_KEY, 'ingredient/noodles')
+    .setOrigin(0, 1);
   const stageG = s.scene.add.graphics();
   const stageText = pixelText(s.scene, content.x + 2, content.y + 4, s.intro);
   const statusText = pixelText(
@@ -40,7 +55,7 @@ export function buildServiceHud(s: ServiceHudState): ServiceHud {
     content.x + 2,
     content.y + Math.min(134, cooking.h - 24),
     '',
-    { token: 'lanternYellow' },
+    { token: PANEL_TEXT.gold },
   );
   if (s.inSession) {
     drawTodayPanel(s.scene, s.todayLines, today);
@@ -54,6 +69,11 @@ export function buildServiceHud(s: ServiceHudState): ServiceHud {
       s.onOpenDoors,
     );
   }
+  // The key hints get an opaque night strip instead of sitting directly on the
+  // wooden floor trim, where cream-on-brown was hard to read.
+  const footerBg = s.scene.add.graphics();
+  footerBg.fillStyle(color('nightBlue'), 1);
+  footerBg.fillRect(2, hintY - 2, NATIVE_WIDTH - 4, 12);
   pixelText(
     s.scene,
     4,
@@ -61,7 +81,7 @@ export function buildServiceHud(s: ServiceHudState): ServiceHud {
     s.layout.railRows > 1
       ? 'tap tickets   HOLD  STOP  1-6 toppings'
       : 'click tickets   SPACE advance   W heat   1-6 toppings',
-    { token: 'steamWhite' },
+    { token: 'cream' },
   );
   const touch = new ServiceTouchControls(s.scene, pad, s.layout.railRows > 1, {
     hold: s.onHold,
@@ -73,6 +93,7 @@ export function buildServiceHud(s: ServiceHudState): ServiceHud {
   return {
     objects: s.scene.children.list.filter((o) => !before.has(o)),
     stageG,
+    vessels: { pot, basket },
     stageText,
     statusText,
     touch,

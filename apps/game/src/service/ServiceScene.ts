@@ -77,6 +77,7 @@ export class ServiceScene extends Phaser.Scene {
   railButtons: Phaser.GameObjects.Container[] = [];
   private railRings: Phaser.GameObjects.Rectangle[] = [];
   private stageG!: Phaser.GameObjects.Graphics;
+  private stageVessels!: { pot: Phaser.GameObjects.Image; basket: Phaser.GameObjects.Image };
   private stageText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
   private keys!: Record<
@@ -158,11 +159,13 @@ export class ServiceScene extends Phaser.Scene {
       onOpenDoors: () => this.openDoors(),
     });
     this.stageG = hud.stageG;
+    this.stageVessels = hud.vessels;
     this.stageText = hud.stageText;
     this.statusText = hud.statusText;
     this.touch = hud.touch;
     this.uiObjects = hud.objects;
     this.drawRail();
+    this.drawStage();
   }
 
   /** Rebuild HUD for the new orientation while keeping tickets and cooking progress. */
@@ -179,6 +182,8 @@ export class ServiceScene extends Phaser.Scene {
   }
 
   private drawStage(): void {
+    this.stageVessels.pot.setVisible(this.activeIdx >= 0 && this.stage !== 'noodles');
+    this.stageVessels.basket.setVisible(this.activeIdx >= 0 && this.stage === 'noodles');
     if (this.activeIdx < 0) return;
     const bar = stageBar(this.layout.cooking);
     if (this.stage === 'broth') drawBroth(this.stageG, this.brothHeat, this.brothHold.samples, bar);

@@ -134,6 +134,18 @@ export function buildLayout(
     itemId: null,
     depth: rows * TILE_SIZE + 1,
   });
+  // Paper lanterns flanking the doorway dress the exterior band. They are set dressing
+  // only (itemId null), so build mode cannot select or move them.
+  for (const side of [-2, 2]) {
+    const tx = Math.max(0, Math.min(cols - 1, doorX + side));
+    furniture.push({
+      frame: 'furniture/lantern',
+      tx,
+      ty: bottomWall,
+      itemId: null,
+      depth: (bottomWall + 1) * TILE_SIZE + 0.2,
+    });
+  }
   furniture.push({ frame: 'furniture/sign', tx: Math.max(1, doorX - 1), ty: 0, itemId: null });
 
   // Wall menu hangs high on the back wall above the counter, centred between the

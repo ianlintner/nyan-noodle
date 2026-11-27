@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { PALETTE, PALETTE_TOKENS, color, hexToNumber } from './palette';
+import {
+  PALETTE,
+  PALETTE_TOKENS,
+  PANEL_TEXT,
+  blendTokens,
+  color,
+  contrastRatio,
+  hexToNumber,
+} from './palette';
+import { DIM_ALPHA } from './hud';
 
 describe('palette', () => {
   it('has the 24 art-direction colours', () => {
@@ -21,5 +30,15 @@ describe('palette', () => {
   it('converts to Phaser numeric colours', () => {
     expect(hexToNumber('#fff3d6')).toBe(0xfff3d6);
     expect(color('ink')).toBe(0x2b1d2e);
+  });
+
+  it('keeps cream-panel body text and dimmed labels at WCAG AA contrast', () => {
+    for (const token of Object.values(PANEL_TEXT)) {
+      expect(contrastRatio(PALETTE[token], PALETTE.cream)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(
+      contrastRatio(blendTokens('ink', 'cream', DIM_ALPHA), PALETTE.cream),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(PALETTE.brothGold, PALETTE.cream)).toBeLessThan(4.5);
   });
 });
