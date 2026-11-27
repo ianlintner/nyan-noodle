@@ -27,6 +27,8 @@ export interface ShopTouchUi {
  * for the keyboard-only R and Escape shortcuts.
  */
 export function installShopTouch(scene: Phaser.Scene, b: TouchBindings): ShopTouchUi {
+  // Phaser defaults to a single touch pointer; two are needed for pinch.
+  scene.input.addPointer(2);
   const points = new Map<number, { x: number; y: number }>();
   let pinchDistance = 0;
   let pinchZoom = 1;

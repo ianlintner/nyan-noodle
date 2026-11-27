@@ -34,7 +34,9 @@ const call = <T>(page: Page, body: string, api: 'service' | 'shop'): Promise<T> 
 const waitReady = async (page: Page, key: string): Promise<void> => {
   await page.waitForFunction(
     (k) =>
-      (window as unknown as { __nyan?: { get(key: string): unknown } }).__nyan?.get(k) === true,
+      (
+        window as unknown as { __nyan?: { registry: { get(key: string): unknown } } }
+      ).__nyan?.registry.get(k) === true,
     key,
   );
 };
@@ -72,7 +74,11 @@ test('mobile touch: fit, one full service, and portrait/landscape screenshots', 
   const rect = await page.locator('canvas').boundingBox();
   expect(rect!.width).toBeCloseTo(fit!.width, 0);
   expect(rect!.x).toBeCloseTo(fit!.left, 0);
-  await page.locator('canvas').screenshot({ path: 'test-results/mobile-portrait.png' });
+  const shot = (name: string) =>
+    page.locator('canvas').screenshot({
+      path: `test-results/mobile-${test.info().project.name}-${name}.png`,
+    });
+  await shot('portrait');
 
   // Tap the first ticket with a real touch event.
   const ticket = await call<{ x: number; y: number }>(page, 'a.ticketScreen(0)', 'service');
@@ -134,7 +140,7 @@ test('mobile touch: fit, one full service, and portrait/landscape screenshots', 
   );
   const landscapeFit = await page.evaluate(() => (window as unknown as MobileWindow).__nyanFit);
   expect(landscapeFit!.integer).toBe(true);
-  await page.locator('canvas').screenshot({ path: 'test-results/mobile-landscape.png' });
+  await shot('landscape');
   expect(errors).toEqual([]);
 });
 
@@ -147,17 +153,18 @@ test('mobile touch: shop pinch-zoom and build rotate/cancel', async ({ page }) =
   expect(await call<string>(page, 'a.mode()', 'shop')).toBe('build');
 
   // Two-finger spread should increase the integer camera zoom.
-  const before = await call<number>(page, 'a.zoom()', 'shop');
+  await call<void>(page, 'a.setZoom(1)', 'shop');
+  const before = 1;
   const cdp = await page.context().newCDPSession(page);
-  const left = { x: 140, y: 400 };
-  const right = { x: 180, y: 400 };
+  const left = { x: 140, y: 400, id: 1 };
+  const right = { x: 180, y: 400, id: 2 };
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [left, right] });
   for (let i = 1; i <= 8; i++) {
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
       touchPoints: [
-        { x: left.x - i * 10, y: left.y },
-        { x: right.x + i * 10, y: right.y },
+        { x: left.x - i * 10, y: left.y, id: 1 },
+        { x: right.x + i * 10, y: right.y, id: 2 },
       ],
     });
     await page.waitForTimeout(20);
