@@ -58,6 +58,11 @@ export class CameraRig {
     this.apply();
   }
 
+  /** Pinch start cancels any drag already begun by the same pointers. */
+  cancelDrag(): void {
+    this.dragging = false;
+  }
+
   pan(dx: number, dy: number): void {
     this.cx += dx;
     this.cy += dy;

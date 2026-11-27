@@ -15,12 +15,14 @@ export const BROTH_SAMPLES = 60;
 /** Noodle sweet spot centre per requested doneness. */
 export const NOODLE_TARGETS: Record<Doneness, number> = { soft: 0.55, firm: 0.7, default: 0.62 };
 
-/** Cooking-panel geometry, shared by all three minigame renderers. */
-export const STAGE_BAR = { x: 10, y: 78, w: 140, h: 14 };
-
 /** Broth heat-hold bar: green band, red needle, cream progress strip. */
-export function drawBroth(g: Phaser.GameObjects.Graphics, heat: number, samples: number): void {
-  const { x, y, w, h } = STAGE_BAR;
+export function drawBroth(
+  g: Phaser.GameObjects.Graphics,
+  heat: number,
+  samples: number,
+  bar: Rect,
+): void {
+  const { x, y, w, h } = bar;
   g.clear();
   g.fillStyle(color('noriGreen'), 1);
   g.fillRect(x + w * BROTH_LO, y, w * (BROTH_HI - BROTH_LO), h);
@@ -37,8 +39,9 @@ export function drawNoodles(
   g: Phaser.GameObjects.Graphics,
   doneness: Doneness,
   sweep: number,
+  bar: Rect,
 ): void {
-  const { x, y, w, h } = STAGE_BAR;
+  const { x, y, w, h } = bar;
   const target = NOODLE_TARGETS[doneness];
   g.clear();
   g.fillStyle(color('noriGreen'), 1);
@@ -64,13 +67,18 @@ export function drawTodayPanel(
 }
 
 /** Topping assembly: one square per required topping, green once applied. */
-export function drawToppings(g: Phaser.GameObjects.Graphics, required: number, done: number): void {
-  const { x, w } = STAGE_BAR;
+export function drawToppings(
+  g: Phaser.GameObjects.Graphics,
+  required: number,
+  done: number,
+  bar: Rect,
+): void {
+  const { x, y, w } = bar;
   g.clear();
   for (let i = 0; i < required; i++) {
     const cx = x + 6 + i * ((w - 12) / Math.max(1, required - 1));
     g.fillStyle(color(done > i ? 'noriGreen' : 'slate'), 1);
-    g.fillRect(cx, STAGE_BAR.y + 4, 8, 8);
+    g.fillRect(cx, y + 4, 8, 8);
   }
 }
 

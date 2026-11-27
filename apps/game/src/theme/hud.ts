@@ -1,5 +1,15 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import { PALETTE, color, type PaletteToken } from './palette';
+import { safeVerticalPad, type ButtonBox } from './hitArea';
+
+interface RegisteredButton {
+  box: ButtonBox;
+  padY: number;
+  setPadY(padY: number): void;
+}
+
+/** Hit areas are tracked per scene so stacked buttons cannot cover each other's faces. */
+const sceneButtons = new WeakMap<Phaser.Scene, RegisteredButton[]>();
 
 /** One pixel font for the whole game: 8px base, integer multiples only. */
 export const FONT_FAMILY = '"Courier New", Courier, monospace';
@@ -142,11 +152,39 @@ export function createButton(
   draw(false);
 
   container.setSize(width, height);
-  const pad = isTouchDevice() ? 5 : 0;
-  container.setInteractive(
-    new Phaser.Geom.Rectangle(-pad, -pad, width + pad * 2, height + pad * 2),
-    Phaser.Geom.Rectangle.Contains,
-  );
+  const padX = isTouchDevice() ? 5 : 0;
+  const box: ButtonBox = { x, y, width, height };
+  const registered = sceneButtons.get(scene) ?? [];
+  sceneButtons.set(scene, registered);
+  container.setInteractive({ useHandCursor: true });
+  const hitArea = container.input!.hitArea as {
+    setPosition(x: number, y: number): void;
+    setSize(width: number, height: number): void;
+  };
+  /** Resize the existing rectangle in place; re-calling setInteractive after a scene restart crashes Phaser. */
+  const setHitArea = (padY: number): void => {
+    hitArea.setPosition(-padX, -padY);
+    hitArea.setSize(width + padX * 2, height + padY * 2);
+  };
+  let padY = padX;
+  for (const other of registered) {
+    padY = Math.min(padY, safeVerticalPad(box, other.box, padX));
+    other.setPadY(Math.min(other.padY, safeVerticalPad(other.box, box, padX)));
+  }
+  const entry: RegisteredButton = {
+    box,
+    padY,
+    setPadY(next) {
+      this.padY = next;
+      setHitArea(next);
+    },
+  };
+  registered.push(entry);
+  scene.events.once('shutdown', () => {
+    const i = registered.indexOf(entry);
+    if (i >= 0) registered.splice(i, 1);
+  });
+  setHitArea(padY);
   container.on('pointerdown', () => draw(true));
   container.on('pointerup', () => {
     draw(false);

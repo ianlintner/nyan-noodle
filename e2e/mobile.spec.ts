@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { FURNITURE } from '../packages/sim/src/catalog';
 
 interface Fit {
   zoom: number;
@@ -12,7 +13,11 @@ interface Fit {
 type MobileWindow = {
   __nyanFit?: Fit;
   __nyanService?: Record<string, (...args: never[]) => unknown>;
-  __nyanTouch?: { screen(name: string): { x: number; y: number }; stage(): string };
+  __nyanTouch?: {
+    screen(name: string): { x: number; y: number };
+    stage(): string;
+    rects(): { action: { w: number }; toppings: { w: number }[] };
+  };
   __nyanShop?: Record<string, (...args: never[]) => unknown>;
   __nyanShopTouch?: {
     rotateScreen(): { x: number; y: number };
@@ -74,6 +79,9 @@ test('mobile touch: fit, one full service, and portrait/landscape screenshots', 
   const rect = await page.locator('canvas').boundingBox();
   expect(rect!.width).toBeCloseTo(fit!.width, 0);
   expect(rect!.x).toBeCloseTo(fit!.left, 0);
+  const rects = await page.evaluate(() => (window as unknown as MobileWindow).__nyanTouch!.rects());
+  expect(rects.toppings).toHaveLength(6);
+  expect(rects.toppings[0]!.w * fit!.zoom).toBeGreaterThan(40);
   const shot = (name: string) =>
     page.locator('canvas').screenshot({
       path: `test-results/mobile-${test.info().project.name}-${name}.png`,
@@ -140,6 +148,9 @@ test('mobile touch: fit, one full service, and portrait/landscape screenshots', 
   );
   const landscapeFit = await page.evaluate(() => (window as unknown as MobileWindow).__nyanFit);
   expect(landscapeFit!.integer).toBe(true);
+  const layout = await call<{ portrait: boolean; railRows: number }>(page, 'a.layout()', 'service');
+  expect(layout.portrait).toBe(false);
+  expect(layout.railRows).toBe(1);
   await shot('landscape');
   expect(errors).toEqual([]);
 });
@@ -185,5 +196,37 @@ test('mobile touch: shop pinch-zoom and build rotate/cancel', async ({ page }) =
   expect(
     await page.evaluate(() => (window as unknown as MobileWindow).__nyanShopTouch !== undefined),
   ).toBe(true);
+
+  // A single-finger tap still places furniture; a pinch must never commit a build action.
+  const beforeItems = await call<{ items: unknown[] }>(page, 'a.state()', 'shop');
+  const stoolTool = await call<{ x: number; y: number }>(page, 'a.toolScreen(0)', 'shop');
+  await page.touchscreen.tap(stoolTool.x, stoolTool.y);
+  const emptyCell = await call<{ x: number; y: number }>(page, 'a.cellScreen(4, 2)', 'shop');
+  await page.touchscreen.tap(emptyCell.x, emptyCell.y);
+  const afterTap = await call<{ items: unknown[] }>(page, 'a.state()', 'shop');
+  expect(afterTap.items.length).toBe(beforeItems.items.length + 1);
+
+  const sellTool = await call<{ x: number; y: number }>(
+    page,
+    `a.toolScreen(${FURNITURE.length + 1})`,
+    'shop',
+  );
+  await page.touchscreen.tap(sellTool.x, sellTool.y);
+  const starter = await call<{ x: number; y: number }>(page, 'a.cellScreen(0, 2)', 'shop');
+  const pinch = await page.context().newCDPSession(page);
+  const one = { x: Math.round(starter.x), y: Math.round(starter.y), id: 1 };
+  const two = { x: Math.round(starter.x + 60), y: Math.round(starter.y), id: 2 };
+  await pinch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [one, two] });
+  await pinch.send('Input.dispatchTouchEvent', {
+    type: 'touchMove',
+    touchPoints: [
+      { ...one, x: one.x - 20 },
+      { ...two, x: two.x + 20 },
+    ],
+  });
+  await pinch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await pinch.detach();
+  const afterPinch = await call<{ items: unknown[] }>(page, 'a.state()', 'shop');
+  expect(afterPinch.items.length).toBe(afterTap.items.length);
   expect(errors).toEqual([]);
 });

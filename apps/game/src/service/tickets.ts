@@ -17,8 +17,10 @@ import {
   type Order,
   type TraitId,
 } from '@nyan-noodle/sim';
+import type Phaser from 'phaser';
 import type { SimState } from '@nyan-noodle/sim';
 import { session } from '../meta/session';
+import { drawTicketRail } from './stageView';
 
 /** A rail ticket: the order plus the render-only coat, persona and patience fields. */
 export interface ServiceTicket {
@@ -112,4 +114,31 @@ export function serviceRail(
       'Skipped tickets cook at your usual quality.',
     ],
   };
+}
+
+/** Rail rendering lives here so ServiceScene can relayout on rotation and stay under 400 lines. */
+export function drawServiceRail(
+  scene: Phaser.Scene,
+  tickets: readonly ServiceTicket[],
+  activeIdx: number,
+  completed: ReadonlySet<number>,
+  rows: number,
+  onSelect: (index: number) => void,
+): { buttons: Phaser.GameObjects.Container[]; rings: Phaser.GameObjects.Rectangle[] } {
+  return drawTicketRail(
+    scene,
+    tickets.map((t) => ({
+      recipeId: t.order.recipeId,
+      coat: t.coat,
+      patience: t.patience,
+      name: t.name,
+      trait: t.trait,
+      affection: t.affection,
+      resolveCoat: (coat: string) => (coat === 'sakura' ? 'white' : coat),
+      onSelect,
+    })),
+    activeIdx,
+    completed,
+    rows,
+  );
 }

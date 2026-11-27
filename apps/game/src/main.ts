@@ -75,6 +75,8 @@ function boot(): void {
     scene: sceneList(first),
   });
 
+  let lastPortrait = computeViewportFit(window.innerWidth, window.innerHeight).portrait;
+
   /**
    * Integer zoom when the viewport can hold a whole native frame; on a narrow
    * portrait phone the exact fractional fit keeps every HUD pixel reachable.
@@ -91,6 +93,10 @@ function boot(): void {
     canvas.style.width = `${fit.width}px`;
     canvas.style.height = `${fit.height}px`;
     (window as unknown as { __nyanFit: typeof fit }).__nyanFit = fit;
+    if (fit.portrait !== lastPortrait) {
+      lastPortrait = fit.portrait;
+      game.events.emit('viewport-orientation', fit.portrait);
+    }
   }
   applyFit();
   window.addEventListener('resize', applyFit);

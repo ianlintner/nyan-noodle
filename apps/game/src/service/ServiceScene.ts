@@ -9,7 +9,6 @@ import {
 import { isPortrait } from '../config';
 import { nativeScreenPoint } from '../shop/screen';
 import { PALETTE } from '../theme/palette';
-import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from '../meta/session';
 import { audio } from '../audio/manager';
 import { installPause } from '../audio/pause';
@@ -19,17 +18,16 @@ import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { ATLAS_KEY } from '../shop/CatActor';
 import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
-import { serviceRail, type ServiceTicket } from './tickets';
-import { serviceLayout, type ServiceLayout } from './layout';
-import { ServiceTouchControls, type CookStage } from './touch';
+import { serviceRail, drawServiceRail, type ServiceTicket } from './tickets';
+import { buildServiceHud } from './hud';
+import { serviceLayout, stageBar, type ServiceLayout } from './layout';
+import type { CookStage, ServiceTouchControls } from './touch';
 import {
   BROTH_HI,
   BROTH_LO,
   BROTH_SAMPLES,
   drawBroth,
   drawNoodles,
-  drawTicketRail,
-  drawTodayPanel,
   drawToppings,
 } from './stageView';
 export const SERVICE_SCENE_KEY = 'ServiceScene';
@@ -44,13 +42,7 @@ interface ServiceParams {
   count: number;
 }
 
-/**
- * Interactive service phase: a ticket rail, three cooking minigames, serve with
- * quality-driven tips/combos. The pure sim scores every result; this scene only
- * measures player input and plays the payout back. With a session the rail holds
- * today's first cats and "Open doors!" starts the shop; `?scene=service` alone is
- * a seeded sandbox.
- */
+/** Interactive service phase: ticket rail, three cooking minigames and a sim-scored serve. */
 export class ServiceScene extends Phaser.Scene {
   private params: ServiceParams = { seed: 2026, count: 4 };
   private inSession = false;
@@ -63,6 +55,11 @@ export class ServiceScene extends Phaser.Scene {
   private layout!: ServiceLayout;
   private touch?: ServiceTouchControls;
   private touchHolding = false;
+  private uiObjects: Phaser.GameObjects.GameObject[] = [];
+
+  private readonly onViewportOrientation = (portrait: boolean): void => {
+    if (portrait !== this.layout.portrait) this.relayout();
+  };
 
   private brothHold = emptyBrothHold;
   private brothHeat = 0.5;
@@ -124,7 +121,11 @@ export class ServiceScene extends Phaser.Scene {
     installPause(this, persistAudioSettings);
     this.exposeDebugApi();
     this.registry.set('serviceReady', true);
-    this.events.once('shutdown', () => this.registry.set('serviceReady', false));
+    this.game.events.on('viewport-orientation', this.onViewportOrientation);
+    this.events.once('shutdown', () => {
+      this.registry.set('serviceReady', false);
+      this.game.events.off('viewport-orientation', this.onViewportOrientation);
+    });
   }
 
   // --- setup ---------------------------------------------------------------
@@ -138,63 +139,61 @@ export class ServiceScene extends Phaser.Scene {
 
   private buildUi(): void {
     this.layout = serviceLayout(isPortrait());
-    const { rail, cooking, today, touch: pad, openDoors, hintY } = this.layout;
-    drawPanel(this, rail.x, rail.y, rail.w, rail.h);
-    const { content } = drawPanel(this, cooking.x, cooking.y, cooking.w, cooking.h, {
-      title: 'Cooking',
-    });
-    this.stageG = this.add.graphics();
     const intro = this.inSession
       ? `Day ${session.state.clock.day}: cook the first cats'\nbowls by hand, or just\nopen the doors.`
       : 'Click a ticket on the rail.';
-    this.stageText = pixelText(this, content.x + 2, content.y + 4, intro);
-    const statusY = content.y + Math.min(134, cooking.h - 24);
-    this.statusText = pixelText(this, content.x + 2, statusY, '', { token: 'lanternYellow' });
-    this.drawRail();
-    if (this.inSession) {
-      drawTodayPanel(this, this.todayLines, today);
-      createButton(this, openDoors.x, openDoors.y, openDoors.w, openDoors.h, 'Open doors!', () =>
-        this.openDoors(),
-      );
-    }
-    pixelText(
-      this,
-      4,
-      hintY,
-      this.layout.railRows > 1
-        ? 'tap tickets   HOLD  STOP  1-6 toppings'
-        : 'click tickets   SPACE advance   W heat   1-6 toppings',
-      { token: 'steamWhite' },
-    );
-    this.touch = new ServiceTouchControls(this, pad, this.layout.railRows > 1, {
-      hold: (on) => (this.touchHolding = on),
-      stop: () => this.stopNoodles(),
-      topping: (i) => this.addToppingByIndex(i),
-      serve: () => this.serve(),
-      openDoors: () => this.openDoors(),
+    const hud = buildServiceHud({
+      scene: this,
+      layout: this.layout,
+      inSession: this.inSession,
+      todayLines: this.todayLines,
+      intro,
+      onHold: (on) => (this.touchHolding = on),
+      onStop: () => this.stopNoodles(),
+      onTopping: (i) => this.addToppingByIndex(i),
+      onServe: () => this.serve(),
+      onOpenDoors: () => this.openDoors(),
     });
+    this.stageG = hud.stageG;
+    this.stageText = hud.stageText;
+    this.statusText = hud.statusText;
+    this.touch = hud.touch;
+    this.uiObjects = hud.objects;
+    this.drawRail();
+  }
+
+  /** Rebuild HUD for the new orientation while keeping tickets and cooking progress. */
+  private relayout(): void {
+    const hint = this.stageText.text;
+    const status = this.statusText.text;
+    const statusColor = this.statusText.style.color;
+    this.touch?.destroy();
+    this.uiObjects.forEach((o) => o.destroy());
+    this.buildUi();
+    this.stageText.setText(hint);
+    this.statusText.setText(status).setColor(statusColor);
+    this.drawStage();
+  }
+
+  private drawStage(): void {
+    if (this.activeIdx < 0) return;
+    const bar = stageBar(this.layout.cooking);
+    if (this.stage === 'broth') drawBroth(this.stageG, this.brothHeat, this.brothHold.samples, bar);
+    else if (this.stage === 'noodles')
+      drawNoodles(this.stageG, this.tickets[this.activeIdx]!.doneness, this.noodleSweep, bar);
+    else drawToppings(this.stageG, this.required.length, this.toppingSequence.length, bar);
   }
 
   private drawRail(): void {
     this.railButtons.forEach((b) => b.destroy());
-    this.railButtons = [];
     this.railRings.forEach((r) => r.destroy());
-    this.railRings = [];
-    const { buttons, rings } = drawTicketRail(
+    const { buttons, rings } = drawServiceRail(
       this,
-      this.tickets.map((t) => ({
-        recipeId: t.order.recipeId,
-        coat: t.coat,
-        patience: t.patience,
-        name: t.name,
-        trait: t.trait,
-        affection: t.affection,
-        resolveCoat: (coat) => (coat === 'sakura' ? 'white' : coat),
-        onSelect: (i) => this.select(i),
-      })),
+      this.tickets,
       this.activeIdx,
       this.completed,
       this.layout.railRows,
+      (i) => this.select(i),
     );
     this.railButtons = buttons;
     this.railRings = rings;
@@ -263,12 +262,12 @@ export class ServiceScene extends Phaser.Scene {
   private sampleBroth(): void {
     this.brothHold = sampleBroth(this.brothHold, this.brothHeat, BROTH_LO, BROTH_HI);
     if (this.brothHold.samples >= BROTH_SAMPLES) this.advanceBroth();
-    else drawBroth(this.stageG, this.brothHeat, this.brothHold.samples);
+    else this.drawStage();
   }
 
   private updateNoodles(deltaMs: number): void {
     if (!this.noodleStopped) this.noodleSweep = (this.noodleSweep + deltaMs / 1000 / 2.4) % 1;
-    drawNoodles(this.stageG, this.tickets[this.activeIdx]!.doneness, this.noodleSweep);
+    this.drawStage();
   }
 
   // --- input handlers (mouse + keyboard + e2e share these) -----------------
@@ -282,7 +281,7 @@ export class ServiceScene extends Phaser.Scene {
     if (this.stage !== 'toppings') return;
     this.toppingSequence = [...this.toppingSequence, id];
     audio.play('topping');
-    drawToppings(this.stageG, this.required.length, this.toppingSequence.length);
+    this.drawStage();
     if (this.toppingSequence.length >= this.required.length) {
       this.stage = 'serve';
       this.stageText.setText('Bowl ready.\nPress SPACE to serve to the seat.');
@@ -295,7 +294,7 @@ export class ServiceScene extends Phaser.Scene {
     this.stage = 'toppings';
     audio.play('boil');
     this.toppingSequence = [];
-    drawToppings(this.stageG, this.required.length, 0);
+    this.drawStage();
     this.stageText.setText(`Toppings: tap 1..${this.required.length} in order.`);
   }
 
@@ -305,7 +304,7 @@ export class ServiceScene extends Phaser.Scene {
     this.noodleSweep = 0;
     this.noodleStopped = false;
     this.stageText.setText('Noodles: press SPACE when the\nbar hits the thick band.');
-    drawNoodles(this.stageG, this.tickets[this.activeIdx]!.doneness, 0);
+    this.drawStage();
   }
 
   serve(): void {
@@ -375,6 +374,7 @@ export class ServiceScene extends Phaser.Scene {
           doneness: t.doneness,
         })),
       required: () => [...this.required],
+      layout: () => this.layout,
       toppingSequence: () => [...this.toppingSequence],
       broth: () => ({ ...this.brothHold, heat: this.brothHeat }),
       noodleSweep: () => this.noodleSweep,

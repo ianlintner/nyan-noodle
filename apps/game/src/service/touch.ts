@@ -24,13 +24,15 @@ interface TouchButton {
 
 /**
  * Big, finger-sized controls for the cooking minigames. One action button
- * changes meaning by stage (HOLD / STOP / SERVE) and a six-button topping pad
- * replaces keys 1-6. All hit areas are at least 24 native pixels tall.
+ * changes meaning by stage (HOLD / STOP / SERVE); during toppings the whole pad
+ * becomes six targets so each is ~42 CSS pixels on a 390px phone. Only the
+ * active set is interactive, so hidden buttons cannot steal taps.
  */
 export class ServiceTouchControls {
   private readonly action: TouchButton;
   private readonly toppings: TouchButton[];
   private readonly handlers: TouchHandlers;
+  private readonly onPointerUp = (): void => this.releaseHold();
   private stage: CookStage = 'broth';
   private active = true;
   private holdOn = false;
@@ -45,24 +47,42 @@ export class ServiceTouchControls {
     this.handlers = handlers;
     const actionH = portrait ? pad.h - 6 : pad.h - 8;
     const actionW = portrait ? 150 : 92;
-    const actionRect: Rect = { x: pad.x + 2, y: pad.y + 3, w: actionW, h: actionH };
-    this.action = this.makeButton('action', actionRect, 'HOLD');
+    this.action = this.makeButton(
+      'action',
+      {
+        x: pad.x + 2,
+        y: pad.y + 3,
+        w: actionW,
+        h: actionH,
+      },
+      'HOLD',
+    );
     this.toppings = [];
-    const topX = pad.x + actionW + 8;
-    const topW = (pad.w - actionW - 12) / 6;
+    const topW = pad.w / 6;
     for (let i = 0; i < 6; i++) {
       this.toppings.push(
         this.makeButton(
           `top${i}`,
-          { x: topX + i * topW, y: pad.y + 3, w: topW - 2, h: actionH },
+          {
+            x: pad.x + i * topW,
+            y: pad.y + 3,
+            w: topW,
+            h: actionH,
+          },
           String(i + 1),
         ),
       );
     }
     this.action.zone.on('pointerdown', () => this.onActionDown());
-    this.toppings.forEach((b, i) => b.zone.on('pointerup', () => this.handlers.topping(i)));
-    scene.input.on('pointerup', () => this.releaseHold());
-    scene.input.on('pointerupoutside', () => this.releaseHold());
+    this.toppings.forEach((b, i) =>
+      b.zone.on('pointerup', () => {
+        if (this.active && this.stage === 'toppings' && i < this.required) {
+          this.handlers.topping(i);
+        }
+      }),
+    );
+    scene.input.on('pointerup', this.onPointerUp);
+    scene.input.on('pointerupoutside', this.onPointerUp);
     this.update('broth', 0, true);
     (window as unknown as { __nyanTouch: unknown }).__nyanTouch = {
       screen: (name: string) => this.screenPoint(name),
@@ -121,6 +141,13 @@ export class ServiceTouchControls {
     this.handlers.hold(false);
   }
 
+  private setVisible(button: TouchButton, show: boolean): void {
+    button.zone.setVisible(show);
+    button.face.setVisible(show);
+    button.label.setVisible(show);
+    if (button.zone.input) button.zone.input.enabled = show;
+  }
+
   /** Show only the controls relevant to the current stage. */
   update(stage: CookStage, required: number, active: boolean): void {
     if (stage !== this.stage) this.releaseHold();
@@ -129,17 +156,19 @@ export class ServiceTouchControls {
     this.active = active;
     const actionLabel = stage === 'broth' ? 'HOLD' : stage === 'noodles' ? 'STOP' : 'SERVE';
     this.action.label.setText(actionLabel);
-    const showAction = active && stage !== 'toppings';
-    this.action.zone.setVisible(showAction);
-    this.action.face.setVisible(showAction);
-    this.action.label.setVisible(showAction);
-    this.toppings.forEach((b, i) => {
-      const show = active && stage === 'toppings' && i < this.required;
-      b.zone.setVisible(show);
-      b.face.setVisible(show);
-      b.label.setVisible(show);
-    });
+    this.setVisible(this.action, active && stage !== 'toppings');
+    this.toppings.forEach((b, i) =>
+      this.setVisible(b, active && stage === 'toppings' && i < this.required),
+    );
     if (!active) this.releaseHold();
+  }
+
+  /** Detach listeners before an orientation rebuild; the scene destroys the display objects. */
+  destroy(): void {
+    this.releaseHold();
+    this.scene.input.off('pointerup', this.onPointerUp);
+    this.scene.input.off('pointerupoutside', this.onPointerUp);
+    delete (window as unknown as { __nyanTouch?: unknown }).__nyanTouch;
   }
 
   /** Page coordinates of a control's centre, for Playwright touch emulation. */

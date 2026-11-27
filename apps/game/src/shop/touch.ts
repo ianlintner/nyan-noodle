@@ -8,7 +8,8 @@ import { nativeScreenPoint } from './screen';
 
 /** True inside the build-mode rotate/cancel touch buttons. */
 export function overBuildTouch(x: number, y: number): boolean {
-  return y > NATIVE_HEIGHT - 20 && x >= 118 && x < 246;
+  // Buttons are 14px tall at y=252 with a 5px touch pad, so their hit areas start at 247.
+  return y >= NATIVE_HEIGHT - 23 && x >= 118 && x < 246;
 }
 
 interface TouchBindings {
@@ -42,6 +43,7 @@ export function installShopTouch(scene: Phaser.Scene, b: TouchBindings): ShopTou
       pinchDistance = spread();
       pinchZoom = b.rig.zoom;
       b.rig.dragEnabled = false;
+      b.rig.cancelDrag();
     }
   });
   scene.input.on('pointermove', (p: Phaser.Input.Pointer) => {

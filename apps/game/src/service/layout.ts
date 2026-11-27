@@ -8,6 +8,7 @@ export interface Rect {
 }
 
 export interface ServiceLayout {
+  portrait: boolean;
   rail: Rect;
   /** Ticket rows in the rail: one landscape, two when the device is held upright. */
   railRows: number;
@@ -26,6 +27,7 @@ export interface ServiceLayout {
 export function serviceLayout(portrait: boolean): ServiceLayout {
   if (!portrait) {
     return {
+      portrait: false,
       rail: { x: 4, y: 4, w: NATIVE_WIDTH - 8, h: 26 },
       railRows: 1,
       cooking: { x: 4, y: 34, w: 156, h: 186 },
@@ -36,6 +38,7 @@ export function serviceLayout(portrait: boolean): ServiceLayout {
     };
   }
   return {
+    portrait: true,
     rail: { x: 4, y: 4, w: NATIVE_WIDTH - 8, h: 50 },
     railRows: 2,
     cooking: { x: 4, y: 58, w: 150, h: 152 },
@@ -44,4 +47,12 @@ export function serviceLayout(portrait: boolean): ServiceLayout {
     openDoors: { x: 340, y: 236, w: 136, h: 22 },
     hintY: NATIVE_HEIGHT - 11,
   };
+}
+
+/**
+ * Minigame bar inside the cooking panel: border + header + two-line instruction
+ * block. Derived from the panel so portrait never paints over its instructions.
+ */
+export function stageBar(cooking: Rect): Rect {
+  return { x: cooking.x + 6, y: cooking.y + 44, w: cooking.w - 16, h: 14 };
 }
