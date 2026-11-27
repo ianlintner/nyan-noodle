@@ -2,7 +2,8 @@ import type Phaser from 'phaser';
 import { NATIVE_HEIGHT } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 
-let activeOverlay: { kind: 'callout' | 'help'; id: CoachScene } | null = null;
+/** `token` identifies the owning overlay so a late hide never clears a newer one. */
+let activeOverlay: { kind: 'callout' | 'help'; id: CoachScene; token: object } | null = null;
 
 /** Exposed for e2e: Phaser text lives on the canvas, not in the DOM. */
 export interface CoachSnapshot {
@@ -137,11 +138,11 @@ const CONTENT: Record<CoachScene, CoachContent> = {
     ],
   },
   shop: {
-    callout: 'Build furniture, then let the day run',
+    callout: 'Watch the day run - xN button sets the speed',
     help: [
-      'TOUCH: drag to pan, pinch to zoom, tap the day buttons',
-      'KEYS: arrows/WASD pan, +/- zoom, R rotates in build mode',
-      'Skip day speeds up; Done ends the service day.',
+      'TOUCH: drag to pan, pinch to zoom, tap the xN speed button',
+      'KEYS: arrows/WASD pan, +/- zoom',
+      'xN cycles speed x1-x8; Skip day ends service at once.',
     ],
   },
   report: {
@@ -165,7 +166,7 @@ const CONTENT: Record<CoachScene, CoachContent> = {
     help: [
       'TOUCH: tap a tool, tap a grid cell; panel buttons move/sell/rotate',
       'KEYS: R rotate, arrows/WASD pan, +/- zoom',
-      'Tap Build again to leave build mode.',
+      'Tap Done (or Open shop) to leave build mode.',
     ],
   },
 };
@@ -186,48 +187,81 @@ const BUTTON: Record<CoachScene, { x: number; y: number; w: number; h: number; c
  * callout. Overlays are non-interactive so the existing controls keep receiving taps;
  * any tap away from "?" or any key dismisses them.
  */
-export function installCoach(scene: Phaser.Scene, id: CoachScene, store: CoachStore): void {
-  const spec = BUTTON[id];
+export interface CoachOptions {
+  /** Hide each overlay object from every camera except the HUD one (multi-camera scenes). */
+  registerUi?: (object: Phaser.GameObjects.GameObject) => void;
+}
+
+export interface CoachHandle {
+  /** Switch which scene's help the "?" opens (the shop flips between shop and build). */
+  setContext(id: CoachScene): void;
+  /** Show that scene's one-time callout, if it has not been seen on this save. */
+  callout(id: CoachScene): void;
+}
+
+/** Padded hit rectangle of a scene's "?" so build input can ignore taps on it. */
+export function overCoachButton(id: CoachScene, x: number, y: number, pad = 4): boolean {
+  const b = BUTTON[id];
+  return x >= b.x - pad && x <= b.x + b.w + pad && y >= b.y - pad && y <= b.y + b.h + pad;
+}
+
+type Layered = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth;
+
+export function installCoach(
+  scene: Phaser.Scene,
+  initial: CoachScene,
+  store: CoachStore,
+  options: CoachOptions = {},
+): CoachHandle {
+  let id = initial;
   let overlay: Phaser.GameObjects.GameObject[] = [];
   let open: 'callout' | 'help' | null = null;
+  let token: object | null = null;
 
   const hide = (): void => {
     for (const object of overlay) object.destroy();
     overlay = [];
     open = null;
-    activeOverlay = null;
+    if (token && activeOverlay?.token === token) activeOverlay = null;
+    token = null;
   };
 
-  const showCallout = (): void => {
+  /** Run a draw routine and adopt every object it adds (panel titles included). */
+  const adopt = (kind: 'callout' | 'help', shown: CoachScene, draw: () => void): void => {
     hide();
-    const { graphics } = drawPanel(scene, spec.calloutX, 22, 320, 22, { title: 'Coach' });
-    const text = pixelText(scene, spec.calloutX + 6, 34, CONTENT[id].callout, { token: 'ink' });
-    graphics.setDepth(950);
-    text.setDepth(951);
-    overlay = [graphics, text];
-    open = 'callout';
-    activeOverlay = { kind: 'callout', id };
+    const before = new Set(scene.children.list);
+    draw();
+    overlay = scene.children.list.filter((o) => !before.has(o));
+    for (const object of overlay) {
+      (object as Layered).setDepth(object.type === 'Graphics' ? 950 : 951);
+      options.registerUi?.(object);
+    }
+    open = kind;
+    token = { kind, shown };
+    activeOverlay = { kind, id: shown, token };
   };
 
-  const showHelp = (): void => {
-    hide();
-    const { graphics } = drawPanel(scene, 40, 46, 400, 64, { title: `Help - ${id}` });
-    const lines = CONTENT[id].help.map((line, i) =>
-      pixelText(scene, 46, 66 + i * 12, line, { token: i === 2 ? 'slate' : 'ink' }),
-    );
-    overlay = [graphics, ...lines];
-    graphics.setDepth(950);
-    for (const line of lines) line.setDepth(951);
-    open = 'help';
-    activeOverlay = { kind: 'help', id };
-  };
+  const showCallout = (shown: CoachScene): void =>
+    adopt('callout', shown, () => {
+      const x = BUTTON[shown].calloutX;
+      drawPanel(scene, x, 22, 320, 22);
+      pixelText(scene, x + 6, 29, CONTENT[shown].callout, { token: 'ink' });
+    });
 
-  const button = createButton(scene, spec.x, spec.y, spec.w, spec.h, '?', () => {
-    if (open === 'help') hide();
-    else showHelp();
-  });
+  const showHelp = (): void =>
+    adopt('help', id, () => {
+      drawPanel(scene, 40, 46, 400, 64, { title: `Help - ${id}` });
+      CONTENT[id].help.forEach((line, i) =>
+        pixelText(scene, 46, 66 + i * 12, line, { token: i === 2 ? 'slate' : 'ink' }),
+      );
+    });
+
+  const toggleHelp = (): void => (open === 'help' ? hide() : showHelp());
+
+  const spec = BUTTON[initial];
+  const button = createButton(scene, spec.x, spec.y, spec.w, spec.h, '?', toggleHelp);
   button.container.setDepth(900);
-  button.container.setData('nyanCoach', id);
+  button.container.setData('nyanCoach', initial);
 
   const onPointer = (pointer: Phaser.Input.Pointer): void => {
     if (!open) return;
@@ -235,13 +269,8 @@ export function installCoach(scene: Phaser.Scene, id: CoachScene, store: CoachSt
     if (!hit.includes(button.container)) hide();
   };
   const onKey = (event: KeyboardEvent): void => {
-    if (!open) return;
-    if (event.key.toLowerCase() === 'h' || event.key === '?') {
-      if (open === 'help') hide();
-      else showHelp();
-      return;
-    }
-    hide();
+    if (event.key.toLowerCase() === 'h' || event.key === '?') return toggleHelp();
+    if (open) hide();
   };
   scene.input.on('pointerdown', onPointer);
   scene.input.keyboard?.on('keydown', onKey);
@@ -251,39 +280,22 @@ export function installCoach(scene: Phaser.Scene, id: CoachScene, store: CoachSt
     hide();
   });
 
-  void store.ready().then(() => {
-    if (store.has(id) || !scene.sys.isActive()) return;
-    store.mark(id);
-    showCallout();
-  });
-}
-
-/**
- * Callout-only hook for modes entered after scene creation (build mode from the shop).
- * It reuses the same "seen once" store and dismisses on the next tap or key.
- */
-export function showCoachOnce(scene: Phaser.Scene, id: CoachScene, store: CoachStore): void {
-  void store.ready().then(() => {
-    if (store.has(id) || !scene.sys.isActive()) return;
-    store.mark(id);
-    const { graphics } = drawPanel(scene, BUTTON[id].calloutX, 22, 320, 22, { title: 'Coach' });
-    const text = pixelText(scene, BUTTON[id].calloutX + 6, 34, CONTENT[id].callout, {
-      token: 'ink',
+  const callout = (shown: CoachScene): void =>
+    void store.ready().then(() => {
+      if (store.has(shown) || !scene.sys.isActive()) return;
+      store.mark(shown);
+      showCallout(shown);
     });
-    graphics.setDepth(950);
-    text.setDepth(951);
-    activeOverlay = { kind: 'callout', id };
-    const dismiss = (): void => {
-      graphics.destroy();
-      text.destroy();
-      activeOverlay = null;
-      scene.input.off('pointerdown', dismiss);
-      scene.input.keyboard?.off('keydown', dismiss);
-    };
-    scene.input.once('pointerdown', dismiss);
-    scene.input.keyboard?.once('keydown', dismiss);
-    scene.events.once('shutdown', dismiss);
-  });
+  callout(initial);
+
+  return {
+    setContext(next) {
+      if (next === id) return;
+      hide();
+      id = next;
+    },
+    callout,
+  };
 }
 
 /** Debug hooks for the coach spec; read-only except for the deliberate reset. */

@@ -1,5 +1,13 @@
 import type Phaser from 'phaser';
-import type { ShopTierId } from '@nyan-noodle/sim';
+import {
+  activeSeats,
+  appealScore,
+  getTier,
+  layoutDemandMultiplier,
+  upgradeInfo,
+  type ShopTierId,
+  type SimState,
+} from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText, type ButtonHandle } from '../theme/hud';
 import type { BuildController, BuildTool } from '../build/BuildController';
@@ -61,4 +69,21 @@ export function buildShopHud(s: ShopHudState): ShopHud {
     originY: 1,
   });
   return { hudText, msgText, toggle, speedButton, buildPanel, touchUi };
+}
+
+/** Build-mode summary shown in the shop HUD panel. */
+export function shopBuildSummary(s: SimState): string {
+  const tier = getTier(s.tierId);
+  const seats = activeSeats(s.tierId, s.items).length;
+  const stoves = s.items.filter((i) => i.kind === 'stove').length;
+  const demand = Math.round(
+    (layoutDemandMultiplier(s.tierId, s.items) / tier.demandMultiplier - 1) * 100,
+  );
+  const up = upgradeInfo(s);
+  const need = up ? `Next: ${up.cost}c ${up.reputation}*` : 'Top tier';
+  return (
+    `${tier.name}  Coins ${s.economy.fishCoins}\n` +
+    `Seats ${seats}/${tier.seats} Stoves ${stoves}/${tier.stoves}\n` +
+    `Appeal ${appealScore(s.items)} (+${demand}%) ${need}`
+  );
 }

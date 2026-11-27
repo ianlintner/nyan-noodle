@@ -94,6 +94,12 @@ test('? opens help on Prep, Kitchen, Shop, Report, Upgrades and Build', async ({
   await page.evaluate(() => (window as unknown as W).__nyanTitle!.newGame());
   await flag(page, 'prepReady');
   await openHelp('prep', 242, 12);
+  // The keyboard shortcut must work with no overlay open (callout already dismissed).
+  await page.keyboard.press('h');
+  await expect.poll(() => snapshot(page)).toMatchObject({ open: 'help', id: 'prep' });
+  await page.waitForTimeout(200); // Phaser drains DOM key events once per frame
+  await page.keyboard.press('h');
+  await expect.poll(() => snapshot(page)).toMatchObject({ open: null });
 
   await page.evaluate(() => (window as unknown as W).__nyanPrep!.openShop());
   await flag(page, 'serviceReady');
@@ -129,6 +135,22 @@ test('? opens help on Prep, Kitchen, Shop, Report, Upgrades and Build', async ({
   await expect
     .poll(() => build.evaluate(() => (window as unknown as W).__nyanCoach!.snapshot()))
     .toMatchObject({ open: 'help', id: 'build' });
+  // Shop/Build use a zoomed world camera plus a HUD camera: overlay objects must be hidden
+  // from the world camera or they are drawn twice (once transformed on top of the map).
+  const doubled = await build.evaluate(() => {
+    const game = (window as unknown as { __nyan: { scene: { getScene(k: string): unknown } } })
+      .__nyan;
+    const scene = game.scene.getScene('ShopScene') as {
+      children: { list: { depth: number; cameraFilter: number }[] };
+      cameras: { main: { id: number } };
+    };
+    const overlay = scene.children.list.filter((o) => o.depth === 950 || o.depth === 951);
+    const drawnByWorld = overlay.filter((o) => (o.cameraFilter & scene.cameras.main.id) === 0);
+    return { overlay: overlay.length, drawnByWorld: drawnByWorld.length };
+  });
+  expect(doubled.overlay).toBeGreaterThan(3);
+  expect(doubled.drawnByWorld).toBe(0);
+  await shot(build, info, 'help-build');
   await build.close();
 
   expect(errors).toEqual([]);

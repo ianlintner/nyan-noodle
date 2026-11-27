@@ -1,15 +1,11 @@
 import Phaser from 'phaser';
 import {
-  activeSeats,
-  appealScore,
   createSimState,
   describeBuildError,
   getTier,
   isTierId,
-  layoutDemandMultiplier,
   planService,
   settleDay,
-  upgradeInfo,
   upgradeTier,
   type BuildError,
   type ServicePlan,
@@ -19,7 +15,7 @@ import {
 import { NATIVE_HEIGHT, NATIVE_WIDTH, TILE_SIZE } from '../config';
 import { PALETTE } from '../theme/palette';
 import type { ButtonHandle } from '../theme/hud';
-import { buildShopHud } from './hudView';
+import { buildShopHud, shopBuildSummary } from './hudView';
 import { BuildController, type BuildTool } from '../build/BuildController';
 import { BTN_STEP, type BuildPanel } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
@@ -33,7 +29,7 @@ import { overBuildTouch, type ShopTouchUi } from './touch';
 import { cellScreenPoint, nativeScreenPoint } from './screen';
 import { WorldView } from './WorldView';
 import { session } from '../meta/session';
-import { installCoach, showCoachOnce } from '../meta/coach';
+import { installCoach, overCoachButton, type CoachHandle } from '../meta/coach';
 import { SCENE_KEYS } from '../meta/ui';
 import { ShopSound, shopSoundSource } from './sound';
 
@@ -81,6 +77,7 @@ export class ShopScene extends Phaser.Scene {
   private buildPanel!: BuildPanel;
   private touchUi!: ShopTouchUi;
   private toggle!: ButtonHandle;
+  private coach!: CoachHandle;
   private beat = 0;
   private hudText!: Phaser.GameObjects.Text;
   private msgText!: Phaser.GameObjects.Text;
@@ -165,7 +162,14 @@ export class ShopScene extends Phaser.Scene {
     this.rig = new CameraRig(this, this.layout.cols * TILE_SIZE, this.layout.rows * TILE_SIZE);
     const hudBefore = new Set(this.children.list);
     this.buildHud();
-    installCoach(this, this.params.mode === 'build' ? 'build' : 'shop', session.coach);
+    this.coach = installCoach(
+      this,
+      this.params.mode === 'build' ? 'build' : 'shop',
+      session.coach,
+      {
+        registerUi: (o) => this.cameras.main.ignore(o),
+      },
+    );
     this.shopAudio.install(this, this.soundSource, {
       registerUi: (o) => this.cameras.main.ignore(o),
     });
@@ -182,7 +186,7 @@ export class ShopScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number): void {
     this.touchUi.setVisible(this.mode === 'build');
     if (this.mode === 'build') {
-      this.hudText.setText(this.buildSummary());
+      this.hudText.setText(shopBuildSummary(this.state));
       const problem = this.build.hoverProblem;
       const text = problem ? describeBuildError(problem as BuildError) : this.message;
       this.msgText.setText(text);
@@ -212,6 +216,7 @@ export class ShopScene extends Phaser.Scene {
     this.buildPanel.setVisible(false);
     this.rig.dragEnabled = true;
     this.mode = 'service';
+    this.coach.setContext('shop');
     this.director?.destroy();
     this.plan = planService(this.state);
     this.beat = 0;
@@ -246,7 +251,8 @@ export class ShopScene extends Phaser.Scene {
     this.build.enable();
     this.toggle.setLabel(this.inSession ? 'Done' : 'Open shop');
     this.speedButton?.container.setVisible(false);
-    if (this.params.mode !== 'build') showCoachOnce(this, 'build', session.coach);
+    this.coach.setContext('build');
+    if (this.params.mode !== 'build') this.coach.callout('build');
     this.say('Pick furniture, click to place', true);
   }
 
@@ -295,23 +301,8 @@ export class ShopScene extends Phaser.Scene {
   private overUi(x: number, y: number): boolean {
     if (this.mode === 'build' && (this.buildPanel.contains(x, y) || overBuildTouch(x, y)))
       return true;
-    return (x < 136 && y < 58) || (x < 72 && y > NATIVE_HEIGHT - 20);
-  }
-
-  private buildSummary(): string {
-    const s = this.state;
-    const tier = getTier(s.tierId);
-    const seats = activeSeats(s.tierId, s.items).length;
-    const stoves = s.items.filter((i) => i.kind === 'stove').length;
-    const demand = Math.round(
-      (layoutDemandMultiplier(s.tierId, s.items) / tier.demandMultiplier - 1) * 100,
-    );
-    const up = upgradeInfo(s);
-    const need = up ? `Next: ${up.cost}c ${up.reputation}*` : 'Top tier';
     return (
-      `${tier.name}  Coins ${s.economy.fishCoins}\n` +
-      `Seats ${seats}/${tier.seats} Stoves ${stoves}/${tier.stoves}\n` +
-      `Appeal ${appealScore(s.items)} (+${demand}%) ${need}`
+      (x < 136 && y < 58) || (x < 72 && y > NATIVE_HEIGHT - 20) || overCoachButton('shop', x, y)
     );
   }
 
