@@ -20,7 +20,7 @@ import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
 import { serviceRail, drawServiceRail, type ServiceTicket } from './tickets';
 import { buildServiceHud } from './hud';
-import { exposeServiceDebugApi } from './debugApi';
+import { exposeServiceDebugApi, type ServiceDebugView } from './debugApi';
 import { serviceLayout, stageBar, type ServiceLayout } from './layout';
 import type { CookStage, ServiceTouchControls } from './touch';
 import {
@@ -367,5 +367,34 @@ export class ServiceScene extends Phaser.Scene {
 
   private exposeDebugApi(): void {
     exposeServiceDebugApi(this, this);
+  }
+
+  /** Native-space text/sprite bounds used by the kitchen-stage art e2e gate. */
+  stageArt(): ReturnType<ServiceDebugView['stageArt']> {
+    const box = (o: Phaser.GameObjects.Text | Phaser.GameObjects.Image) => {
+      const b = o.getBounds();
+      return { x: b.x, y: b.y, width: b.width, height: b.height };
+    };
+    const textBox = (o: Phaser.GameObjects.Text) => ({ ...box(o), text: o.text });
+    const headerText = this.uiObjects.find(
+      (o): o is Phaser.GameObjects.Text =>
+        o instanceof Phaser.GameObjects.Text && o.text === 'Cooking',
+    );
+    const ticketNames: ReturnType<typeof textBox>[] = [];
+    for (const button of this.railButtons) {
+      for (const child of button.list) {
+        if (child.name === 'ticketName' && child instanceof Phaser.GameObjects.Text) {
+          ticketNames.push(textBox(child));
+        }
+      }
+    }
+    return {
+      stage: textBox(this.stageText),
+      status: textBox(this.statusText),
+      pot: box(this.stageVessels.pot),
+      basket: box(this.stageVessels.basket),
+      header: headerText ? textBox(headerText) : null,
+      ticketNames,
+    };
   }
 }

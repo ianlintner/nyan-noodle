@@ -9,20 +9,29 @@ import { bypassCoach } from './coachBypass';
  * the Report and ticked on Prep, then force the top tier to 5 stars and walk through the
  * milestone screen. Screenshots land in docs/playable/ (desktop project only).
  */
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface W {
   __nyan?: { registry: { get(k: string): unknown } };
   __nyanTitle?: { newGame(): void };
-  __nyanPrep?: { openShop(): void };
+  __nyanPrep?: { openShop(): void; refresh(): void };
   __nyanService?: { openDoors(): void };
   __nyanShop?: { setSpeed(n: number): void };
   __nyanReport?: {
     next(): void;
     upgrades(): void;
     report(): { goalsCompleted: { id: string; coins: number }[] };
+    layout(): { panel: Box; lines: (Box & { text: string })[] };
   };
   __nyanGoals?: {
     current(): { def: { id: string }; done: boolean }[];
     completed(): string[];
+    next(): string | null;
     opening(): string;
     forceGrandOpening(): string;
   };
@@ -40,6 +49,13 @@ const flag = (page: Page, key: string, value: unknown = true) =>
   );
 const state = (page: Page): Promise<SimState> =>
   page.evaluate(() => (window as unknown as W).__nyanSession!.state);
+const settleGoals = (page: Page): Promise<void> =>
+  page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
 const shot = async (page: Page, info: TestInfo, name: string, w = 1280, h = 720) => {
   if (info.project.name !== 'chromium') return;
   await page.setViewportSize({ width: w, height: h });
@@ -87,6 +103,16 @@ test('a finished goal is paid on the Report, ticked on Prep and the Grand Openin
   expect(day1.economy).toEqual(expected.economy);
   await shot(page, info, 'report-goal-complete');
 
+  // Every goal line must sit inside the Takings panel, not under its bottom border.
+  const reportLayout = await page.evaluate(() => (window as unknown as W).__nyanReport!.layout());
+  expect(reportLayout.lines.length).toBeGreaterThan(0);
+  for (const line of reportLayout.lines) {
+    expect(
+      line.y + line.height <= reportLayout.panel.y + reportLayout.panel.height,
+      `goal line "${line.text}" ends below the panel`,
+    ).toBe(true);
+  }
+
   // Prep shows the same goals ticked off.
   await page.evaluate(() => (window as unknown as W).__nyanReport!.next());
   await flag(page, 'prepReady');
@@ -99,6 +125,31 @@ test('a finished goal is paid on the Report, ticked on Prep and the Grand Openin
   await shot(page, info, 'prep-goals');
   await shot(page, info, 'prep-goals-390', 390, 844);
   await page.setViewportSize({ width: 1280, height: 720 });
+
+  // All Cart goals are done: the panel must still tell the player what to do next.
+  // Day 1 only pays part of the ladder, so seed the finished tier for this capture.
+  const beforeNext = await state(page);
+  await page.evaluate(() => {
+    const session = (window as unknown as W).__nyanSession!;
+    const s = session.state;
+    session.update({
+      ...s,
+      goals: {
+        ...s.goals,
+        completed: (window as unknown as W).__nyanGoals!.current().map((r) => r.def.id),
+      },
+    });
+    (window as unknown as W).__nyanPrep!.refresh();
+  });
+  await settleGoals(page);
+  const next = await page.evaluate(() => (window as unknown as W).__nyanGoals!.next());
+  expect(next).toContain('Next:');
+  expect(next).toContain('in Build');
+  await shot(page, info, 'prep-next-tier');
+  await page.evaluate((s) => {
+    (window as unknown as W).__nyanSession!.update(s);
+    (window as unknown as W).__nyanPrep!.refresh();
+  }, beforeNext);
 
   // Back on a Report, arm the Grand Opening: Next goes to the milestone, not Prep.
   await page.evaluate(() => (window as unknown as W).__nyanPrep!.openShop());

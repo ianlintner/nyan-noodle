@@ -55,10 +55,11 @@ test('scripted service: one ticket cooked through all three minigames and served
   await shoot('broth');
 
   // Drive the broth hold: keep the needle in band until it auto-advances.
-  for (let n = 0; n < 70; n++) {
-    const heat = n % 2 === 0 ? 0.6 : 0.7;
-    await expr<void>(`a.setBrothHeat(${heat})`);
-  }
+  // Batch the samples in one page turn: 70 round-trips are slow enough under
+  // parallel load that the ticket goes stale before it can be served.
+  await expr<void>(
+    '(() => { for (let n = 0; n < 70; n++) a.setBrothHeat(n % 2 === 0 ? 0.6 : 0.7); })()',
+  );
   expect(await expr('a.stage()')).toBe('noodles');
 
   // Stop the noodle timer in the sweet spot for the ticket's doneness.

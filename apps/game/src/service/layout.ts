@@ -56,3 +56,21 @@ export function serviceLayout(portrait: boolean): ServiceLayout {
 export function stageBar(cooking: Rect): Rect {
   return { x: cooking.x + 6, y: cooking.y + 44, w: cooking.w - 16, h: 14 };
 }
+
+/**
+ * Pot and noodle basket are the stage's focal art: 2x atlas sprites directly
+ * below the gauge, with room for the instruction and status lines.
+ */
+export function stageVessels(cooking: Rect, bar: Rect): { pot: Rect; basket: Rect } {
+  const scale = 2;
+  const top = bar.y + bar.h + 6;
+  return {
+    pot: { x: cooking.x + 26, y: top, w: 16 * scale, h: 24 * scale },
+    basket: {
+      x: cooking.x + cooking.w - 26 - 16 * scale,
+      y: top,
+      w: 16 * scale,
+      h: 16 * scale,
+    },
+  };
+}

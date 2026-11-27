@@ -228,6 +228,8 @@ export class PrepScene extends Phaser.Scene {
         session.update({ ...s, stock: 0, economy: { ...s.economy, fishCoins: 0 } });
         this.render();
       },
+      /** Test hook: redraw after a debug state update so the goal pointer can be captured. */
+      refresh: () => this.render(),
       openShop: () => this.scene.start(SERVICE_SCENE_KEY, { session: true }),
       upgrades: () => this.scene.start(SCENE_KEYS.upgrades),
     };

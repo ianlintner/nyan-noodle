@@ -1,11 +1,27 @@
 import { expect, test, type Page } from '@playwright/test';
 import { bypassCoach } from './coachBypass';
 
+interface NativeBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface Box {
   x: number;
   y: number;
   w: number;
   h: number;
+}
+
+interface StageArt {
+  stage: NativeBox & { text: string };
+  status: NativeBox & { text: string };
+  pot: NativeBox;
+  basket: NativeBox;
+  header: (NativeBox & { text: string }) | null;
+  ticketNames: (NativeBox & { text: string })[];
 }
 
 interface UpgradeLayout {
@@ -25,7 +41,14 @@ interface ArtWindow {
   __nyanTitle?: { newGame(): void };
   __nyanPrep?: { upgrades(): void };
   __nyanUpgrades?: { layout(): UpgradeLayout };
-  __nyanService?: { select(i: number): void };
+  __nyanService?: {
+    select(i: number): void;
+    layout(): { cooking: Box; rail: Box };
+    stageArt(): StageArt;
+  };
+  __nyanWorld?: {
+    exterior(): readonly (NativeBox & { frame: string })[];
+  };
   __nyanSession?: {
     state: Record<string, unknown> & {
       staff: { roster: unknown[] };
@@ -54,6 +77,19 @@ function expectNoOverlap(layout: UpgradeLayout): void {
       ).toBe(false);
     }
   }
+}
+
+function intersectsNative(a: NativeBox, b: NativeBox): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function insidePanel(inner: NativeBox, outer: Box): boolean {
+  return (
+    inner.x >= outer.x - 1 &&
+    inner.y >= outer.y - 1 &&
+    inner.x + inner.width <= outer.x + outer.w + 1 &&
+    inner.y + inner.height <= outer.y + outer.h + 1
+  );
 }
 
 /** Every row label/detail must stay inside the panel it was drawn in. */
@@ -232,6 +268,14 @@ test('shop exterior and kitchen stage render with the new set dressing', async (
   );
   await settle(page);
   await page.screenshot({ path: `${SHOT_DIR}/shop-exterior.png` });
+  const exterior = await page.evaluate(() =>
+    (window as unknown as ArtWindow).__nyanWorld!.exterior(),
+  );
+  expect(exterior.length).toBeGreaterThan(20);
+  const frames = new Set(exterior.map((d) => d.frame));
+  for (const frame of ['tile/floor_stone', 'furniture/noren', 'furniture/lantern']) {
+    expect(frames.has(frame), `shop exterior is missing ${frame}`).toBe(true);
+  }
 
   await page.goto('/?scene=service');
   await page.waitForFunction(
@@ -240,5 +284,31 @@ test('shop exterior and kitchen stage render with the new set dressing', async (
   await page.evaluate(() => (window as unknown as ArtWindow).__nyanService!.select(0));
   await settle(page);
   await page.screenshot({ path: `${SHOT_DIR}/kitchen-stage.png` });
+  const art = await page.evaluate(() => (window as unknown as ArtWindow).__nyanService!.stageArt());
+  const serviceLayout = await page.evaluate(() =>
+    (window as unknown as ArtWindow).__nyanService!.layout(),
+  );
+  for (const [name, box] of [
+    ['stage text', art.stage],
+    ['status text', art.status],
+    ['pot sprite', art.pot],
+    ['basket sprite', art.basket],
+  ] as const) {
+    expect(insidePanel(box, serviceLayout.cooking), `${name} outside the cooking panel`).toBe(true);
+  }
+  expect(art.pot.width).toBeGreaterThanOrEqual(24);
+  expect(art.basket.height).toBeGreaterThanOrEqual(24);
+  expect(art.ticketNames.length).toBeGreaterThan(0);
+  for (const name of art.ticketNames) {
+    expect(insidePanel(name, serviceLayout.rail), `ticket name "${name.text}" outside rail`).toBe(
+      true,
+    );
+    if (art.header) {
+      expect(
+        intersectsNative(art.header, name),
+        `Cooking header covers ticket name "${name.text}"`,
+      ).toBe(false);
+    }
+  }
   expect(errors).toEqual([]);
 });

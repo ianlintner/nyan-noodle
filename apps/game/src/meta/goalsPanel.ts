@@ -1,5 +1,12 @@
 import type Phaser from 'phaser';
-import { currentGoals, evaluateGoals, getTier, openingStats } from '@nyan-noodle/sim';
+import {
+  currentGoals,
+  evaluateGoals,
+  getTier,
+  MAX_REPUTATION,
+  nextTier,
+  openingStats,
+} from '@nyan-noodle/sim';
 import type { GoalDef, GoalStatus, SimState } from '@nyan-noodle/sim';
 import { PANEL_TEXT } from '../theme/palette';
 import { drawPanel, pixelText } from '../theme/hud';
@@ -16,6 +23,31 @@ export function rewardText(coins: number, stars: number): string {
 function progressText(def: GoalDef, value: number): string {
   if (def.kind === 'stars') return `${starsNumber(value)}/${starsNumber(def.target)}`;
   return `${value}/${def.target}`;
+}
+
+/**
+ * The line that keeps a finished tier from becoming a dead end. Pure and Phaser-free
+ * so vitest can cover it; the tier name/price/reputation come from the sim table.
+ */
+export function nextStepText(state: SimState): string | null {
+  const goals = currentGoals(state);
+  const allDone = goals.length > 0 && goals.every((g) => g.done);
+  const upcoming = nextTier(state.tierId);
+  if (allDone && upcoming) {
+    const cost = `${upcoming.unlockCost}c`;
+    const rep =
+      upcoming.unlockReputation > 0 ? ` + ${starsNumber(upcoming.unlockReputation)}*` : '';
+    const ready =
+      state.economy.fishCoins >= upcoming.unlockCost &&
+      state.economy.reputation >= upcoming.unlockReputation;
+    return `Next: upgrade to ${upcoming.name} (${cost}${rep}) in Build${ready ? ' - ready!' : ''}`;
+  }
+  const remaining = Math.round((MAX_REPUTATION - state.economy.reputation) * 100) / 100;
+  if (remaining > 0 && (allDone || upcoming === null)) {
+    return `Next: ${remaining} more stars for the Grand Opening`;
+  }
+  if (allDone) return 'Next: Grand Opening unlocked - enjoy your hall!';
+  return null;
 }
 
 /** Small "Goals" panel: the current tier's three objectives with progress and reward. */
@@ -46,6 +78,8 @@ export function drawGoalsPanel(
     });
     ry += 11;
   }
+  const hint = nextStepText(state);
+  if (hint) pixelText(scene, left, ry, hint, { token: PANEL_TEXT.gold });
 }
 
 interface GoalsApi {
@@ -53,6 +87,8 @@ interface GoalsApi {
   completed: () => readonly string[];
   opening: () => string;
   openingStats: () => unknown;
+  /** The hint shown once the current tier's goals are done. */
+  next: () => string | null;
   /** Test hook: jump to a full-star Grand Hall and arm the Grand Opening. */
   forceGrandOpening: () => string;
 }
@@ -64,6 +100,7 @@ export function exposeGoalsApi(): void {
     completed: () => [...session.state.goals.completed],
     opening: () => session.state.goals.opening,
     openingStats: () => openingStats(session.state),
+    next: () => nextStepText(session.state),
     forceGrandOpening: () => {
       const s = session.state;
       const top: SimState = {

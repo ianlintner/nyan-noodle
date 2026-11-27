@@ -4,6 +4,14 @@ import { color } from '../theme/palette';
 import { ATLAS_KEY } from './CatActor';
 import type { Placed, ShopLayout } from './layout';
 
+export interface ExteriorDressing {
+  readonly frame: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 /**
  * Sprites for a `ShopLayout`: floor, walls and y-sorted furniture. Rebuilt whenever
  * the layout changes (build mode edits, tier upgrade). Holds no rules.
@@ -12,6 +20,7 @@ export class WorldView {
   private objects: Phaser.GameObjects.Image[] = [];
   private byItem = new Map<number, Phaser.GameObjects.Image>();
   private backdrop: Phaser.GameObjects.GameObject[] = [];
+  private exterior: ExteriorDressing[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -22,6 +31,9 @@ export class WorldView {
   render(layout: ShopLayout): void {
     this.clear();
     this.renderBackdrop(layout);
+    (
+      window as unknown as { __nyanWorld: { exterior: () => readonly ExteriorDressing[] } }
+    ).__nyanWorld = { exterior: () => this.exteriorDressing() };
     for (const f of layout.floor) this.place(f, -1000);
     // Walls, furniture and cats all y-sort by the SAME feet line: (ty+1)*TILE_SIZE.
     // Sub-pixel fractions order layers within one row: wall (0) -> floor-level
@@ -42,7 +54,13 @@ export class WorldView {
     for (const b of this.backdrop) b.destroy();
     this.objects = [];
     this.backdrop = [];
+    this.exterior = [];
     this.byItem.clear();
+  }
+
+  /** Non-interactive street dressing placed in the camera margins (e2e layout gate). */
+  exteriorDressing(): readonly ExteriorDressing[] {
+    return this.exterior.map((d) => ({ ...d }));
   }
 
   /**
@@ -80,6 +98,51 @@ export class WorldView {
     g.setDepth(-2000);
     this.register(g);
     this.backdrop.push(g);
+    this.paveStreet(ox, oy, spanW, spanH, bandH, worldW);
+  }
+
+  /**
+   * Street dressing for the dusk margins: stone paving in the lower bands plus
+   * hanging noren/lanterns beside the shop. Purely cosmetic: no itemId, no hit
+   * areas, no sim contact, and never painted above the shop's own floor.
+   */
+  private paveStreet(
+    ox: number,
+    oy: number,
+    spanW: number,
+    spanH: number,
+    bandH: number,
+    worldW: number,
+  ): void {
+    const add = (frame: string, x: number, y: number, scale: number, alpha: number): void => {
+      const image = this.scene.add
+        .image(x, y, ATLAS_KEY, frame)
+        .setOrigin(0, 0)
+        .setScale(scale)
+        .setAlpha(alpha)
+        .setDepth(-1900);
+      this.register(image);
+      this.backdrop.push(image);
+      const src = this.scene.textures.getFrame(ATLAS_KEY, frame);
+      this.exterior.push({
+        frame,
+        x,
+        y,
+        width: src.width * scale,
+        height: src.height * scale,
+      });
+    };
+    const streetTop = oy + 2 * bandH;
+    for (let px = ox; px < ox + spanW; px += TILE_SIZE) {
+      for (let py = streetTop; py < oy + spanH; py += TILE_SIZE) {
+        add('tile/floor_stone', px, py, 1, 0.55);
+      }
+    }
+    for (const x of [-TILE_SIZE * 3, -TILE_SIZE, worldW + TILE_SIZE, worldW + TILE_SIZE * 3]) {
+      add('furniture/noren', x, 4, 1.5, 0.95);
+      add('furniture/lantern', x + 4, 40, 1.5, 0.95);
+      add('furniture/lantern', x + 4, 82, 1.5, 0.95);
+    }
   }
 
   /**
