@@ -1,6 +1,7 @@
 import { createSave, createSimState, exportSaveString, importSaveString } from '@nyan-noodle/sim';
 import type { SaveFile, SimState } from '@nyan-noodle/sim';
 import { type SaveStore, createDefaultStore } from './storage';
+import { AudioSettingsStore } from '../audio/settings';
 
 export interface SaveSummary {
   readonly day: number;
@@ -35,6 +36,34 @@ export class Session {
   lastWarning: string | null = null;
 
   constructor(readonly store: SaveStore = createDefaultStore()) {}
+
+  /** Audio preferences persist beside the save but are independent of save erase/import. */
+  private readonly audioStore = new AudioSettingsStore(
+    async (key) => {
+      for (const backend of this.store.stores) {
+        try {
+          const value = await backend.get(key);
+          if (value !== null) return value;
+        } catch {
+          // Try the next backend.
+        }
+      }
+      return null;
+    },
+    async (key, value) => {
+      for (const backend of this.store.stores) {
+        try {
+          await backend.set(key, value);
+        } catch {
+          // Best effort: a single working backend is enough for preferences.
+        }
+      }
+    },
+  );
+
+  get audioSettings(): AudioSettingsStore {
+    return this.audioStore;
+  }
 
   get state(): SimState {
     if (!this.current) throw new Error('No game in progress');

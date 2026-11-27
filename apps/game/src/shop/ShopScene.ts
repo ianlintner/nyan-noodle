@@ -20,14 +20,17 @@ import { BuildController } from '../build/BuildController';
 import type { BuildTool } from '../build/BuildController';
 import { BuildPanel } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
+import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { CameraRig } from './CameraRig';
 import { ShopDirector } from './director';
 import { buildLayout } from './layout';
 import type { ShopLayout } from './layout';
 import { startSteam } from './steam';
+import { cellScreenPoint } from './screen';
 import { WorldView } from './WorldView';
 import { session } from '../meta/session';
 import { SCENE_KEYS } from '../meta/ui';
+import { ShopSound, shopSoundSource } from './sound';
 
 export const SHOP_SCENE_KEY = 'ShopScene';
 /** Real milliseconds per sim beat at 1x speed. */
@@ -86,7 +89,12 @@ export class ShopScene extends Phaser.Scene {
   private chefQualities: readonly (number | null)[] = [];
   /** Cleanup for the animated stove-steam puffs (cosmetic, no sim effect). */
   private stopSteam: (() => void) | null = null;
-
+  private shopAudio = new ShopSound();
+  private soundSource = shopSoundSource(
+    () => this.director?.events ?? [],
+    () => this.beat,
+    () => this.mode,
+  );
   constructor() {
     super(SHOP_SCENE_KEY);
   }
@@ -108,7 +116,7 @@ export class ShopScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.atlas(ATLAS_KEY, 'assets/nyan-atlas.png', 'assets/nyan-atlas.json');
+    this.load.atlas(ATLAS_KEY, ATLAS_PNG, ATLAS_JSON);
   }
 
   create(): void {
@@ -126,7 +134,6 @@ export class ShopScene extends Phaser.Scene {
         };
     if (this.inSession) this.params = { ...this.params, mode: this.sessionMode };
     createCatAnimations(this);
-
     this.cameras.main.setBackgroundColor(PALETTE.nightBlue);
     this.cameras.main.setRoundPixels(true);
     this.uiCam = this.cameras.add(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
@@ -150,9 +157,11 @@ export class ShopScene extends Phaser.Scene {
     this.stopSteam?.();
     this.stopSteam = startSteam(this, this.layout, this.uiCam);
     this.rig = new CameraRig(this, this.layout.cols * TILE_SIZE, this.layout.rows * TILE_SIZE);
-
     const hudBefore = new Set(this.children.list);
     this.buildHud();
+    this.shopAudio.install(this, this.soundSource, {
+      registerUi: (o) => this.cameras.main.ignore(o),
+    });
     for (const o of this.children.list) if (!hudBefore.has(o)) this.cameras.main.ignore(o);
 
     if (this.params.mode === 'build') this.enterBuild();
@@ -311,8 +320,6 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    // 3 lines of status text at 8px need the content area to be ~34px tall; the panel
-    // header (14px) + borders (8px) + 34px content = 56px, so the last line isn't clipped.
     const { content } = drawPanel(this, 4, 4, 128, 56, { title: 'Nyan Noodle' });
     this.hudText = pixelText(this, content.x + 2, content.y + 1, '');
     this.msgText = pixelText(this, 6, 62, '', { token: 'brothGold' });
@@ -343,19 +350,8 @@ export class ShopScene extends Phaser.Scene {
       originY: 1,
     });
   }
-
   private exposeDebugApi(): void {
-    const screen = (x: number, y: number): { x: number; y: number } => {
-      const cam = this.cameras.main;
-      const rect = this.game.canvas.getBoundingClientRect();
-      const k = rect.width / NATIVE_WIDTH;
-      const wx = (x + 1) * TILE_SIZE + TILE_SIZE / 2;
-      const wy = (y + 1) * TILE_SIZE + TILE_SIZE / 2;
-      return {
-        x: rect.left + (wx - cam.worldView.x) * cam.zoom * k,
-        y: rect.top + (wy - cam.worldView.y) * cam.zoom * k,
-      };
-    };
+    const screen = (x: number, y: number): { x: number; y: number } => cellScreenPoint(this, x, y);
     const api = {
       beat: () => this.beat,
       zoom: () => this.rig.zoom,

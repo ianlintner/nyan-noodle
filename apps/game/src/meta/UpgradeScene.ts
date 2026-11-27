@@ -23,6 +23,7 @@ import {
 import type { ActionResult, RecipeId } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
+import { audio } from '../audio/manager';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { REGULARS_SCENE_KEY } from './RegularsScene';
 import { session } from './session';
@@ -49,6 +50,7 @@ export class UpgradeScene extends Phaser.Scene {
   }
 
   create(): void {
+    audio.setMusicMode('prep');
     backdrop(this);
     this.msg = messageLine(this, NATIVE_HEIGHT - 38);
     this.render();

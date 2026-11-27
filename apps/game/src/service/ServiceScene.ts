@@ -5,19 +5,21 @@ import {
   planService,
   settleBowl,
   type CookMeasurements,
-  type Doneness,
-  type Order,
   type ToppingId,
 } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { PALETTE } from '../theme/palette';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { session } from '../meta/session';
+import { audio } from '../audio/manager';
+import { installPause } from '../audio/pause';
+import { persistAudioSettings } from '../audio/controller';
 import { backdrop } from '../meta/ui';
 import { SHOP_SCENE_KEY } from '../shop/ShopScene';
 import { ATLAS_KEY } from '../shop/CatActor';
+import { ATLAS_JSON, ATLAS_PNG } from '../assets';
 import { emptyBrothHold, requiredToppings, sampleBroth, toMeasurements } from './measure';
-import { seededServiceTickets } from './tickets';
+import { seededServiceTickets, type ServiceTicket } from './tickets';
 import {
   BROTH_HI,
   BROTH_LO,
@@ -28,22 +30,12 @@ import {
   drawTodayPanel,
   drawToppings,
 } from './stageView';
-
 export const SERVICE_SCENE_KEY = 'ServiceScene';
 
 /** The three cooking minigames, run in order for each selected ticket. */
 type Stage = 'broth' | 'noodles' | 'toppings' | 'serve';
 
 const RUSH_THRESHOLD_BEATS = 30;
-
-interface Ticket {
-  readonly order: Order;
-  readonly doneness: Doneness;
-  /** Customer coat for the rail portrait. */
-  readonly coat: string;
-  /** Static patience budget (ticks) shown as a rail indicator. */
-  readonly patience: number;
-}
 
 interface ServiceParams {
   seed: number;
@@ -60,7 +52,7 @@ interface ServiceParams {
 export class ServiceScene extends Phaser.Scene {
   private params: ServiceParams = { seed: 2026, count: 4 };
   private inSession = false;
-  private tickets: Ticket[] = [];
+  private tickets: ServiceTicket[] = [];
   private qualities: (number | null)[] = [];
   private todayLines: string[] = [];
   private activeIdx = -1;
@@ -107,10 +99,11 @@ export class ServiceScene extends Phaser.Scene {
   preload(): void {
     // The ticket rail draws cat portraits and dish icons from the shared atlas; when
     // booting straight into `?scene=service` this scene is first and must load it itself.
-    this.load.atlas(ATLAS_KEY, 'assets/nyan-atlas.png', 'assets/nyan-atlas.json');
+    this.load.atlas(ATLAS_KEY, ATLAS_PNG, ATLAS_JSON);
   }
 
   create(): void {
+    audio.setMusicMode('service');
     const q = new URLSearchParams(window.location.search);
     this.params = {
       seed: Number(q.get('seed') ?? 2026) || 2026,
@@ -123,6 +116,7 @@ export class ServiceScene extends Phaser.Scene {
     ) as unknown as ServiceScene['keys'];
     this.buildTickets();
     this.buildUi();
+    installPause(this, persistAudioSettings);
     this.exposeDebugApi();
     this.registry.set('serviceReady', true);
     this.events.once('shutdown', () => this.registry.set('serviceReady', false));
@@ -282,6 +276,7 @@ export class ServiceScene extends Phaser.Scene {
   addTopping(id: ToppingId): void {
     if (this.stage !== 'toppings') return;
     this.toppingSequence = [...this.toppingSequence, id];
+    audio.play('topping');
     drawToppings(this.stageG, this.required.length, this.toppingSequence.length);
     if (this.toppingSequence.length >= this.required.length) {
       this.stage = 'serve';
@@ -293,6 +288,7 @@ export class ServiceScene extends Phaser.Scene {
     if (this.stage !== 'noodles') return;
     this.noodleStopped = true;
     this.stage = 'toppings';
+    audio.play('boil');
     this.toppingSequence = [];
     drawToppings(this.stageG, this.required.length, 0);
     this.stageText.setText(`Toppings: tap 1..${this.required.length} in order.`);
@@ -300,6 +296,7 @@ export class ServiceScene extends Phaser.Scene {
 
   private advanceBroth(): void {
     this.stage = 'noodles';
+    audio.play('sizzle');
     this.noodleSweep = 0;
     this.noodleStopped = false;
     this.stageText.setText('Noodles: press SPACE when the\nbar hits the thick band.');
@@ -321,6 +318,7 @@ export class ServiceScene extends Phaser.Scene {
     );
     this.qualities[this.activeIdx] = payout.quality;
     if (payout.failed) {
+      audio.play('serveFail');
       this.streak = 0;
       this.statusText
         .setText(`Quality ${payout.quality} — FAILED. Combo reset.`)
@@ -329,6 +327,8 @@ export class ServiceScene extends Phaser.Scene {
       this.streak += 1;
       const gain = ticket.order.price + payout.bonusCoins;
       this.coins += gain;
+      audio.play(payout.quality >= 90 ? 'servePerfect' : 'serveOk');
+      if (payout.bonusCoins > 0) audio.play('coins');
       this.statusText
         .setText(
           `+${gain} (price ${ticket.order.price}, tip ${payout.bonusCoins})\ncombo x${payout.comboMultiplier.toFixed(2)}  total ${this.coins}`,

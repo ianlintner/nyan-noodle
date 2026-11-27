@@ -3,6 +3,7 @@ import { getTier } from '@nyan-noodle/sim';
 import type { ComplaintKind, DayReport } from '@nyan-noodle/sim';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
+import { audio } from '../audio/manager';
 import { session } from './session';
 import { SCENE_KEYS, backdrop, icon, loadAtlas, messageLine, signed, starsNumber } from './ui';
 
@@ -28,6 +29,7 @@ export class ReportScene extends Phaser.Scene {
   }
 
   create(): void {
+    audio.setMusicMode('prep');
     backdrop(this);
     const state = session.state;
     const report = state.lastReport;
