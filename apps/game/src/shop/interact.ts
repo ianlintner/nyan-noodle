@@ -30,6 +30,8 @@ export interface InteractBindings {
   beat(): number;
   /** Replan with the greet ledger; returns the new plan. */
   replan(byCat: ReadonlyMap<number, number>): ServicePlan;
+  /** Customer ids whose visit really earns a tip (coin pops spawn only for these). */
+  eligible: ReadonlySet<number>;
   overUi(x: number, y: number): boolean;
   register(o: Phaser.GameObjects.GameObject): void;
 }
@@ -54,14 +56,23 @@ export class ShopInteraction {
   private readonly pops: Pop[] = [];
   private readonly bars: Phaser.GameObjects.Graphics;
   private seenEvents = 0;
-  private down: { x: number; y: number } | null = null;
+  private down: { id: number; x: number; y: number } | null = null;
+  /** Pointers currently held; a second one means a pinch, never a tap. */
+  private readonly held = new Set<number>();
   private readonly onDown = (p: Phaser.Input.Pointer): void => {
-    this.down = { x: p.x, y: p.y };
+    this.held.add(p.id);
+    this.down = this.held.size === 1 ? { id: p.id, x: p.x, y: p.y } : null;
+  };
+  private readonly onOutside = (p: Phaser.Input.Pointer): void => {
+    this.held.delete(p.id);
+    if (this.down?.id === p.id) this.down = null;
   };
   private readonly onUp = (p: Phaser.Input.Pointer): void => {
+    this.held.delete(p.id);
     const d = this.down;
+    if (!d || d.id !== p.id) return;
     this.down = null;
-    if (!d || Math.hypot(p.x - d.x, p.y - d.y) > TAP_SLOP) return;
+    if (Math.hypot(p.x - d.x, p.y - d.y) > TAP_SLOP) return;
     if (this.b.overUi(p.x, p.y)) return;
     const w = this.b.scene.cameras.main.getWorldPoint(p.x, p.y);
     this.tap(w.x, w.y);
@@ -74,6 +85,7 @@ export class ShopInteraction {
     b.register(this.bars);
     b.scene.input.on('pointerdown', this.onDown);
     b.scene.input.on('pointerup', this.onUp);
+    b.scene.input.on('pointerupoutside', this.onOutside);
   }
 
   get ids(): number[] {
@@ -115,7 +127,7 @@ export class ShopInteraction {
     for (; this.seenEvents < events.length; this.seenEvents++) {
       const e = events[this.seenEvents]!;
       const v = e.type === 'leave' ? this.visitOf(e.customerId) : undefined;
-      if (v && v.outcome === 'served' && v.seatIndex !== null)
+      if (v && v.outcome === 'served' && v.seatIndex !== null && this.b.eligible.has(v.customerId))
         this.spawnPop(v.customerId, v.seatIndex);
     }
     for (let i = this.pops.length - 1; i >= 0; i--) {
@@ -133,6 +145,7 @@ export class ShopInteraction {
   destroy(): void {
     this.b.scene.input.off('pointerdown', this.onDown);
     this.b.scene.input.off('pointerup', this.onUp);
+    this.b.scene.input.off('pointerupoutside', this.onOutside);
     this.bars.destroy();
     for (const p of this.pops) p.sprite.destroy();
     this.pops.length = 0;

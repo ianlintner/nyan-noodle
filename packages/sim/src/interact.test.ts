@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSimState } from './state';
 import { planService } from './service';
-import { settleDay } from './day';
+import { settleDay, tipEligibleVisits } from './day';
 import { CHEF_TICKETS, CHEF_TICKETS_BY_TIER, chefTicketCap } from './chef';
 import {
   GREET_PATIENCE_BEATS,
@@ -43,7 +43,8 @@ describe('greeting', () => {
     expect(spendGreet(ledger, 'cart', 99)).toBeNull();
     expect(greetBudget('grand-hall')).toBeGreaterThan(greetBudget('cart'));
     const one = spendGreet(NO_GREETS, 'grand-hall', 1)!;
-    expect(spendGreet(spendGreet(one, 'grand-hall', 1)!, 'grand-hall', 1)).toBeNull();
+    expect(spendGreet(one, 'grand-hall', 1)).toBeNull();
+    expect(spendGreet(one, 'grand-hall', 2)).not.toBeNull();
   });
 });
 
@@ -64,6 +65,43 @@ describe('collecting tips', () => {
   it('is deterministic and ignores unknown ids', () => {
     const a = settleDay(state, plan, { collected: [...served, 9999] });
     expect(a).toEqual(settleDay(state, plan, { collected: served }));
+  });
+
+  it('streak follows tap order, not arrival order, with base tips unchanged', () => {
+    // Search a few seeds for a day where two tipped visits pay different base tips.
+    for (const tier of ['cart', 'grand-hall'] as const)
+      for (let seed = 1; seed < 40; seed++) {
+        const st = createSimState(seed, tier);
+        const pl = planService(st);
+        const tipped = [...tipEligibleVisits(st, pl)];
+        const none = settleDay(st, pl).report;
+        for (let i = 0; i < tipped.length; i++)
+          for (let k = i + 1; k < tipped.length; k++) {
+            const a = settleDay(st, pl, { collected: [tipped[i]!, tipped[k]!] }).report;
+            const b = settleDay(st, pl, { collected: [tipped[k]!, tipped[i]!] }).report;
+            if (a.tips === b.tips) continue;
+            expect(a.revenue).toBe(none.revenue);
+            expect(a.tips).toBeGreaterThanOrEqual(none.tips);
+            expect(b.tips).toBeGreaterThanOrEqual(none.tips);
+            // Duplicates count once; unknown ids are ignored.
+            const dup = settleDay(st, pl, {
+              collected: [tipped[i]!, tipped[i]!, tipped[k]!, 9999],
+            });
+            expect(dup.report.tips).toBe(a.tips);
+            return;
+          }
+      }
+    throw new Error('no seed distinguished tap order');
+  });
+
+  it('tipEligibleVisits matches visits that actually pay a tip', () => {
+    const eligible = tipEligibleVisits(state, plan);
+    const base = settleDay(state, plan).report.tips;
+    const some = [...eligible][0]!;
+    expect(settleDay(state, plan, { collected: [some] }).report.tips).toBeGreaterThan(base);
+    for (const v of plan.visits)
+      if (!eligible.has(v.customerId))
+        expect(settleDay(state, plan, { collected: [v.customerId] }).report.tips).toBe(base);
   });
 
   it('collect streak multiplier rises and caps', () => {

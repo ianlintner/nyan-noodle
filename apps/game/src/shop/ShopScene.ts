@@ -5,6 +5,7 @@ import {
   getTier,
   isTierId,
   planService,
+  tipEligibleVisits,
   settleDay,
   upgradeTier,
   type BuildError,
@@ -15,7 +16,7 @@ import {
 import { NATIVE_HEIGHT, NATIVE_WIDTH, TILE_SIZE } from '../config';
 import { PALETTE } from '../theme/palette';
 import type { ButtonHandle } from '../theme/hud';
-import { buildShopHud, shopBuildSummary } from './hudView';
+import { buildShopHud, overBottomButtons, shopBuildSummary } from './hudView';
 import { BuildController, type BuildTool } from '../build/BuildController';
 import { BTN_STEP, type BuildPanel } from '../build/BuildPanel';
 import { ATLAS_KEY, CatActor, cellCenterX, cellFeetY, createCatAnimations } from './CatActor';
@@ -233,6 +234,7 @@ export class ShopScene extends Phaser.Scene {
       director: this.director,
       beat: () => this.beat,
       replan: (byCat) => (this.plan = planService(this.state, undefined, byCat)),
+      eligible: tipEligibleVisits(this.state, this.plan, this.chefQualities),
       overUi: (x, y) => this.overUi(x, y),
       register: (o) => this.uiCam.ignore(o),
     });
@@ -321,9 +323,7 @@ export class ShopScene extends Phaser.Scene {
   private overUi(x: number, y: number): boolean {
     if (this.mode === 'build' && (this.buildPanel.contains(x, y) || overBuildTouch(x, y)))
       return true;
-    return (
-      (x < 136 && y < 68) || (x < 72 && y > NATIVE_HEIGHT - 20) || overCoachButton('shop', x, y)
-    );
+    return (x < 136 && y < 68) || overBottomButtons(x, y) || overCoachButton('shop', x, y);
   }
 
   // ---- scene pieces ----------------------------------------------------------

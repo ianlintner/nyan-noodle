@@ -3,7 +3,7 @@ import type { ShopTierId } from './shop';
 /** Extra patience (in beats) a single greet gives a waiting cat. */
 export const GREET_PATIENCE_BEATS = 18;
 /** A cat can be soothed at most this many times, so one VIP cannot wait forever. */
-export const MAX_GREETS_PER_CAT = 2;
+export const MAX_GREETS_PER_CAT = 1;
 /** Share of a bowl's tip added on top when the owner collects its coin pop. */
 export const COLLECT_BONUS = 0.5;
 /** Collect-combo steps beyond the first that still add to the multiplier. */

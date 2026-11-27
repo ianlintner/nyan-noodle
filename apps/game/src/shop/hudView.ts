@@ -39,6 +39,11 @@ export interface ShopHud {
   touchUi: ShopTouchUi;
 }
 
+/** True over the Build/speed button row (x 4..120, plus touch padding), so taps there never hit the shop. */
+export function overBottomButtons(x: number, y: number): boolean {
+  return x < 128 && y > NATIVE_HEIGHT - 23;
+}
+
 /** The shop's fixed HUD, built once per scene create. Behaviour lives in ShopScene. */
 export function buildShopHud(s: ShopHudState): ShopHud {
   const { content } = drawPanel(s.scene, 4, 4, 128, 66, { title: 'Nyan Noodle' });

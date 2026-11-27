@@ -176,6 +176,7 @@ export {
   planDay,
   playerCapacity,
   settleDay,
+  tipEligibleVisits,
   staffCapacity,
 } from './day';
 export type { DayResult, SettleOptions } from './day';

@@ -103,10 +103,22 @@ export interface SettleOptions {
    */
   readonly chefQualities?: readonly (number | null)[];
   /**
-   * Customer ids whose tip pop the owner tapped during service. Each collected pop on a
-   * paid bowl adds a bonus and builds a `collectStreak` combo; omitted = autopilot baseline.
+   * Customer ids whose tip pop the owner tapped during service, IN TAP ORDER. Each collected
+   * pop on a paid bowl adds a bonus and builds a `collectStreak` combo that follows this tap
+   * order (not arrival order); duplicates and unknown ids are ignored. Omitted = autopilot.
    */
   readonly collected?: readonly number[];
+}
+
+/** Customer ids whose visit actually earns a tip (same computation as `settleDay`). */
+export function tipEligibleVisits(
+  state: SimState,
+  plan: ServicePlan,
+  chefQualities: readonly (number | null)[] = [],
+): ReadonlySet<number> {
+  const visitTips = new Map<number, number>();
+  settleInternal(state, plan, { chefQualities }, visitTips);
+  return new Set(visitTips.keys());
 }
 
 export function settleDay(
@@ -114,10 +126,18 @@ export function settleDay(
   plan: ServicePlan,
   options: SettleOptions = {},
 ): DayResult {
+  return settleInternal(state, plan, options, new Map());
+}
+
+/** Shared settlement; `visitTips` receives each tipped visit's base tip (customerId -> tip). */
+function settleInternal(
+  state: SimState,
+  plan: ServicePlan,
+  options: SettleOptions,
+  visitTips: Map<number, number>,
+): DayResult {
   const r = options.rng ?? createRng(settleSeed(state));
   const chef = options.chefQualities ?? [];
-  const collected = new Set(options.collected ?? []);
-  let collectStreak = 0;
   const menu = effectiveMenu(state);
   const complaintKinds: Record<ComplaintKind, number> = {
     queue: 0,
@@ -210,14 +230,20 @@ export function settleDay(
       nextRegularId += 1;
     }
     const visitTip = tips - tipsBefore;
-    if (visitTip > 0 && collected.has(visit.customerId)) {
-      collectStreak += 1;
-      tips += collectBonus(visitTip, collectStreak);
-    } else if (visitTip > 0) {
-      collectStreak = 0;
-    }
+    if (visitTip > 0) visitTips.set(visit.customerId, visitTip);
     const adjust = state.priceAdjust[id];
     if (adjust > 0 && r.next() < adjust * PRICEY_COMPLAINT_CHANCE) complaintKinds.pricey += 1;
+  }
+
+  // Collect bonuses follow the owner's tap order; the seeded base tips above are untouched.
+  const counted = new Set<number>();
+  let collectStreak = 0;
+  for (const id of options.collected ?? []) {
+    const base = visitTips.get(id);
+    if (base === undefined || counted.has(id)) continue;
+    counted.add(id);
+    collectStreak += 1;
+    tips += collectBonus(base, collectStreak);
   }
 
   const complaints = Object.values(complaintKinds).reduce((a, b) => a + b, 0);
