@@ -20,6 +20,7 @@ import { NATIVE_HEIGHT, NATIVE_WIDTH } from '../config';
 import { createButton, drawPanel, pixelText } from '../theme/hud';
 import { audio } from '../audio/manager';
 import { SERVICE_SCENE_KEY } from '../service/ServiceScene';
+import { drawGoalsPanel, exposeGoalsApi } from './goalsPanel';
 import { session } from './session';
 import { SCENE_KEYS, backdrop, loadAtlas, messageLine, starsNumber } from './ui';
 import { ATLAS_KEY } from '../shop/CatActor';
@@ -48,6 +49,7 @@ export class PrepScene extends Phaser.Scene {
     this.msg = messageLine(this, NATIVE_HEIGHT - 38);
     this.render();
     this.exposeDebugApi();
+    exposeGoalsApi();
     this.registry.set('prepReady', true);
     this.events.once('shutdown', () => this.registry.set('prepReady', false));
   }
@@ -118,6 +120,9 @@ export class PrepScene extends Phaser.Scene {
     );
     sy += 11;
     pixelText(this, cx, sy, `Seats: ${tier.seats} max`, { token: 'slate' });
+
+    // ---- goals -----------------------------------------------------------------
+    drawGoalsPanel(this, 6, 158, NATIVE_WIDTH - 12, 68, s);
 
     // ---- footer ----------------------------------------------------------------
     createButton(this, 6, NATIVE_HEIGHT - 26, 90, 18, 'Upgrades', () =>

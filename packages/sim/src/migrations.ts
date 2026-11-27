@@ -5,6 +5,7 @@ import { SIM_VERSION, STARTING_STOCK, zeroByRecipe, zeroEquipment } from './stat
 import type { ShopTierId } from './shop';
 import type { SimState } from './state';
 import { MAX_AFFECTION } from './regulars';
+import { MAX_REPUTATION } from './economy';
 
 /** A loosely-typed state at some older version. */
 type Raw = Record<string, unknown>;
@@ -54,6 +55,19 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   },
   // v3 -> v4: persistent regular customers.
   3: (raw) => ({ ...raw, version: 4, regulars: [] }),
+  // v4 -> v5: goal ladder + Grand Opening milestone. A shop already at full stars in the top
+  // tier has effectively had its opening, so it does not get a surprise celebration on load.
+  4: (raw) => {
+    const report = raw.lastReport as Raw | null | undefined;
+    const economy = raw.economy as Raw | undefined;
+    const atTop = raw.tierId === 'grand-hall' && Number(economy?.reputation ?? 0) >= MAX_REPUTATION;
+    return {
+      ...raw,
+      version: 5,
+      goals: { completed: [], opening: atTop ? 'seen' : 'locked', bowlsServed: 0 },
+      lastReport: report ? { perfectBowls: 0, goalsCompleted: [], ...report } : null,
+    };
+  },
 };
 
 export class MigrationError extends Error {}
@@ -143,5 +157,14 @@ export function validateState(raw: Raw): SimState {
       `regulars[${i}]`,
     );
   });
+  const goals = raw.goals;
+  need(
+    isRecord(goals) &&
+      Array.isArray(goals.completed) &&
+      goals.completed.every((id) => typeof id === 'string') &&
+      (goals.opening === 'locked' || goals.opening === 'pending' || goals.opening === 'seen') &&
+      typeof goals.bowlsServed === 'number',
+    'goals',
+  );
   return raw as unknown as SimState;
 }

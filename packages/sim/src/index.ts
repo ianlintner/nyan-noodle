@@ -179,6 +179,31 @@ export type { DayResult, SettleOptions } from './day';
 
 export { STOVE_COST, TIER_PRICE_PREMIUM, TIER_UNLOCK } from './balance';
 
+export {
+  GOALS,
+  PERFECT_QUALITY,
+  acknowledgeOpening,
+  atGrandOpening,
+  createGoals,
+  currentGoals,
+  equipmentLevels,
+  evaluateGoals,
+  goalValue,
+  goalsForTier,
+  openingPending,
+  openingStats,
+} from './goals';
+export type {
+  DayStats,
+  GoalCompletion,
+  GoalDef,
+  GoalKind,
+  GoalStatus,
+  GoalsState,
+  OpeningStats,
+  OpeningStatus,
+} from './goals';
+
 export { CHEF_TICKETS, DONENESS_OPTIONS, chefTickets } from './chef';
 export type { ChefTicket, Doneness } from './chef';
 

@@ -144,14 +144,16 @@ describe('settleDay', () => {
     expect(a.report.customersServed + a.report.customersLost).toBe(planService(s).visits.length);
   });
 
-  it('accounts for coins: revenue + tips - wages - stock bought', () => {
+  it('accounts for coins: revenue + tips - wages - stock bought + goal rewards', () => {
     const base = createSimState(5, 'cart');
     const bought = buyStock(base, 10);
     if (!bought.ok) throw new Error('stock');
     const { state, report } = settleDay(bought.state, planService(bought.state));
     expect(report.costs).toBe(10 * STOCK_BOWL_COST);
+    // Goal rewards are paid on top of the day's profit and are listed on the report.
+    const goalCoins = report.goalsCompleted.reduce((sum, g) => sum + g.coins, 0);
     expect(state.economy.fishCoins).toBe(
-      bought.state.economy.fishCoins + report.profit + 10 * STOCK_BOWL_COST,
+      bought.state.economy.fishCoins + report.profit + 10 * STOCK_BOWL_COST + goalCoins,
     );
     expect(report.profit).toBe(report.revenue + report.tips - report.costs);
     expect(state.stock).toBe(report.stockLeft);

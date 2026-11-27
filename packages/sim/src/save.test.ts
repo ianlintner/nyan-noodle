@@ -132,6 +132,40 @@ describe('migrations', () => {
     expect(parseSave(serializeSave(createSave(migrated, 'x'))).state).toEqual(migrated);
   });
 
+  it('upgrades a v4 save, adding an empty goal ladder and report fields', () => {
+    const v5 = autopilotRun(createSimState(4, 'cart'), 3).at(-1)! as unknown as Record<
+      string,
+      unknown
+    >;
+    const v4: Record<string, unknown> = { ...v5, version: 4 };
+    delete v4.goals;
+    const oldReport = { ...(v5.lastReport as Record<string, unknown>) };
+    delete oldReport.perfectBowls;
+    delete oldReport.goalsCompleted;
+    v4.lastReport = oldReport;
+    const migrated = migrateState(v4);
+    expect(migrated.version).toBe(SIM_VERSION);
+    expect(migrated.goals).toEqual({ completed: [], opening: 'locked', bowlsServed: 0 });
+    expect(migrated.lastReport).toMatchObject({ perfectBowls: 0, goalsCompleted: [] });
+    expect(migrated.lastReport?.revenue).toBe((v5.lastReport as { revenue: number }).revenue);
+    expect(parseSave(serializeSave(createSave(migrated, 'x'))).state).toEqual(migrated);
+  });
+
+  it('does not stage a surprise Grand Opening for a v4 shop already at the top', () => {
+    const v4 = {
+      ...(createSimState(4, 'grand-hall') as unknown as Record<string, unknown>),
+      version: 4,
+      economy: { fishCoins: 100, lifetimeEarned: 100, reputation: 5 },
+    } as Record<string, unknown>;
+    delete v4.goals;
+    expect(migrateState(v4).goals.opening).toBe('seen');
+  });
+
+  it('rejects a save whose goals block is malformed', () => {
+    const bad = { ...createSimState(4, 'cart'), goals: { completed: 'x', opening: 'locked' } };
+    expect(() => migrateState(bad)).toThrow(/invalid save: goals/);
+  });
+
   it('parses an old-version save inside a current envelope', () => {
     const file = { format: SAVE_FORMAT, saveVersion: 1, savedAt: 'x', state: legacyV1() };
     expect(parseSave(JSON.stringify(file)).state.version).toBe(SIM_VERSION);
