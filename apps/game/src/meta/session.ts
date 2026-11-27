@@ -2,7 +2,7 @@ import { createSave, createSimState, exportSaveString, importSaveString } from '
 import type { SaveFile, SimState } from '@nyan-noodle/sim';
 import { type SaveStore, createDefaultStore } from './storage';
 import { AudioSettingsStore } from '../audio/settings';
-import { CoachStore } from './coach';
+import { CoachStore, mergeSeenHints } from './coach';
 
 export interface SaveSummary {
   readonly day: number;
@@ -69,15 +69,15 @@ export class Session {
   /** Same backend as audio settings, but keyed separately so save erases do not reset tips. */
   private readonly coachStore = new CoachStore(
     async (key) => {
+      const copies: (string | null)[] = [];
       for (const backend of this.store.stores) {
         try {
-          const value = await backend.get(key);
-          if (value !== null) return value;
+          copies.push(await backend.get(key));
         } catch {
-          // Try the next backend.
+          copies.push(null); // An unavailable backend just means "try the next".
         }
       }
-      return null;
+      return mergeSeenHints(copies);
     },
     async (key, value) => {
       for (const backend of this.store.stores) {

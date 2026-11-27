@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { COACH_KEY, CoachStore, EMPTY_HINTS, parseSeenHints, serializeSeenHints } from './coach';
+import {
+  COACH_KEY,
+  CoachStore,
+  EMPTY_HINTS,
+  mergeSeenHints,
+  overCoachButton,
+  parseSeenHints,
+  serializeSeenHints,
+} from './coach';
 
 function store(): { coach: CoachStore; read: () => string | null } {
   let text: string | null = null;
@@ -59,6 +67,27 @@ describe('coach hints', () => {
     await a.coach.reset();
     expect(a.read()).toBeNull();
     expect(a.coach.seen()).toEqual([]);
+  });
+
+  it('merges seen flags so a stale backend cannot repeat a persisted hint', () => {
+    const stale = serializeSeenHints({ ...EMPTY_HINTS });
+    const fallback = serializeSeenHints({ ...EMPTY_HINTS, kitchen: true, prep: true });
+    expect(parseSeenHints(mergeSeenHints([stale, fallback]))).toEqual({
+      ...EMPTY_HINTS,
+      prep: true,
+      kitchen: true,
+    });
+    expect(parseSeenHints(mergeSeenHints(['{', null]))).toEqual(EMPTY_HINTS);
+    expect(mergeSeenHints([null, null])).toBeNull();
+  });
+
+  it('covers the full 5px touch margin of the help button', () => {
+    // createButton expands touch hit areas by up to 5px; (231.5, 12) must not reach Build.
+    expect(overCoachButton('shop', 231.5, 12)).toBe(true);
+    expect(overCoachButton('build', 236, 6)).toBe(true);
+    expect(overCoachButton('shop', 253, 18)).toBe(true);
+    expect(overCoachButton('shop', 231, 12)).toBe(true);
+    expect(overCoachButton('shop', 260, 12)).toBe(false);
   });
 
   it('uses a key outside the save slot', () => {

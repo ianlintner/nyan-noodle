@@ -54,6 +54,23 @@ export function serializeSeenHints(hints: SeenHints): string {
 }
 
 /**
+ * Combine every readable backend copy before deciding what the player has seen. Hints are
+ * monotonic (once seen, always seen), so an older copy can only withhold flags; OR them all
+ * rather than trusting the first backend, whose write may have failed while a fallback worked.
+ */
+export function mergeSeenHints(values: readonly (string | null)[]): string | null {
+  const merged = { ...EMPTY_HINTS };
+  let readable = false;
+  for (const value of values) {
+    if (value === null) continue;
+    readable = true;
+    const hints = parseSeenHints(value);
+    for (const id of COACH_SCENES) if (hints[id]) merged[id] = true;
+  }
+  return readable ? serializeSeenHints(merged) : null;
+}
+
+/**
  * Tracks which first-run callouts have been shown. Reads once at boot; a failed backend
  * never blocks play, and every write is best-effort across the same stores as audio settings.
  */
@@ -200,7 +217,9 @@ export interface CoachHandle {
 }
 
 /** Padded hit rectangle of a scene's "?" so build input can ignore taps on it. */
-export function overCoachButton(id: CoachScene, x: number, y: number, pad = 4): boolean {
+export function overCoachButton(id: CoachScene, x: number, y: number, pad = 5): boolean {
+  // createButton() expands touch hit areas by up to 5px via theme/hitArea.ts; the guard must
+  // cover the whole expanded rectangle or a "?" tap can also edit furniture in Build mode.
   const b = BUTTON[id];
   return x >= b.x - pad && x <= b.x + b.w + pad && y >= b.y - pad && y <= b.y + b.h + pad;
 }
